@@ -622,3 +622,329 @@ Add line:
          | management|
          +-----------+
 ```
+
+---
+
+## 16. Cashfree Payment Gateway - Setup and Integration
+
+Cashfree is used in this project to generate online payment links for maintenance bills. Owners receive a payment link (via WhatsApp or SMS) and can pay directly using UPI, cards, or net banking.
+
+### 16.1 Create Cashfree Account
+
+1. Go to [https://merchant.cashfree.com/merchants/signup](https://merchant.cashfree.com/merchants/signup)
+2. Sign up with your email and phone number
+3. Complete KYC verification:
+   - Business PAN card
+   - GST certificate (if applicable)
+   - Bank account details (for settlement)
+   - Address proof
+4. Wait for approval (usually 1-2 business days)
+
+### 16.2 Get API Credentials
+
+#### Sandbox (Testing)
+
+1. Log into [Cashfree Dashboard](https://merchant.cashfree.com)
+2. Go to **Developers > API Keys**
+3. Switch to **Sandbox** mode (toggle at top)
+4. Copy:
+   - **App ID** (e.g., `TEST1234567890abc`)
+   - **Secret Key** (e.g., `cfsk_ma_test_xxxxxxxxxxxx`)
+
+#### Production (Live)
+
+1. Same dashboard, switch to **Production** mode
+2. Generate production API keys after KYC approval
+3. Copy:
+   - **App ID**
+   - **Secret Key**
+
+### 16.3 Configure Webhook
+
+1. In Cashfree Dashboard, go to **Developers > Webhooks**
+2. Add a new webhook:
+   - **URL:** `https://YOUR_DOMAIN/api/maintenance/payments/webhook`
+   - **Events:** Select `ORDER_PAID`, `PAYMENT_SUCCESS`, `PAYMENT_FAILED`
+   - **Version:** 2023-08-01
+3. Note down the webhook secret for verification (optional)
+
+### 16.4 Application Configuration
+
+Update the `application-prod.yml` on your EC2 instance:
+
+```yaml
+app:
+  cashfree:
+    app-id: YOUR_PRODUCTION_APP_ID
+    secret-key: YOUR_PRODUCTION_SECRET_KEY
+    api-version: 2023-08-01
+    environment: production
+    return-url: https://YOUR_DOMAIN/maintenance/payment-status
+    notify-url: https://YOUR_DOMAIN/api/maintenance/payments/webhook
+```
+
+Restart the backend after updating:
+
+```bash
+sudo systemctl restart society-backend
+```
+
+### 16.5 How It Works in the Application
+
+```
+Owner views bill → Clicks "Pay Online" → Backend calls Cashfree API
+                                             ↓
+                                    Payment link generated
+                                             ↓
+                              Owner redirected to Cashfree checkout
+                                             ↓
+                                    Owner completes payment
+                                             ↓
+                              Cashfree sends webhook to backend
+                                             ↓
+                              Backend updates bill status to PAID
+```
+
+**API Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/maintenance/bills/{billId}/payment-link` | POST | Generate payment link for a bill |
+| `/api/maintenance/payments/webhook` | POST | Receives Cashfree payment notifications |
+| `/api/maintenance/payments/status/{orderId}` | GET | Check payment status |
+| `/api/maintenance/bills/{billId}/whatsapp-link` | GET | Generate WhatsApp share link with payment URL |
+
+### 16.6 Testing with Sandbox
+
+Use these test credentials in sandbox mode:
+
+| Payment Method | Test Details |
+|---------------|--------------|
+| UPI | Use any VPA like `testsuccess@gocash` |
+| Card (Success) | Card: `4111111111111111`, Expiry: any future date, CVV: `123` |
+| Card (Failure) | Card: `4111111111111112` |
+| Net Banking | Select any bank, click "Success" on test page |
+
+### 16.7 Settlement
+
+- Cashfree settles payments to your bank account
+- Default settlement cycle: T+1 (next business day)
+- Check settlements in: **Dashboard > Settlements**
+- Cashfree charges: ~2% per transaction (varies by plan)
+
+---
+
+## 17. WhatsApp Business - Setup and Integration
+
+This project uses WhatsApp to share maintenance bill payment links with unit owners. It uses the `wa.me` deep link approach (click-to-chat) which works without the paid WhatsApp Business API.
+
+### 17.1 Option A: WhatsApp Click-to-Chat Links (Current Implementation - Free)
+
+The current implementation uses WhatsApp's `wa.me` deep links which require NO API setup. When a society admin clicks "Share via WhatsApp" on a bill, it opens WhatsApp with a pre-filled message containing the payment link.
+
+**How it works:**
+- Backend generates a URL: `https://wa.me/91XXXXXXXXXX?text=<encoded_message>`
+- Frontend opens this URL which launches WhatsApp (web or mobile)
+- Message is pre-filled with bill details and payment link
+- Admin manually sends it to the owner
+
+**No setup required** — this works out of the box once Cashfree payment links are configured.
+
+### 17.2 Option B: WhatsApp Business API (For Automated Messages)
+
+If you want to send automated WhatsApp messages (no manual intervention), you need the WhatsApp Business API via Meta's Cloud API or a BSP (Business Solution Provider).
+
+#### Step 1: Create Meta Business Account
+
+1. Go to [Meta Business Suite](https://business.facebook.com/)
+2. Create a new business account or use existing
+3. Complete business verification (may take 1-7 days)
+
+#### Step 2: Set Up WhatsApp Business Platform
+
+1. Go to [Meta for Developers](https://developers.facebook.com/)
+2. Click **My Apps > Create App**
+3. Select **Business** type
+4. Add the **WhatsApp** product to your app
+5. Get a **Test Phone Number** (Meta provides one free for testing)
+
+#### Step 3: Get API Credentials
+
+1. In the WhatsApp section of your app, go to **API Setup**
+2. Note down:
+   - **Phone Number ID**: identifies your WhatsApp business number
+   - **WhatsApp Business Account ID**
+   - **Temporary Access Token** (for testing)
+3. For production, generate a **Permanent Access Token**:
+   - Go to **Business Settings > System Users**
+   - Create a system user with `whatsapp_business_messaging` permission
+   - Generate a token for that system user
+
+#### Step 4: Register a Phone Number
+
+1. Get a dedicated phone number for your society (not used in personal WhatsApp)
+2. In Meta Developer Dashboard > WhatsApp > **Phone Numbers** > Add
+3. Verify via SMS or voice call
+4. This number will be the "sender" for all automated messages
+
+#### Step 5: Create Message Templates
+
+WhatsApp requires pre-approved templates for business-initiated messages.
+
+1. Go to **WhatsApp Manager > Message Templates**
+2. Create a template:
+
+   **Template Name:** `maintenance_bill_reminder`
+   **Category:** Utility
+   **Language:** English
+
+   **Body:**
+   ```
+   Dear {{1}}, your maintenance bill for {{2}} of Rs.{{3}} is due.
+   
+   Pay online: {{4}}
+   
+   - Society Management
+   ```
+
+   - `{{1}}` = Owner name
+   - `{{2}}` = Month Year (e.g., "August 2026")
+   - `{{3}}` = Amount
+   - `{{4}}` = Payment link
+
+3. Submit for approval (usually approved within minutes for Utility category)
+
+#### Step 6: Application Integration
+
+Add WhatsApp API configuration to `application-prod.yml`:
+
+```yaml
+app:
+  whatsapp:
+    enabled: true
+    api-url: https://graph.facebook.com/v18.0
+    phone-number-id: YOUR_PHONE_NUMBER_ID
+    access-token: YOUR_PERMANENT_ACCESS_TOKEN
+    template-name: maintenance_bill_reminder
+    template-language: en
+```
+
+Example service code to send template message:
+
+```java
+@Service
+public class WhatsAppService {
+
+    @Value("${app.whatsapp.api-url}")
+    private String apiUrl;
+
+    @Value("${app.whatsapp.phone-number-id}")
+    private String phoneNumberId;
+
+    @Value("${app.whatsapp.access-token}")
+    private String accessToken;
+
+    @Value("${app.whatsapp.template-name}")
+    private String templateName;
+
+    public void sendBillReminder(String ownerPhone, String ownerName, 
+                                  String monthYear, String amount, String paymentLink) {
+        RestTemplate restTemplate = new RestTemplate();
+        String url = apiUrl + "/" + phoneNumberId + "/messages";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(accessToken);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = Map.of(
+            "messaging_product", "whatsapp",
+            "to", "91" + ownerPhone,
+            "type", "template",
+            "template", Map.of(
+                "name", templateName,
+                "language", Map.of("code", "en"),
+                "components", List.of(
+                    Map.of("type", "body", "parameters", List.of(
+                        Map.of("type", "text", "text", ownerName),
+                        Map.of("type", "text", "text", monthYear),
+                        Map.of("type", "text", "text", amount),
+                        Map.of("type", "text", "text", paymentLink)
+                    ))
+                )
+            )
+        );
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        restTemplate.postForEntity(url, entity, Map.class);
+    }
+}
+```
+
+#### Step 7: Set Up Webhook (Optional - for receiving replies)
+
+1. In Meta Developer Dashboard > WhatsApp > **Configuration**
+2. Set Webhook URL: `https://YOUR_DOMAIN/api/whatsapp/webhook`
+3. Set Verify Token: a random string you choose
+4. Subscribe to: `messages`, `message_deliveries`
+
+### 17.3 WhatsApp Business API Pricing
+
+| Message Type | Cost (India) |
+|-------------|--------------|
+| Utility (bills, reminders) | ~Rs 0.30 per message |
+| Marketing (promotions) | ~Rs 0.75 per message |
+| Service (reply within 24h) | Free (first 1000/month) |
+
+> Note: Meta gives 1000 free service conversations per month. Utility/marketing messages are charged per conversation (24-hour window).
+
+### 17.4 Alternative BSPs (Business Solution Providers)
+
+If Meta's direct API seems complex, you can use a BSP which provides easier APIs:
+
+| Provider | Website | Notes |
+|----------|---------|-------|
+| Twilio | twilio.com | Well-documented, per-message pricing |
+| Gupshup | gupshup.io | Indian company, good support |
+| Interakt | interakt.shop | Built for Indian businesses |
+| Wati | wati.io | Easy dashboard, template management |
+| MSG91 | msg91.com | Also provides SMS, email |
+
+These BSPs provide their own REST APIs that are simpler than Meta's direct API. Example with Gupshup:
+
+```yaml
+app:
+  whatsapp:
+    provider: gupshup
+    api-url: https://api.gupshup.io/wa/api/v1/msg
+    api-key: YOUR_GUPSHUP_API_KEY
+    source-number: YOUR_WHATSAPP_NUMBER
+```
+
+### 17.5 Testing WhatsApp Integration
+
+1. **Option A (wa.me links):** Click "Share via WhatsApp" on any bill in the UI. Verify WhatsApp opens with correct message.
+2. **Option B (Business API):** Use Meta's test phone number in sandbox mode to send messages to your personal WhatsApp.
+
+---
+
+## 18. Complete Production Checklist
+
+Before going live, ensure all of the following are configured:
+
+| Item | Status | Notes |
+|------|--------|-------|
+| EC2 instance running | [ ] | Ubuntu 22.04, t2.medium |
+| MySQL installed and secured | [ ] | Strong passwords, no remote root |
+| Backend deployed and running | [ ] | systemd service active |
+| Frontend built and served | [ ] | Nginx serving Angular build |
+| Nginx configured | [ ] | Reverse proxy + SPA routing |
+| SSL/HTTPS enabled | [ ] | Let's Encrypt certificate |
+| UFW firewall active | [ ] | Only 22, 80, 443 open |
+| Cashfree production keys set | [ ] | KYC approved, keys in config |
+| Cashfree webhook configured | [ ] | Points to your domain |
+| WhatsApp integration working | [ ] | wa.me links or Business API |
+| JWT secret changed | [ ] | Use a strong random string |
+| Database backups scheduled | [ ] | Cron job running daily |
+| Elastic IP associated | [ ] | Static IP for the instance |
+| Domain DNS configured | [ ] | A record pointing to Elastic IP |
+| Monitoring set up | [ ] | CloudWatch or htop checks |
