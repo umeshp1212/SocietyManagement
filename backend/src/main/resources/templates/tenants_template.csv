@@ -1,0 +1,4 @@
+unit_number,tenant_name,contact_number,email,aadhar_number,pan_number,permanent_address,rent_start_date,rent_end_date,monthly_rent_amount,security_deposit,family_member_1_name,family_member_1_age,family_member_1_relation,vehicle_1_type,vehicle_1_number
+A-101,Ramesh Singh,9898989898,ramesh@email.com,,,Nagpur Maharashtra,2026-01-01,2027-01-01,15000,50000,Sunita Singh,35,Spouse,Four Wheeler,MH 12 AB 1234
+A-104,Priya Verma,9797979797,priya.v@email.com,,,Delhi,2026-06-01,2027-06-01,12000,40000,,,,,Two Wheeler,MH 14 CD 5678
+S-02,Kiran Stores,9696969696,kiran@email.com,,,Pune Maharashtra,2026-04-01,2027-03-31,25000,100000,,,,,,

@@ -1,0 +1,6 @@
+unit_number,full_name,contact_number,alternate_number,email,aadhar_number,pan_number,permanent_address,occupation,emergency_contact_name,emergency_contact_phone,is_primary,ownership_percentage
+A-101,Rajesh Kumar,9876543210,,rajesh@email.com,,,Pune Maharashtra,Business,Sita Kumar,9876543211,true,100
+A-102,Suresh Mehta,9876543212,9876543213,suresh@email.com,,,Mumbai Maharashtra,Service,Priya Mehta,9876543214,true,50
+A-102,Priya Mehta,9876543214,,priya@email.com,,,Mumbai Maharashtra,,,,false,50
+A-103,Amit Patel,9876543215,,amit@email.com,,,Pune Maharashtra,Doctor,,,true,100
+S-01,Sharma Traders,9876543216,,sharma@email.com,,,Pune Maharashtra,Business,,,true,100

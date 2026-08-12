@@ -1,0 +1,18 @@
+package com.society.enums;
+
+public enum VendorCategory {
+    SECURITY,
+    HOUSEKEEPING,
+    GARDENING,
+    LIFT_MAINTENANCE,
+    PLUMBING,
+    ELECTRICAL,
+    PEST_CONTROL,
+    FIRE_SAFETY,
+    CCTV_INTERCOM,
+    WATER_TANK_CLEANING,
+    PAINTING_CIVIL,
+    LEGAL_AUDIT,
+    SOFTWARE_IT,
+    OTHER
+}
