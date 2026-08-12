@@ -1,0 +1,304 @@
+unit_number,full_name,contact_number,alternate_number,email,aadhar_number,pan_number,permanent_address,occupation,emergency_contact_name,emergency_contact_phone,is_primary,ownership_percentage
+C-101,VISHAL MESTRY,,,,,,,,,,true,100
+C-102,ARVIND K.RAI,,,,,,,,,,true,50
+C-102,BINDU A.RAI,,,,,,,,,,false,50
+C-103,KAJAL SINGH,,,,,,,,,,true,50
+C-103,AJAY KUMAR PATEL,,,,,,,,,,false,50
+C-104,ANANT G.UPADHYAY,,,,,,,,,,true,50
+C-104,SAROJ G.UPADHYAY,,,,,,,,,,false,50
+C-105,SHEETLA P. VERMA,,,,,,,,,,true,50
+C-105,JAYSHREE S.VERMA,,,,,,,,,,false,50
+C-106,RAM A.PRAJAPATI,,,,,,,,,,true,50
+C-106,SANDEEP,,,,,,,,,,false,50
+C-201,INDERNATH R. MISHRA,,,,,,,,,,true,100
+C-202,INDERNATH R. MISHRA,,,,,,,,,,true,100
+C-203,INDERNATH R. MISHRA,,,,,,,,,,true,100
+C-204,KUNAL S.SANE,,,,,,,,,,true,100
+C-205,SHASHIKANT Y.JAISWAL,,,,,,,,,,true,50
+C-205,LAXMI S.JAISWAL,,,,,,,,,,false,50
+C-206,MANAN MAHESH CHANDAWALLA,,,,,,,,,,true,50
+C-206,ANERI MANAN CHANDAWALLA,,,,,,,,,,false,50
+C-301,KEWAL DHIREN SHAH,,,,,,,,,,true,100
+C-302,REKHA SAGWEKAR,,,,,,,,,,true,50
+C-302,AMIT SAGWEKAR,,,,,,,,,,false,50
+C-303,GAJENDRA CHAUHAN,,,,,,,,,,true,50
+C-303,DEEPANJALI RATHORE,,,,,,,,,,false,50
+C-304,KEWALDHARI M. SAROJ,,,,,,,,,,true,50
+C-304,RANJEETA K. SAROJ,,,,,,,,,,false,50
+C-305,TEJAL P.SANE,,,,,,,,,,true,50
+C-305,PRASHANT A.SANE,,,,,,,,,,false,50
+C-306,ANAND S.JAVKAR,,,,,,,,,,true,50
+C-306,SHARMILA A.JAVKAR,,,,,,,,,,false,50
+C-401,SHRINIVAS SHASHIKANT DUDHARE,,,,,,,,,,true,50
+C-401,BHAWANA S. DUDHARE,,,,,,,,,,false,50
+C-402,SAJJANSINGH M.RATHOD,,,,,,,,,,true,50
+C-402,PRIYANKA RATHOD,,,,,,,,,,false,50
+C-403,ABHAY A.TAMORE,,,,,,,,,,true,50
+C-403,DEEPIKA A.TAMORE,,,,,,,,,,false,50
+C-404,DINESH RAMESH CHHAYA,,,,,,,,,,true,34
+C-404,BINA D. CHHAYA,,,,,,,,,,false,33
+C-404,HARSH D. CHHAYA,,,,,,,,,,false,33
+C-405,GEETA R.SINGH,,,,,,,,,,true,50
+C-405,ANJALI R.SINGH,,,,,,,,,,false,50
+C-406,HIMANSHU SAINI,,,,,,,,,,true,100
+C-501,CHHAVI SHARMA,,,,,,,,,,true,100
+C-502,VINIT R. JAIN,,,,,,,,,,true,50
+C-502,ADITI V. JAIN,,,,,,,,,,false,50
+C-503,VINIT R. JAIN,,,,,,,,,,true,50
+C-503,ADITI V. JAIN,,,,,,,,,,false,50
+C-504,RAJESH D.AAREKAR,,,,,,,,,,true,50
+C-504,POOJA R.AAREKAR,,,,,,,,,,false,50
+C-505,DEEPAK PANDEY,,,,,,,,,,true,50
+C-505,KAMALDEO PANDEY,,,,,,,,,,false,50
+C-506,GLENN R. DIAS,,,,,,,,,,true,50
+C-506,SANGEETA G.DIAS,,,,,,,,,,false,50
+C-601,CHANDANA D.AGARWAL,,,,,,,,,,true,50
+C-601,DILIPKUMAR,,,,,,,,,,false,50
+C-602,PADMARAJSINH H. GOHEL,,,,,,,,,,true,50
+C-602,CHANDRIKA P. GOHEL,,,,,,,,,,false,50
+C-603,ROHIT LALJIBHAI MOKARIYA,,,,,,,,,,true,50
+C-603,SWEETY R. MOKARIYA,,,,,,,,,,false,50
+C-604,NITESH SHAMBHUNATH JHA,,,,,,,,,,true,50
+C-604,SUSHMA N. JHA,,,,,,,,,,false,50
+C-605,SCOTT PAUL,,,,,,,,,,true,100
+C-606,JIMIPAL,,,,,,,,,,true,50
+C-606,MAYA YADAV,,,,,,,,,,false,50
+C-701,SONIYA P.DIXIT,,,,,,,,,,true,50
+C-701,PRAVIN P.DIXIT,,,,,,,,,,false,50
+C-702,SONIYA P.DIXIT,,,,,,,,,,true,50
+C-702,PRAVIN P.DIXIT,,,,,,,,,,false,50
+C-703,UJWALA M.KACHARE,,,,,,,,,,true,100
+C-704,CHANDRAKANT N.RATHOD,,,,,,,,,,true,100
+C-705,RITA MEHTA,,,,,,,,,,true,34
+C-705,ASHWIN MEHTA,,,,,,,,,,false,33
+C-705,MEHUL MEHTA,,,,,,,,,,false,33
+C-706,DILIP B.KONDVILKAR,,,,,,,,,,true,34
+C-706,DIPALI KONDVILKAR,,,,,,,,,,false,33
+C-706,CHETAN KONDVILKAR,,,,,,,,,,false,33
+C-802,JYOTSANA MANDAL,,,,,,,,,,true,100
+C-803,NIKITESH G.KADAM,,,,,,,,,,true,50
+C-803,JAGRUTI N.KADAM,,,,,,,,,,false,50
+C-804,JAMANA O.VYAS,,,,,,,,,,true,50
+C-804,OMPRAKASH D.VYAS,,,,,,,,,,false,50
+C-805,VISHAL VINODCHANDRA RACH,,,,,,,,,,true,100
+C-806,MONA B. VAIDYA,,,,,,,,,,true,34
+C-806,BHARAT B. VAIDYA,,,,,,,,,,false,33
+C-806,CHINTAN B. VAIDYA,,,,,,,,,,false,33
+C-901,PRITESH C.KATHE,,,,,,,,,,true,50
+C-901,PANKAJ C. KATHE,,,,,,,,,,false,50
+C-902,UPENDRA P.BHURKAY,,,,,,,,,,true,50
+C-902,LOUELLA DSOUZA,,,,,,,,,,false,50
+C-903,UPENDRA BHURKAY,,,,,,,,,,true,50
+C-903,LOUELLA DSOUZA,,,,,,,,,,false,50
+C-904,MAHESHKUMAR P.PANDYA,,,,,,,,,,true,100
+C-905,SANJAY MADHUKAR KALSEKAR,,,,,,,,,,true,50
+C-905,MADHUKAR T. KALSEKAR,,,,,,,,,,false,50
+C-906,LALIT R.SONAGRA,,,,,,,,,,true,50
+C-906,PALAVI L.SONAGRA,,,,,,,,,,false,50
+C-1001,ASHUTOSH P.GAHIWAL,,,,,,,,,,true,50
+C-1001,PADMAKAR GAHIWAL,,,,,,,,,,false,50
+C-1002,ABHITOSH P.GAHIWAL,,,,,,,,,,true,50
+C-1002,SARALA GAHIWAL,,,,,,,,,,false,50
+C-1003,HITENDRA H. PANCHAL,,,,,,,,,,true,50
+C-1003,PARUL H. PANCHAL,,,,,,,,,,false,50
+C-1004,RAVI KUMAR SARAF,,,,,,,,,,true,100
+C-1005,RAJESH T.KANOJIA,,,,,,,,,,true,50
+C-1005,SHEHZADI KANOJIA,,,,,,,,,,false,50
+C-1006,AJANTA P.TIWARI,,,,,,,,,,true,50
+C-1006,ANIL KUMAR,,,,,,,,,,false,50
+C-1101,UMA DEVI,,,,,,,,,,true,50
+C-1101,SINGH RISHIKUMAR JITENDRA,,,,,,,,,,false,50
+C-1102,BHUPENDRA P. DAMANIA,,,,,,,,,,true,50
+C-1102,AKSHITA B. DAMANIA,,,,,,,,,,false,50
+C-1103,PRAVIN P.RODRIGUES,,,,,,,,,,true,50
+C-1103,JOYCEE RODRIGUES,,,,,,,,,,false,50
+C-1104,POOJA SANTOSH YEVALE,,,,,,,,,,true,50
+C-1104,SANTOSH YASHWANT YEVALE,,,,,,,,,,false,50
+C-1105,RESHMA ANAND GIRI,,,,,,,,,,true,50
+C-1105,ANAND SHIVLAL GIRI,,,,,,,,,,false,50
+C-1106,RESHMA ANAND GIRI,,,,,,,,,,true,50
+C-1106,ANAND SHIVLAL GIRI,,,,,,,,,,false,50
+C-1202,NILESH DIGHE,,,,,,,,,,true,34
+C-1202,KRANTI DIGHE,,,,,,,,,,false,33
+C-1202,RIJUTA N.DIGHE,,,,,,,,,,false,33
+C-1203,NAJMA B.SHAIKH,,,,,,,,,,true,50
+C-1203,BASHIR A.SHAIKH,,,,,,,,,,false,50
+C-1204,BASANTI NAMA,,,,,,,,,,true,50
+C-1204,GHANSHYAM B.NAMA,,,,,,,,,,false,50
+C-1205,SACHIN A.SHERKHANE,,,,,,,,,,true,100
+C-1206,RESHMA ANAND GIRI,,,,,,,,,,true,50
+C-1206,ANAND SHIVLAL GIRI,,,,,,,,,,false,50
+C-1301,DALIYA BAPTISTA,,,,,,,,,,true,100
+C-1302,KIRAN C. KATHE,,,,,,,,,,true,50
+C-1302,JAGRUTI K. KATHE,,,,,,,,,,false,50
+C-1303,MADHU P.JAIN,,,,,,,,,,true,100
+C-1304,NISHABEN V.VASANI,,,,,,,,,,true,100
+C-1305,NISHANT K.TARWARIA,,,,,,,,,,true,50
+C-1305,MITTAL N.TARWARIA,,,,,,,,,,false,50
+C-1306,POONAM HOMEMAKER LLP,,,,,,,,,,true,100
+C-1401,SANJIVANI SANDESH SAWAL,,,,,,,,,,true,50
+C-1401,SANDESH SAWAL,,,,,,,,,,false,50
+C-1402,ASHISH N.TEKADE,,,,,,,,,,true,50
+C-1402,TRUPTI A.TEKADE,,,,,,,,,,false,50
+C-1403,SHAKUNTALA M.JAISWAL,,,,,,,,,,true,50
+C-1403,MANOJ R.JAISWAL,,,,,,,,,,false,50
+C-1404,RAKESH JAIN,,,,,,,,,,true,50
+C-1404,MONICA JAIN,,,,,,,,,,false,50
+C-1405,SHRAVANI S.KAMBLE,,,,,,,,,,true,50
+C-1405,SURYAKANT KAMBLE,,,,,,,,,,false,50
+C-1406,BHASKAR SINGH,,,,,,,,,,true,34
+C-1406,PRABHAT SINGH,,,,,,,,,,false,33
+C-1406,ASHA SINGH,,,,,,,,,,false,33
+D-101,RAJU BANWARILAL BEHWAL,,,,,,,,,,true,100
+D-102,YOGESH N. RAVAL,,,,,,,,,,true,100
+D-103,NILESH S.BELOSE,,,,,,,,,,true,50
+D-103,SUHASINI S.BELOSE,,,,,,,,,,false,50
+D-104,GEETA OMPRAKASH JAIN,,,,,,,,,,true,100
+D-105,NAYANA U.PATIL,,,,,,,,,,true,50
+D-105,UMESH P.PATIL,,,,,,,,,,false,50
+D-106,HETAL CHIRAG SHAH,,,,,,,,,,true,50
+D-106,CHIRAG ASHOKCHANDRA SHAH,,,,,,,,,,false,50
+D-201,RAHUL H.VARMA,,,,,,,,,,true,100
+D-202,RASHMI RAJESH DALVI,,,,,,,,,,true,100
+D-203,ANITA F.DSOUZA,,,,,,,,,,true,100
+D-204,BHARAT P.SAKPAL,,,,,,,,,,true,50
+D-204,SMITA B.SAKPAL,,,,,,,,,,false,50
+D-205,VAIBHAVEE V.YADAV,,,,,,,,,,true,50
+D-205,VIJENDRA M.YADAV,,,,,,,,,,false,50
+D-206,AMOL G.PAWAR,,,,,,,,,,true,50
+D-206,MRUNALI M.NARKAR,,,,,,,,,,false,50
+D-301,SUSHILA R.YADAV,,,,,,,,,,true,50
+D-301,RAJU C.YADAV,,,,,,,,,,false,50
+D-302,WINSTON M.SMRICK,,,,,,,,,,true,50
+D-302,MARY M.SMRICK,,,,,,,,,,false,50
+D-303,ABHISHEK K. KADAKIA,,,,,,,,,,true,50
+D-303,HETAL A. KADAKIA,,,,,,,,,,false,50
+D-304,AMUL N.JADHAV,,,,,,,,,,true,50
+D-304,AMRUTA A.JADHAV,,,,,,,,,,false,50
+D-305,MAHENDRA B.SINGH,,,,,,,,,,true,100
+D-306,HEMANT J. JADAV,,,,,,,,,,true,50
+D-306,JADAV SANGEETA HEMANT,,,,,,,,,,false,50
+D-401,HARSHADA DILIP SHIRKE,,,,,,,,,,true,100
+D-402,SANTOSH V.PATRE,,,,,,,,,,true,100
+D-403,NAGESH R.SANKHE,,,,,,,,,,true,50
+D-403,SUNITA N.SANKHE,,,,,,,,,,false,50
+D-404,RUPESH N.SAMANTA,,,,,,,,,,true,50
+D-404,PINKY R.SAMANTA,,,,,,,,,,false,50
+D-405,SYED AMIR HUSSAIN,,,,,,,,,,true,50
+D-405,SAYED JABIR HUSSAIN,,,,,,,,,,false,50
+D-406,HOSHEDER P.BHARUCHA,,,,,,,,,,true,50
+D-406,MAZDIYAR BHARUCHA,,,,,,,,,,false,50
+D-501,SAHIL S. KHEDEKAR,,,,,,,,,,true,50
+D-501,SUNIL G. KHEDEKAR,,,,,,,,,,false,50
+D-502,REHANA TAHER KAPASI,,,,,,,,,,true,50
+D-502,TAHIR ABBAS KAPASI,,,,,,,,,,false,50
+D-503,VINOD R.BARIA,,,,,,,,,,true,50
+D-503,MANALI V.BARIA,,,,,,,,,,false,50
+D-504,PRASAD L.MORE,,,,,,,,,,true,50
+D-504,SAYALI P.MORE,,,,,,,,,,false,50
+D-505,SUJATA V.AKRE,,,,,,,,,,true,100
+D-506,DARSHANA PATEL,,,,,,,,,,true,100
+D-601,SADANAND M. SALUNKHE,,,,,,,,,,true,50
+D-601,SAMITA SADANAND SALUNKHE,,,,,,,,,,false,50
+D-602,SUHAS MANHERLAL SHAH,,,,,,,,,,true,50
+D-602,SHILPA SUHAS SHAH,,,,,,,,,,false,50
+D-603,MARILYN GEORGE,,,,,,,,,,true,50
+D-603,DERIS MICHEAL,,,,,,,,,,false,50
+D-604,AMIT P.CHARANIA,,,,,,,,,,true,100
+D-605,JIGAR P.SHAH,,,,,,,,,,true,50
+D-605,NEESHA J.SHAH,,,,,,,,,,false,50
+D-606,MADHURIKA MILIND SAWANT,,,,,,,,,,true,100
+D-701,RAKESH R.SHARMA,,,,,,,,,,true,50
+D-701,MADHURI R.SHARMA,,,,,,,,,,false,50
+D-702,PRASHANTH L.MISHRA,,,,,,,,,,true,34
+D-702,KRISHNA MISHRA,,,,,,,,,,false,33
+D-702,RAHUL MISHRA,,,,,,,,,,false,33
+D-703,CHOTELAL CHAUDHARY,,,,,,,,,,true,100
+D-704,VINEET KUMAR PAL,,,,,,,,,,true,50
+D-704,PURNIMA PAL,,,,,,,,,,false,50
+D-705,VINEET KUMAR PAL,,,,,,,,,,true,100
+D-706,KAILAS M.PATIL,,,,,,,,,,true,50
+D-706,SEEMA K.PATIL,,,,,,,,,,false,50
+D-801,KIINNARI YOGENDRA JOSHI,,,,,,,,,,true,100
+D-802,VIVEK KHANDELWAL,,,,,,,,,,true,50
+D-802,TARACHAND KHANDELWAL,,,,,,,,,,false,50
+D-803,VANDANA V.MALKARI,,,,,,,,,,true,50
+D-803,VIRAJ R.MALKARI,,,,,,,,,,false,50
+D-804,RAVIRAJ N.BHAIRI,,,,,,,,,,true,100
+D-805,HITESH K AMDAVADI,,,,,,,,,,true,100
+D-901,SUVIDHA A.CHAUDHARI,,,,,,,,,,true,100
+D-902,JAYANTI BHAGWANBHAI DHANDHUKIA,,,,,,,,,,true,50
+D-902,NAYANA JAYANTI DHANDHUKIA,,,,,,,,,,false,50
+D-903,AJAY S.GOLE,,,,,,,,,,true,50
+D-903,SUHASINI S.GOLE,,,,,,,,,,false,50
+D-904,DIWAKAR C.POOJARI,,,,,,,,,,true,100
+D-905,PRIYA TEJAS MEHTA,,,,,,,,,,true,50
+D-905,TEJAS CHANDRAKANT MEHTA,,,,,,,,,,false,50
+D-906,PALLAVI A. SAMANT,,,,,,,,,,true,50
+D-906,SURUCHI K. SAMANT,,,,,,,,,,false,50
+D-1001,SHAILESH VISHWASRAO,,,,,,,,,,true,50
+D-1001,MAMTA VISHWASRAO,,,,,,,,,,false,50
+D-1002,KALPESH SHAH,,,,,,,,,,true,100
+D-1003,TAHIR ABBAS KAPASI,,,,,,,,,,true,100
+D-1004,VIKAS LAUVOT,,,,,,,,,,true,50
+D-1004,KALPANA LAUVOT,,,,,,,,,,false,50
+D-1005,RAVI SINGH,,,,,,,,,,true,50
+D-1005,MANISHA R.SINGH,,,,,,,,,,false,50
+D-1006,SATISH KUMAR,,,,,,,,,,true,50
+D-1006,RAKHEE RANI,,,,,,,,,,false,50
+D-1101,MANISH P.BANE,,,,,,,,,,true,100
+D-1102,RAJESH BHANUSHANKAR JOSHI,,,,,,,,,,true,100
+D-1103,SHWETA H.SINGH,,,,,,,,,,true,50
+D-1103,USHA H.SINGH,,,,,,,,,,false,50
+D-1104,ELVINA DSOUZA,,,,,,,,,,true,50
+D-1104,CELINE DSOUZA,,,,,,,,,,false,50
+D-1105,BINA SUDHIR DOSHI,,,,,,,,,,true,50
+D-1105,SHEFALI SUDHIR DOSHI,,,,,,,,,,false,50
+D-1106,BALKRISHNA TIWARI,,,,,,,,,,true,50
+D-1106,RAMKRISHNA TIWARI,,,,,,,,,,false,50
+D-1201,GINO THARAKAN,,,,,,,,,,true,50
+D-1201,RIDHIMA THARAKAN,,,,,,,,,,false,50
+D-1202,RAJAN SINGH,,,,,,,,,,true,50
+D-1202,SUNITADEVI R.SINGH,,,,,,,,,,false,50
+D-1203,ANKITA KRUNAL BHATIA,,,,,,,,,,true,100
+D-1204,SNEHA M.VENDRA,,,,,,,,,,true,50
+D-1204,WILLIAM J.RAJGURU,,,,,,,,,,false,50
+D-1205,SANDESH S.PAWAR,,,,,,,,,,true,50
+D-1205,RATNA S.PAWAR,,,,,,,,,,false,50
+D-1301,DIVESH HEMANT JOSHI,,,,,,,,,,true,100
+D-1302,MANDAR A.KADAM,,,,,,,,,,true,100
+D-1303,VISHANT PANDEY,,,,,,,,,,true,50
+D-1303,NEETU PANDEY,,,,,,,,,,false,50
+D-1304,SANJAY T. PAL,,,,,,,,,,true,50
+D-1304,MARACHI T.PAL,,,,,,,,,,false,50
+D-1305,PRAYUJA A.GAWAS,,,,,,,,,,true,50
+D-1305,AMARNATH A.GAWAS,,,,,,,,,,false,50
+D-1306,PRATEEK M.RAWAL,,,,,,,,,,true,100
+D-1401,NEELAM DHAMI,,,,,,,,,,true,100
+D-1402,SAMEER J.SAWANT,,,,,,,,,,true,50
+D-1402,SIDDHESH S.SAWANT,,,,,,,,,,false,50
+D-1403,GEETA SAHNI,,,,,,,,,,true,100
+D-1404,SAYED JABIR HUSSAIN,,,,,,,,,,true,50
+D-1404,S.G.H. ABDI,,,,,,,,,,false,50
+D-1405,ABHISHEK SINGH,,,,,,,,,,true,100
+D-1406,BHAGWAT G.WARKARI,,,,,,,,,,true,50
+D-1406,ASHA B.WARKARI,,,,,,,,,,false,50
+S-0024,POONAM HOMEMAKER LLP,,,,,,,,,,true,100
+S-0025,POONAM HOMEMAKER LLP,,,,,,,,,,true,100
+S-0026,SARA LARSON MARTI,,,,,,,,,,true,100
+S-0027,JINALI K.LIMBACHIYA,,,,,,,,,,true,100
+S-0028,SAKSHI S.SAWANT,,,,,,,,,,true,50
+S-0028,SANDEEP P.SAWANT,,,,,,,,,,false,50
+S-0029,VELLA F.JAIN,,,,,,,,,,true,50
+S-0029,PUSHPENDRA P.JAIN,,,,,,,,,,false,50
+S-0030,MUFFADAL DOHADWALA,,,,,,,,,,true,50
+S-0030,TASNEEM DODHADWALA,,,,,,,,,,false,50
+S-0031,SIMON J.DSOUZA,,,,,,,,,,true,50
+S-0031,NAINA S.DSOUZA,,,,,,,,,,false,50
+S-0032,SIMON J.DSOUZA,,,,,,,,,,true,50
+S-0032,NAINA S.DSOUZA,,,,,,,,,,false,50
+S-0033,SANTOSH B.YADAV,,,,,,,,,,true,100
+S-0034,SANTOSH B.YADAV,,,,,,,,,,true,100
+S-0035,SMITA AKHILESH PARASHAR,,,,,,,,,,true,100
+S-0036,AYYUB A.J.ANSARI,,,,,,,,,,true,100
+S-0037,AYYUB AHMAD MOHAMMAD USMAN ANSARI,,,,,,,,,,true,100
