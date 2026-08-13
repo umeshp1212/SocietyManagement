@@ -948,3 +948,422 @@ Before going live, ensure all of the following are configured:
 | Elastic IP associated | [ ] | Static IP for the instance |
 | Domain DNS configured | [ ] | A record pointing to Elastic IP |
 | Monitoring set up | [ ] | CloudWatch or htop checks |
+
+---
+
+## 19. Deployment Using Docker
+
+Docker provides a consistent, reproducible deployment. The entire application (MySQL + Backend + Frontend) runs in containers managed by Docker Compose.
+
+### 19.1 Docker Architecture
+
+```
+                      Internet
+                         |
+                    [Port 80]
+                         |
+              +----------+----------+
+              |  Frontend Container  |
+              |  (Nginx + Angular)   |
+              +----+----------+-----+
+                   |          |
+           /api/*  |          | /*
+                   v          v
+          +--------+--+   Static Files
+          |  Backend  |   (Angular build)
+          |  Container|
+          | (Java 17) |
+          +--------+--+
+                   |
+              [Port 3306]
+                   |
+          +--------+--+
+          |   MySQL   |
+          | Container |
+          +-----------+
+              |
+        [mysql_data volume]
+```
+
+### 19.2 Project Structure (Docker Files)
+
+```
+SocietyManagement/
+├── docker-compose.yml          # Orchestrates all services
+├── .env.example                # Environment variables template
+├── .env                        # Your actual env vars (git-ignored)
+├── backend/
+│   ├── Dockerfile              # Multi-stage: Maven build + JRE runtime
+│   └── .dockerignore
+└── frontend/
+    ├── Dockerfile              # Multi-stage: Node build + Nginx serve
+    ├── nginx.conf              # Nginx config for frontend container
+    └── .dockerignore
+```
+
+### 19.3 Prerequisites
+
+Install Docker and Docker Compose on your EC2 instance:
+
+```bash
+# Install Docker
+sudo apt update
+sudo apt install ca-certificates curl gnupg -y
+
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+# Add your user to docker group (avoids sudo for docker commands)
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+```
+
+### 19.4 Quick Start (Development)
+
+```bash
+# Clone the repo
+git clone https://github.com/YOUR_USERNAME/SocietyManagement.git
+cd SocietyManagement
+
+# Create .env file from template
+cp .env.example .env
+# Edit .env with your actual values
+nano .env
+
+# Build and start all containers
+docker compose up -d --build
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f
+```
+
+The application will be available at `http://localhost` (or `http://<YOUR_EC2_IP>`).
+
+### 19.5 Environment Variables
+
+Create a `.env` file in the project root (copy from `.env.example`):
+
+```env
+# MySQL
+MYSQL_ROOT_PASSWORD=StrongRootPassword@123
+MYSQL_PASSWORD=SocietyApp@123
+
+# JWT
+JWT_SECRET=ChangeThisToASecureRandomStringAtLeast64CharsLong_abc123xyz789
+
+# Cashfree Payment Gateway
+CASHFREE_APP_ID=your_cashfree_app_id
+CASHFREE_SECRET_KEY=your_cashfree_secret_key
+CASHFREE_ENVIRONMENT=production
+CASHFREE_RETURN_URL=https://yourdomain.com/maintenance/payment-status
+CASHFREE_NOTIFY_URL=https://yourdomain.com/api/maintenance/payments/webhook
+
+# Application
+APP_BASE_URL=https://yourdomain.com/api
+```
+
+> Never commit the `.env` file to git. It's already in `.gitignore`.
+
+### 19.6 Docker Compose Services
+
+| Service | Container Name | Image | Port | Description |
+|---------|---------------|-------|------|-------------|
+| mysql | society-mysql | mysql:8.0 | 3306 | Database with persistent volume |
+| backend | society-backend | Custom (Spring Boot) | 8080 | REST API server |
+| frontend | society-frontend | Custom (Nginx + Angular) | 80 | Static frontend + reverse proxy |
+
+### 19.7 Dockerfile Details
+
+#### Backend Dockerfile (Multi-stage)
+
+```dockerfile
+# Stage 1: Build with Maven
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests -B
+
+# Stage 2: Run with slim JRE
+FROM eclipse-temurin:17-jre-jammy
+WORKDIR /app
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN mkdir -p /app/uploads /app/logs && chown -R appuser:appuser /app
+COPY --from=build /app/target/society-management-1.0.0-SNAPSHOT.jar app.jar
+USER appuser
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "-Xms512m", "-Xmx1024m", "app.jar"]
+```
+
+#### Frontend Dockerfile (Multi-stage)
+
+```dockerfile
+# Stage 1: Build Angular app
+FROM node:18-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npx ng build --configuration production
+
+# Stage 2: Serve with Nginx
+FROM nginx:1.25-alpine
+COPY --from=build /app/dist/society-management-frontend/browser /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### 19.8 Production Deployment on EC2
+
+#### Step 1: SSH into your EC2 instance
+
+```bash
+ssh -i your-key.pem ubuntu@<YOUR_ELASTIC_IP>
+```
+
+#### Step 2: Install Docker (see section 19.3)
+
+#### Step 3: Clone and configure
+
+```bash
+cd /opt
+sudo mkdir society-management && sudo chown ubuntu:ubuntu society-management
+cd society-management
+git clone https://github.com/YOUR_USERNAME/SocietyManagement.git .
+cp .env.example .env
+nano .env   # Set production values
+```
+
+#### Step 4: Build and start
+
+```bash
+docker compose up -d --build
+```
+
+First build takes 5-10 minutes (downloads dependencies). Subsequent builds use cached layers.
+
+#### Step 5: Verify all services are running
+
+```bash
+docker compose ps
+```
+
+Expected output:
+```
+NAME                STATUS              PORTS
+society-backend     Up (healthy)        0.0.0.0:8080->8080/tcp
+society-frontend    Up                  0.0.0.0:80->80/tcp
+society-mysql       Up (healthy)        0.0.0.0:3306->3306/tcp
+```
+
+#### Step 6: Test the application
+
+```bash
+# Test backend API
+curl http://localhost:8080/api/api-docs
+
+# Test frontend
+curl -I http://localhost
+```
+
+### 19.9 SSL/HTTPS with Docker
+
+For HTTPS, add a Certbot container or use a reverse proxy. Simplest approach with Certbot:
+
+```bash
+# Install certbot on the host (not in container)
+sudo apt install certbot -y
+
+# Stop frontend temporarily to free port 80
+docker compose stop frontend
+
+# Get certificate
+sudo certbot certonly --standalone -d yourdomain.com
+
+# Restart frontend
+docker compose start frontend
+```
+
+Then update `frontend/nginx.conf` to include SSL:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://backend:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 10M;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+Add SSL volume mount in `docker-compose.yml` under frontend:
+
+```yaml
+frontend:
+  volumes:
+    - /etc/letsencrypt:/etc/letsencrypt:ro
+  ports:
+    - "80:80"
+    - "443:443"
+```
+
+### 19.10 Common Docker Commands
+
+```bash
+# Start all services
+docker compose up -d
+
+# Stop all services
+docker compose down
+
+# Stop and remove volumes (DESTROYS DATA)
+docker compose down -v
+
+# Rebuild a specific service
+docker compose build backend
+docker compose up -d backend
+
+# View logs for a specific service
+docker compose logs -f backend
+docker compose logs -f mysql
+docker compose logs -f frontend
+
+# Enter a running container
+docker exec -it society-backend sh
+docker exec -it society-mysql mysql -u root -p
+
+# Check resource usage
+docker stats
+
+# Restart a single service
+docker compose restart backend
+```
+
+### 19.11 Updating the Application
+
+#### Update Backend Only
+
+```bash
+git pull origin main
+docker compose build backend
+docker compose up -d backend
+```
+
+#### Update Frontend Only
+
+```bash
+git pull origin main
+docker compose build frontend
+docker compose up -d frontend
+```
+
+#### Update Everything
+
+```bash
+git pull origin main
+docker compose up -d --build
+```
+
+### 19.12 Database Backup with Docker
+
+```bash
+# Manual backup
+docker exec society-mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} society_management > backup_$(date +%Y%m%d).sql
+
+# Restore from backup
+docker exec -i society-mysql mysql -u root -p${MYSQL_ROOT_PASSWORD} society_management < backup_20260812.sql
+```
+
+Automated backup script:
+
+```bash
+#!/bin/bash
+# /opt/society-management/docker-backup.sh
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/opt/society-management/backups"
+mkdir -p $BACKUP_DIR
+
+# Load env vars
+source /opt/society-management/.env
+
+docker exec society-mysql mysqldump -u root -p${MYSQL_ROOT_PASSWORD} society_management > $BACKUP_DIR/society_mgmt_$TIMESTAMP.sql
+
+# Compress
+gzip $BACKUP_DIR/society_mgmt_$TIMESTAMP.sql
+
+# Keep only last 7 days
+find $BACKUP_DIR -name "*.sql.gz" -mtime +7 -delete
+
+echo "Backup completed: society_mgmt_$TIMESTAMP.sql.gz"
+```
+
+Add to cron:
+
+```bash
+chmod +x /opt/society-management/docker-backup.sh
+crontab -e
+# Add: 0 2 * * * /opt/society-management/docker-backup.sh
+```
+
+### 19.13 Docker vs Manual Deployment - Comparison
+
+| Aspect | Manual (Sections 1-15) | Docker (Section 19) |
+|--------|------------------------|---------------------|
+| Setup time | 30-60 minutes | 10-15 minutes |
+| Reproducibility | Manual steps, error-prone | Identical every time |
+| Isolation | Services share host OS | Each service isolated |
+| Updates | Build on server, restart service | Rebuild image, restart container |
+| Rollback | Manual JAR swap | `docker compose up -d` with old image |
+| Resource overhead | Lower (no container layer) | Slightly higher (~100MB overhead) |
+| Debugging | Direct access to processes | Need `docker exec` to enter container |
+| Best for | Simple single-server setups | Consistent deployments, CI/CD pipelines |
+
+### 19.14 Troubleshooting Docker
+
+| Problem | Solution |
+|---------|----------|
+| `docker compose up` fails | Check `.env` file exists with correct values |
+| Backend can't connect to MySQL | Ensure MySQL health check passes: `docker compose logs mysql` |
+| Frontend shows 502 on /api | Backend hasn't started yet. Wait or check: `docker compose logs backend` |
+| Out of disk space | Clean unused images: `docker system prune -a` |
+| Container keeps restarting | Check logs: `docker compose logs <service>` |
+| Build takes too long | Ensure `.dockerignore` excludes `node_modules/` and `target/` |
+| Port 80 already in use | Stop host Nginx: `sudo systemctl stop nginx` |
+| Permission denied on volumes | Check volume ownership, run `docker compose down -v` and restart |

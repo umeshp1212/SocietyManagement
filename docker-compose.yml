@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: society-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: society_management
+      MYSQL_USER: society_app
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-SocietyApp@123}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - society-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: society-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+      SPRING_DATASOURCE_USERNAME: society_app
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-SocietyApp@123}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+      APP_JWT_SECRET: ${JWT_SECRET:-MySuperSecretKeyForJwtTokenGenerationMustBeLongEnough12345678}
+      APP_JWT_EXPIRATION: 86400000
+      APP_UPLOAD_DIR: /app/uploads
+      APP_CASHFREE_APP_ID: ${CASHFREE_APP_ID:-}
+      APP_CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY:-}
+      APP_CASHFREE_ENVIRONMENT: ${CASHFREE_ENVIRONMENT:-sandbox}
+      APP_CASHFREE_RETURN_URL: ${CASHFREE_RETURN_URL:-http://localhost/maintenance/payment-status}
+      APP_CASHFREE_NOTIFY_URL: ${CASHFREE_NOTIFY_URL:-http://localhost/api/maintenance/payments/webhook}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost/api}
+    ports:
+      - "8080:8080"
+    volumes:
+      - uploads_data:/app/uploads
+      - backend_logs:/app/logs
+    networks:
+      - society-network
+
+  # Angular Frontend with Nginx
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: society-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - society-network
+
+volumes:
+  mysql_data:
+    driver: local
+  uploads_data:
+    driver: local
+  backend_logs:
+    driver: local
+
+networks:
+  society-network:
+    driver: bridge

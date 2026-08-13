@@ -1,0 +1,17 @@
+target/
+.git
+.gitignore
+.idea
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+uploads/
+*.log
+.apt_generated
+.factorypath
+.springBeans
+.sts4-cache
