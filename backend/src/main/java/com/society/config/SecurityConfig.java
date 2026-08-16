@@ -36,6 +36,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Public endpoints
                 .requestMatchers("/auth/login", "/auth/register", "/auth/refresh-token").permitAll()
+                .requestMatchers("/auth/forgot-password", "/auth/reset-password", "/auth/reset-password/validate").permitAll()
                 .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // File serving (public for now - can be secured later)

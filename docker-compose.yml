@@ -50,6 +50,13 @@ services:
       APP_CASHFREE_RETURN_URL: ${CASHFREE_RETURN_URL:-http://localhost/maintenance/payment-status}
       APP_CASHFREE_NOTIFY_URL: ${CASHFREE_NOTIFY_URL:-http://localhost/api/maintenance/payments/webhook}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost/api}
+      APP_FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: 587
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLED: true
     ports:
       - "8080:8080"
     volumes:
