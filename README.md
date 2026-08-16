@@ -1471,3 +1471,281 @@ sudo journalctl -u society-backend | grep "Password reset"
 ```
 
 Or use [MailHog](https://github.com/mailhog/MailHog) for local email testing (catches emails without sending them).
+
+---
+
+## 21. Domain Setup (ppvcd.in) with GoDaddy
+
+### 21.1 Current Setup (Using Elastic IP)
+
+While the domain is pending validation, the application runs on the Elastic IP directly:
+
+```
+http://YOUR_ELASTIC_IP        → Frontend (Angular)
+http://YOUR_ELASTIC_IP/api    → Backend API (Spring Boot)
+```
+
+Nginx is configured with `server_name` set to the IP or `_` (catch-all).
+
+### 21.2 GoDaddy DNS Configuration (After Domain Validation)
+
+Once the domain `ppvcd.in` is out of the validation/pending state:
+
+1. Login to [GoDaddy DNS Management](https://dcc.godaddy.com/manage-dns)
+2. Select domain: `ppvcd.in`
+3. Go to **DNS Records** tab
+4. Add/Edit these records:
+
+| Type | Name | Value | TTL |
+|------|------|-------|-----|
+| A | @ | YOUR_ELASTIC_IP (e.g., 13.232.x.x) | 600 |
+| A | www | YOUR_ELASTIC_IP (e.g., 13.232.x.x) | 600 |
+
+> `@` means the root domain (ppvcd.in). `www` handles www.ppvcd.in.
+
+5. If GoDaddy has default nameservers pointing elsewhere (like parked page), make sure you're using **GoDaddy's own nameservers** or update the A record to point to your EC2 IP.
+
+### 21.3 Verify DNS Propagation
+
+Wait 5-10 minutes after adding records, then verify:
+
+```bash
+# From your local machine or EC2
+nslookup ppvcd.in
+ping ppvcd.in
+
+# Or use online tool: https://dnschecker.org
+```
+
+The IP returned should match your Elastic IP.
+
+### 21.4 Update Nginx for Domain
+
+Once DNS is pointing to your EC2:
+
+```bash
+sudo nano /etc/nginx/sites-available/society-management
+```
+
+Change `server_name`:
+
+```nginx
+server_name ppvcd.in www.ppvcd.in;
+```
+
+Test and reload:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 21.5 Install SSL Certificate (HTTPS)
+
+```bash
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx -d ppvcd.in -d www.ppvcd.in
+```
+
+Follow prompts:
+- Enter email for renewal notifications
+- Agree to terms
+- Choose: redirect HTTP to HTTPS (option 2)
+
+Certbot will automatically:
+- Get a free SSL certificate from Let's Encrypt
+- Configure Nginx for HTTPS
+- Set up auto-renewal (every 90 days)
+
+Verify auto-renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### 21.6 Update Backend Config for Domain
+
+After SSL is active, update the backend config on EC2:
+
+```bash
+sudo nano /opt/society-management/backend/application-prod.yml
+```
+
+Update these values:
+
+```yaml
+app:
+  cashfree:
+    return-url: https://ppvcd.in/maintenance/payment-status
+    notify-url: https://ppvcd.in/api/maintenance/payments/webhook
+  base-url: https://ppvcd.in/api
+  frontend-url: https://ppvcd.in
+```
+
+Restart backend:
+
+```bash
+sudo systemctl restart society-backend
+```
+
+### 21.7 Update Cashfree Webhook URL
+
+In Cashfree Dashboard → Developers → Webhooks:
+- Change webhook URL from IP to: `https://ppvcd.in/api/maintenance/payments/webhook`
+
+### 21.8 Redirect www to non-www (Optional)
+
+If you want `www.ppvcd.in` to redirect to `ppvcd.in`, Certbot usually handles this. If not, add to Nginx:
+
+```nginx
+server {
+    listen 80;
+    server_name www.ppvcd.in;
+    return 301 https://ppvcd.in$request_uri;
+}
+```
+
+### 21.9 Troubleshooting Domain Issues
+
+| Problem | Solution |
+|---------|----------|
+| Domain not resolving | Check DNS records in GoDaddy, wait for propagation |
+| "DNS_PROBE_FINISHED_NXDOMAIN" | Domain still in validation or nameservers not configured |
+| Certbot fails | Ensure port 80 is open in EC2 security group and DNS is pointing to your IP |
+| "Connection refused" | Check Nginx is running: `sudo systemctl status nginx` |
+| Mixed content warnings | Update all URLs to `https://` in application-prod.yml |
+
+### 21.10 Timeline
+
+```
+[Current]  Domain purchased → Validation pending (GoDaddy)
+                ↓
+[Step 1]   Validation complete → Edit DNS → Add A record
+                ↓
+[Step 2]   DNS propagation (5-10 min)
+                ↓
+[Step 3]   Update Nginx server_name → Reload
+                ↓
+[Step 4]   Run certbot → HTTPS active
+                ↓
+[Step 5]   Update backend config → Restart
+                ↓
+[Done]     https://ppvcd.in is live with SSL
+```
+
+---
+
+## 22. MySQL Data Import from Workbench Backup
+
+If you exported your database from MySQL Workbench using **Data Export → Self-Contained File**, follow these steps to import it on your EC2 instance.
+
+### 22.1 Transfer the .sql File to EC2
+
+From your local machine (Windows PowerShell):
+
+```powershell
+scp -i your-key.pem "D:\path\to\your-backup.sql" ubuntu@YOUR_ELASTIC_IP:/home/ubuntu/
+```
+
+Or use FileZilla/WinSCP to upload the file.
+
+### 22.2 Import into MySQL
+
+SSH into your EC2:
+
+```bash
+ssh -i your-key.pem ubuntu@YOUR_ELASTIC_IP
+```
+
+Import the data (assuming you already created the schema `society_management`):
+
+```bash
+mysql -u society_app -p society_management < /home/ubuntu/your-backup.sql
+```
+
+Enter the password when prompted (the one you set during MySQL setup, e.g., `SocietyApp@123`).
+
+### 22.3 If You Get Errors
+
+#### Error: "Access denied"
+
+Use root user instead:
+
+```bash
+sudo mysql -u root -p society_management < /home/ubuntu/your-backup.sql
+```
+
+#### Error: "Unknown database"
+
+Create the schema first:
+
+```bash
+sudo mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS society_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+Then re-run the import.
+
+#### Error: "Cannot create table" or foreign key errors
+
+The self-contained file may try to CREATE the tables. If schema already exists but is empty, this is fine. If tables already exist with conflicting data:
+
+```bash
+# Option 1: Drop and recreate the database (DELETES EVERYTHING)
+sudo mysql -u root -p -e "DROP DATABASE society_management; CREATE DATABASE society_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+# Then import fresh
+sudo mysql -u root -p society_management < /home/ubuntu/your-backup.sql
+
+# Re-grant permissions
+sudo mysql -u root -p -e "GRANT ALL PRIVILEGES ON society_management.* TO 'society_app'@'localhost'; FLUSH PRIVILEGES;"
+```
+
+#### Error: "Max allowed packet" for large files
+
+```bash
+sudo mysql -u root -p --max_allowed_packet=256M society_management < /home/ubuntu/your-backup.sql
+```
+
+### 22.4 Verify Import
+
+```bash
+sudo mysql -u root -p -e "USE society_management; SHOW TABLES;"
+```
+
+Check row counts:
+
+```bash
+sudo mysql -u root -p -e "
+USE society_management;
+SELECT 'units' AS tbl, COUNT(*) AS rows FROM units
+UNION SELECT 'owners', COUNT(*) FROM owners
+UNION SELECT 'users', COUNT(*) FROM users
+UNION SELECT 'tenants', COUNT(*) FROM tenants
+UNION SELECT 'vendors', COUNT(*) FROM vendors;"
+```
+
+### 22.5 After Import — Restart Backend
+
+```bash
+sudo systemctl restart society-backend
+```
+
+The backend will connect to the imported data. JPA `ddl-auto: update` will add any missing columns/tables without deleting existing data.
+
+### 22.6 Complete Import Flow
+
+```
+[Local Machine]
+  MySQL Workbench → Data Export → Self-Contained File (.sql)
+        ↓
+  SCP/SFTP upload to EC2
+        ↓
+[EC2 Server]
+  mysql -u society_app -p society_management < backup.sql
+        ↓
+  Verify with SHOW TABLES / SELECT COUNT
+        ↓
+  sudo systemctl restart society-backend
+        ↓
+  Application running with production data
+```
