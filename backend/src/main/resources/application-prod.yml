@@ -1,0 +1,135 @@
+# =============================================================
+# Society Management - Production Configuration
+# =============================================================
+# Deploy on EC2 with: java -jar -Dspring.profiles.active=prod app.jar
+# Or set environment variable: SPRING_PROFILES_ACTIVE=prod
+# =============================================================
+
+spring:
+  application:
+    name: society-management
+
+  # ---- Database ----
+  datasource:
+    url: jdbc:mysql://localhost:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata&createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:society_app}
+    password: ${DB_PASSWORD:SocietyApp@123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+
+  # ---- JPA / Hibernate ----
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+    defer-datasource-initialization: true
+    open-in-view: false
+
+  # ---- Initial Data ----
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/data.sql
+
+  # ---- File Upload ----
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # ---- Email (Gmail SMTP) ----
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+# ---- Server ----
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  tomcat:
+    max-threads: 200
+    accept-count: 100
+    max-connections: 8192
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/plain,text/css,application/javascript
+    min-response-size: 1024
+
+# ---- Swagger (disable in production or keep for internal use) ----
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    # Uncomment below to disable Swagger in production:
+    # enabled: false
+
+# ---- Logging ----
+logging:
+  level:
+    root: WARN
+    com.society: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+  file:
+    path: /opt/society-management/logs
+    name: /opt/society-management/logs/society-management.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+      total-size-cap: 1GB
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%level] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%level] [%thread] %logger{36} - %msg%n"
+
+# ---- Application Configuration ----
+app:
+  upload:
+    dir: /opt/society-management/uploads
+
+  jwt:
+    secret: ${JWT_SECRET:ChangeThisToAVeryLongSecureRandomString_AtLeast64Characters_ForProduction_xyz789}
+    expiration: 86400000          # 24 hours
+    refresh-expiration: 604800000  # 7 days
+
+  cashfree:
+    app-id: ${CASHFREE_APP_ID:}
+    secret-key: ${CASHFREE_SECRET_KEY:}
+    api-version: 2023-08-01
+    environment: ${CASHFREE_ENVIRONMENT:production}
+    return-url: ${CASHFREE_RETURN_URL:http://YOUR_ELASTIC_IP/maintenance/payment-status}
+    notify-url: ${CASHFREE_NOTIFY_URL:http://YOUR_ELASTIC_IP/api/maintenance/payments/webhook}
+
+  base-url: ${APP_BASE_URL:http://YOUR_ELASTIC_IP/api}
+  frontend-url: ${FRONTEND_URL:http://YOUR_ELASTIC_IP}
+
+  password-reset:
+    token-expiry-minutes: 30
