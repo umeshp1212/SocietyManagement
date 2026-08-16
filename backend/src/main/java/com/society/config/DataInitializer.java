@@ -11,10 +11,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 /**
  * Creates default admin user on first startup if no users exist.
+ * Also ensures admin user password is reset if admin account exists but cannot login.
  * Default credentials: admin / Admin@123
  */
 @Component
@@ -28,10 +30,41 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.count() == 0) {
-            log.info("No users found. Creating default admin user...");
+        Optional<User> existingAdmin = userRepository.findByUsername("admin");
 
-            // Ensure SUPER_ADMIN role exists (should be created by data.sql)
+        if (existingAdmin.isPresent()) {
+            // Ensure admin is active and has SUPER_ADMIN role
+            User admin = existingAdmin.get();
+            boolean updated = false;
+
+            // Reset admin password to default if it doesn't match
+            if (!passwordEncoder.matches("Admin@123", admin.getPassword())) {
+                admin.setPassword(passwordEncoder.encode("Admin@123"));
+                updated = true;
+                log.info("Admin password reset to default: Admin@123");
+            }
+
+            if (!admin.getIsActive()) {
+                admin.setIsActive(true);
+                updated = true;
+            }
+
+            // Ensure SUPER_ADMIN role is assigned
+            Role superAdminRole = roleRepository.findByRoleName("SUPER_ADMIN").orElse(null);
+            if (superAdminRole != null && !admin.getRoles().contains(superAdminRole)) {
+                admin.getRoles().add(superAdminRole);
+                updated = true;
+            }
+
+            if (updated) {
+                userRepository.save(admin);
+                log.info("Admin user updated (ensured active + SUPER_ADMIN role).");
+            }
+
+            log.info("Admin user exists. Username: admin");
+        } else {
+            log.info("No admin user found. Creating default admin user...");
+
             Role superAdminRole = roleRepository.findByRoleName("SUPER_ADMIN")
                     .orElseGet(() -> {
                         Role role = Role.builder()
