@@ -1367,3 +1367,107 @@ crontab -e
 | Build takes too long | Ensure `.dockerignore` excludes `node_modules/` and `target/` |
 | Port 80 already in use | Stop host Nginx: `sudo systemctl stop nginx` |
 | Permission denied on volumes | Check volume ownership, run `docker compose down -v` and restart |
+
+---
+
+## 20. Email (SMTP) Setup for Forgot Password
+
+The forgot password feature requires an SMTP email account to send password reset links to users. Gmail is the easiest option.
+
+### 20.1 Gmail SMTP Setup
+
+#### Step 1: Prepare a Gmail Account
+
+Use an existing Gmail or create a dedicated one (e.g., `yourapp.noreply@gmail.com`).
+
+#### Step 2: Enable 2-Step Verification
+
+1. Go to [Google Account Security](https://myaccount.google.com/security)
+2. Turn ON **2-Step Verification**
+
+#### Step 3: Generate App Password
+
+1. Go to [https://myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+2. Select App: **Mail**
+3. Select Device: **Other** → type "Society Management"
+4. Click **Generate**
+5. Copy the **16-character password** (e.g., `abcd efgh ijkl mnop`)
+
+> This is NOT your Gmail login password. It's a special app-specific password.
+
+#### Step 4: Configure in Application
+
+**For manual deployment** — update `application-prod.yml` on EC2:
+
+```yaml
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: yourapp.noreply@gmail.com
+    password: abcdefghijklmnop
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+```
+
+**For Docker deployment** — add to `.env` file:
+
+```env
+MAIL_USERNAME=yourapp.noreply@gmail.com
+MAIL_PASSWORD=abcdefghijklmnop
+```
+
+### 20.2 How Forgot Password Works
+
+```
+User clicks "Forgot Password?" on login page
+        ↓
+Enters registered email → clicks "Send Reset Link"
+        ↓
+Backend generates a unique token (valid 30 minutes)
+        ↓
+Email sent FROM your Gmail TO user's registered email
+        ↓
+User receives email with link:
+  https://yourdomain.com/reset-password?token=abc-123-xyz
+        ↓
+User clicks link → enters new password → can login again
+```
+
+### 20.3 Alternative SMTP Providers
+
+If you don't want to use Gmail, you can use any SMTP provider:
+
+| Provider | Host | Port | Free Tier |
+|----------|------|------|-----------|
+| Gmail | smtp.gmail.com | 587 | 500 emails/day |
+| Outlook/Hotmail | smtp-mail.outlook.com | 587 | 300 emails/day |
+| AWS SES | email-smtp.ap-south-1.amazonaws.com | 587 | 62,000/month (if sending from EC2) |
+| SendGrid | smtp.sendgrid.net | 587 | 100 emails/day |
+| Mailgun | smtp.mailgun.org | 587 | 100 emails/day |
+
+For AWS SES, update the mail config:
+
+```yaml
+spring:
+  mail:
+    host: email-smtp.ap-south-1.amazonaws.com
+    port: 587
+    username: YOUR_SES_SMTP_USERNAME
+    password: YOUR_SES_SMTP_PASSWORD
+```
+
+### 20.4 Testing Email Locally
+
+For local development, emails won't send unless SMTP is configured. The backend logs a warning and continues without crashing. You can check the token in backend logs:
+
+```bash
+# Look for the generated token in logs
+sudo journalctl -u society-backend | grep "Password reset"
+```
+
+Or use [MailHog](https://github.com/mailhog/MailHog) for local email testing (catches emails without sending them).

@@ -23,7 +23,8 @@ export class AppComponent {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
-      this.isAuthPage = event.url === '/login' || event.url === '/';
+      const authPages = ['/login', '/', '/forgot-password', '/reset-password'];
+      this.isAuthPage = authPages.some(page => event.url === page || event.url.startsWith(page + '?'));
     });
   }
 }

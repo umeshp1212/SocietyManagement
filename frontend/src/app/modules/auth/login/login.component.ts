@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -14,7 +14,7 @@ import { AuthService } from '@core/services/auth.service';
   selector: 'app-login',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, MatCardModule, MatFormFieldModule,
+    CommonModule, ReactiveFormsModule, RouterModule, MatCardModule, MatFormFieldModule,
     MatInputModule, MatButtonModule, MatIconModule, MatSnackBarModule
   ],
   template: `
@@ -56,11 +56,15 @@ import { AuthService } from '@core/services/auth.service';
               <span *ngIf="loading">Signing in...</span>
               <span *ngIf="!loading">Sign In</span>
             </button>
+
+            <div class="forgot-link">
+              <a routerLink="/forgot-password">Forgot Password?</a>
+            </div>
           </form>
         </mat-card-content>
 
         <div class="login-footer">
-          <p>Default: <strong>admin</strong> / <strong>Admin&#64;123</strong></p>
+          <p> Poonam Park View C & D Wing CHS Ltd.</p>
         </div>
       </mat-card>
     </div>
@@ -82,6 +86,9 @@ import { AuthService } from '@core/services/auth.service';
     .error-message mat-icon { font-size: 18px; height: 18px; width: 18px; }
     .login-footer { text-align: center; margin-top: 16px; font-size: 12px; color: #999; }
     .login-footer strong { color: #1976d2; }
+    .forgot-link { text-align: right; margin-top: 12px; }
+    .forgot-link a { color: #1976d2; text-decoration: none; font-size: 13px; }
+    .forgot-link a:hover { text-decoration: underline; }
   `]
 })
 export class LoginComponent {
