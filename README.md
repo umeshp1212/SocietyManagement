@@ -1637,42 +1637,27 @@ server {
 
 ## 22. MySQL Data Import from Workbench Backup
 
-If you exported your database from MySQL Workbench using **Data Export → Self-Contained File**, follow these steps to import it on your EC2 instance.
+If you exported your database from MySQL Workbench using **Data Export → Self-Contained File**, the backup file is included in the repository at the project root as `dbBackup.sql`.
 
-### 22.1 Transfer the .sql File to EC2
+### 22.1 Import into MySQL (After Cloning on EC2)
 
-From your local machine (Windows PowerShell):
-
-```powershell
-scp -i your-key.pem "D:\path\to\your-backup.sql" ubuntu@YOUR_ELASTIC_IP:/home/ubuntu/
-```
-
-Or use FileZilla/WinSCP to upload the file.
-
-### 22.2 Import into MySQL
-
-SSH into your EC2:
+Since the `.sql` file is already in the repo, no need to transfer separately:
 
 ```bash
-ssh -i your-key.pem ubuntu@YOUR_ELASTIC_IP
+cd /opt/society-management/repo
+mysql -u society_app -p society_management < dbBackup.sql
 ```
 
-Import the data (assuming you already created the schema `society_management`):
+Enter the password when prompted (e.g., `SocietyApp@123`).
 
-```bash
-mysql -u society_app -p society_management < /home/ubuntu/your-backup.sql
-```
-
-Enter the password when prompted (the one you set during MySQL setup, e.g., `SocietyApp@123`).
-
-### 22.3 If You Get Errors
+### 22.2 If You Get Errors
 
 #### Error: "Access denied"
 
 Use root user instead:
 
 ```bash
-sudo mysql -u root -p society_management < /home/ubuntu/your-backup.sql
+sudo mysql -u root -p society_management < /opt/society-management/repo/dbBackup.sql
 ```
 
 #### Error: "Unknown database"
@@ -1694,7 +1679,7 @@ The self-contained file may try to CREATE the tables. If schema already exists b
 sudo mysql -u root -p -e "DROP DATABASE society_management; CREATE DATABASE society_management CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # Then import fresh
-sudo mysql -u root -p society_management < /home/ubuntu/your-backup.sql
+sudo mysql -u root -p society_management < /opt/society-management/repo/dbBackup.sql
 
 # Re-grant permissions
 sudo mysql -u root -p -e "GRANT ALL PRIVILEGES ON society_management.* TO 'society_app'@'localhost'; FLUSH PRIVILEGES;"
@@ -1703,10 +1688,10 @@ sudo mysql -u root -p -e "GRANT ALL PRIVILEGES ON society_management.* TO 'socie
 #### Error: "Max allowed packet" for large files
 
 ```bash
-sudo mysql -u root -p --max_allowed_packet=256M society_management < /home/ubuntu/your-backup.sql
+sudo mysql -u root -p --max_allowed_packet=256M society_management < /opt/society-management/repo/dbBackup.sql
 ```
 
-### 22.4 Verify Import
+### 22.3 Verify Import
 
 ```bash
 sudo mysql -u root -p -e "USE society_management; SHOW TABLES;"
@@ -1724,7 +1709,7 @@ UNION SELECT 'tenants', COUNT(*) FROM tenants
 UNION SELECT 'vendors', COUNT(*) FROM vendors;"
 ```
 
-### 22.5 After Import — Restart Backend
+### 22.4 After Import — Restart Backend
 
 ```bash
 sudo systemctl restart society-backend
@@ -1732,19 +1717,19 @@ sudo systemctl restart society-backend
 
 The backend will connect to the imported data. JPA `ddl-auto: update` will add any missing columns/tables without deleting existing data.
 
-### 22.6 Complete Import Flow
+### 22.5 Complete Import Flow
 
 ```
-[Local Machine]
-  MySQL Workbench → Data Export → Self-Contained File (.sql)
+[Clone repo on EC2]
+  git clone → repo contains dbBackup.sql
         ↓
-  SCP/SFTP upload to EC2
+[Import data]
+  mysql -u society_app -p society_management < dbBackup.sql
         ↓
-[EC2 Server]
-  mysql -u society_app -p society_management < backup.sql
+[Verify]
+  SHOW TABLES / SELECT COUNT
         ↓
-  Verify with SHOW TABLES / SELECT COUNT
-        ↓
+[Restart]
   sudo systemctl restart society-backend
         ↓
   Application running with production data
