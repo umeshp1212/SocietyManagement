@@ -7,6 +7,7 @@ import com.society.module.auth.repository.PasswordResetTokenRepository;
 import com.society.module.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -18,14 +19,15 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PasswordResetService {
 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
-    private final JavaMailSender mailSender;
     private final PasswordEncoder passwordEncoder;
+
+    @Autowired(required = false)
+    private JavaMailSender mailSender;
 
     @Value("${app.frontend-url:http://localhost:4200}")
     private String frontendUrl;
@@ -35,6 +37,14 @@ public class PasswordResetService {
 
     @Value("${spring.mail.username:noreply@societymanagement.com}")
     private String fromEmail;
+
+    public PasswordResetService(UserRepository userRepository,
+                                 PasswordResetTokenRepository tokenRepository,
+                                 PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     /**
      * Initiate password reset by sending an email with a reset link.
@@ -110,9 +120,14 @@ public class PasswordResetService {
     }
 
     private void sendResetEmail(User user, String token) {
-        try {
-            String resetLink = frontendUrl + "/reset-password?token=" + token;
+        String resetLink = frontendUrl + "/reset-password?token=" + token;
 
+        if (mailSender == null) {
+            log.warn("Mail sender not configured. Reset link for user {}: {}", user.getUsername(), resetLink);
+            return;
+        }
+
+        try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(user.getEmail());
@@ -133,6 +148,7 @@ public class PasswordResetService {
 
         } catch (Exception e) {
             log.error("Failed to send password reset email to: {}. Error: {}", user.getEmail(), e.getMessage());
+            log.info("Reset link for user {}: {}", user.getUsername(), resetLink);
             // Don't throw - the token is still valid, user can retry
         }
     }
