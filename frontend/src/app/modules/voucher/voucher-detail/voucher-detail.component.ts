@@ -62,6 +62,22 @@ import { environment } from '@env/environment';
             <div><strong>Bill Date:</strong> {{ voucher.billDate || 'N/A' }}</div>
             <div><strong>Created By:</strong> {{ voucher.createdBy }}</div>
           </div>
+
+          <!-- TDS Section -->
+          <div *ngIf="voucher.tdsApplicable" class="tds-section">
+            <mat-divider></mat-divider>
+            <h4 class="tds-title">TDS Deduction</h4>
+            <div class="detail-grid">
+              <div><strong>TDS Section:</strong> {{ voucher.tdsSection }}</div>
+              <div><strong>TDS Rate:</strong> {{ voucher.tdsRate }}%</div>
+              <div><strong>Bill Amount:</strong> <span class="amount">₹ {{ voucher.amount | number:'1.2-2' }}</span></div>
+              <div><strong>TDS Deducted:</strong> <span style="color: #c62828;">- ₹ {{ voucher.tdsAmount | number:'1.2-2' }}</span></div>
+              <div class="full-width"><strong>Net Payable (Cheque Amount):</strong>
+                <span class="amount" style="font-size: 1.3rem;">₹ {{ voucher.netPayable | number:'1.2-2' }}</span>
+              </div>
+            </div>
+          </div>
+
           <mat-divider></mat-divider>
           <div class="description-section">
             <strong>Description / Narration:</strong>
@@ -281,6 +297,8 @@ import { environment } from '@env/environment';
     .description-section { padding: 16px 0; }
     .description-section p { margin: 8px 0 0; color: #333; }
     .cancelled-section { background: #fff3f3; padding: 12px; border-radius: 4px; margin-top: 12px; }
+    .tds-section { padding: 12px 0; }
+    .tds-title { color: #1976d2; margin: 12px 0 8px; font-size: 14px; }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; }
     textarea { border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
     .no-docs { text-align: center; padding: 20px; color: #999; }

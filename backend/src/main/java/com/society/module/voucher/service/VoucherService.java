@@ -33,6 +33,7 @@ public class VoucherService {
     private final VoucherDocumentRepository documentRepository;
     private final VendorRepository vendorRepository;
     private final com.society.common.FileUploadService fileUploadService;
+    private final TdsConfigService tdsConfigService;
 
     // ==================== CREATE VOUCHER ====================
 
@@ -69,6 +70,25 @@ public class VoucherService {
                 .status(VoucherStatus.DRAFT)
                 .financialYear(financialYear)
                 .build();
+
+        // Auto-calculate TDS if vendor has a category with active TDS config
+        if (vendor != null && vendor.getCategory() != null) {
+            TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(
+                    vendor.getCategory(), request.getAmount());
+            if (tds != null) {
+                voucher.setTdsApplicable(true);
+                voucher.setTdsSection(tds.tdsSection());
+                voucher.setTdsRate(tds.tdsRate());
+                voucher.setTdsAmount(tds.tdsAmount());
+                voucher.setNetPayable(tds.netPayable());
+            } else {
+                voucher.setTdsApplicable(false);
+                voucher.setNetPayable(request.getAmount());
+            }
+        } else {
+            voucher.setTdsApplicable(false);
+            voucher.setNetPayable(request.getAmount());
+        }
 
         voucher = voucherRepository.save(voucher);
 
@@ -117,6 +137,32 @@ public class VoucherService {
             voucher.setVendor(vendor);
         } else {
             voucher.setVendor(null);
+        }
+
+        // Recalculate TDS when amount or vendor changes
+        Vendor currentVendor = voucher.getVendor();
+        if (currentVendor != null && currentVendor.getCategory() != null) {
+            TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(
+                    currentVendor.getCategory(), voucher.getAmount());
+            if (tds != null) {
+                voucher.setTdsApplicable(true);
+                voucher.setTdsSection(tds.tdsSection());
+                voucher.setTdsRate(tds.tdsRate());
+                voucher.setTdsAmount(tds.tdsAmount());
+                voucher.setNetPayable(tds.netPayable());
+            } else {
+                voucher.setTdsApplicable(false);
+                voucher.setTdsAmount(null);
+                voucher.setTdsRate(null);
+                voucher.setTdsSection(null);
+                voucher.setNetPayable(voucher.getAmount());
+            }
+        } else {
+            voucher.setTdsApplicable(false);
+            voucher.setTdsAmount(null);
+            voucher.setTdsRate(null);
+            voucher.setTdsSection(null);
+            voucher.setNetPayable(voucher.getAmount());
         }
 
         voucher = voucherRepository.save(voucher);
@@ -550,6 +596,11 @@ public class VoucherService {
                 .cancelledBy(voucher.getCancelledBy())
                 .cancelledOn(voucher.getCancelledOn())
                 .financialYear(voucher.getFinancialYear())
+                .tdsApplicable(voucher.getTdsApplicable())
+                .tdsSection(voucher.getTdsSection())
+                .tdsRate(voucher.getTdsRate())
+                .tdsAmount(voucher.getTdsAmount())
+                .netPayable(voucher.getNetPayable())
                 .viewedByTreasurer(voucher.getViewedByTreasurer())
                 .treasurerName(voucher.getTreasurerName())
                 .treasurerViewedOn(voucher.getTreasurerViewedOn())

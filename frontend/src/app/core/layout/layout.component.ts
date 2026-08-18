@@ -92,6 +92,13 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <mat-icon matListItemIcon>settings</mat-icon>
             <span matListItemTitle>Settings</span>
           </a>
+
+          <a mat-list-item routerLink="/settings/tds" routerLinkActive="active"
+             *ngIf="hasPermission('SETTINGS_VIEW') || hasAnyRole(['SUPER_ADMIN', 'TREASURER', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>percent</mat-icon>
+            <span matListItemTitle>TDS Config</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
 

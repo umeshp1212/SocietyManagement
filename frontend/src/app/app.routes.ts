@@ -79,6 +79,12 @@ export const routes: Routes = [
       .then(m => m.SettingsComponent)
   },
   {
+    path: 'settings/tds',
+    canActivate: [authGuard],
+    loadComponent: () => import('./modules/settings/tds-config/tds-config.component')
+      .then(m => m.TdsConfigComponent)
+  },
+  {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () => import('./modules/reports/reports.component')
