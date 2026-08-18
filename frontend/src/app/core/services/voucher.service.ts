@@ -24,6 +24,22 @@ export class VoucherService {
     return this.http.patch<ApiResponse<Voucher>>(`${this.apiUrl}/${voucherId}/finalize`, {});
   }
 
+  submitForApproval(voucherId: number): Observable<ApiResponse<Voucher>> {
+    return this.http.patch<ApiResponse<Voucher>>(`${this.apiUrl}/${voucherId}/submit-for-approval`, {});
+  }
+
+  treasurerView(voucherId: number): Observable<ApiResponse<Voucher>> {
+    return this.http.patch<ApiResponse<Voucher>>(`${this.apiUrl}/${voucherId}/treasurer-view`, {});
+  }
+
+  secretaryVerify(voucherId: number): Observable<ApiResponse<Voucher>> {
+    return this.http.patch<ApiResponse<Voucher>>(`${this.apiUrl}/${voucherId}/secretary-verify`, {});
+  }
+
+  chairmanApprove(voucherId: number): Observable<ApiResponse<Voucher>> {
+    return this.http.patch<ApiResponse<Voucher>>(`${this.apiUrl}/${voucherId}/chairman-approve`, {});
+  }
+
   cancelVoucher(voucherId: number, request: VoucherCancelRequest): Observable<ApiResponse<Voucher>> {
     return this.http.patch<ApiResponse<Voucher>>(`${this.apiUrl}/${voucherId}/cancel`, request);
   }

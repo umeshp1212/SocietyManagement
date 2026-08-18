@@ -12,6 +12,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -45,7 +47,44 @@ public class VoucherController {
         return ResponseEntity.ok(ApiResponse.success("Voucher updated successfully", voucher));
     }
 
+    @PatchMapping("/{voucherId}/submit-for-approval")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MANAGER', 'SECRETARY', 'TREASURER')")
+    public ResponseEntity<ApiResponse<VoucherDTO>> submitForApproval(
+            @PathVariable Long voucherId, Authentication authentication) {
+        String username = authentication.getName();
+        VoucherDTO voucher = voucherService.submitForApproval(voucherId, username);
+        return ResponseEntity.ok(ApiResponse.success("Voucher submitted for approval", voucher));
+    }
+
+    @PatchMapping("/{voucherId}/treasurer-view")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TREASURER')")
+    public ResponseEntity<ApiResponse<VoucherDTO>> treasurerView(
+            @PathVariable Long voucherId, Authentication authentication) {
+        String username = authentication.getName();
+        VoucherDTO voucher = voucherService.treasurerView(voucherId, username);
+        return ResponseEntity.ok(ApiResponse.success("Voucher viewed by treasurer", voucher));
+    }
+
+    @PatchMapping("/{voucherId}/secretary-verify")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY')")
+    public ResponseEntity<ApiResponse<VoucherDTO>> secretaryVerify(
+            @PathVariable Long voucherId, Authentication authentication) {
+        String username = authentication.getName();
+        VoucherDTO voucher = voucherService.secretaryVerify(voucherId, username);
+        return ResponseEntity.ok(ApiResponse.success("Voucher verified by secretary", voucher));
+    }
+
+    @PatchMapping("/{voucherId}/chairman-approve")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CHAIRMAN')")
+    public ResponseEntity<ApiResponse<VoucherDTO>> chairmanApprove(
+            @PathVariable Long voucherId, Authentication authentication) {
+        String username = authentication.getName();
+        VoucherDTO voucher = voucherService.chairmanApprove(voucherId, username);
+        return ResponseEntity.ok(ApiResponse.success("Voucher approved by chairman", voucher));
+    }
+
     @PatchMapping("/{voucherId}/finalize")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<ApiResponse<VoucherDTO>> finalizeVoucher(@PathVariable Long voucherId) {
         VoucherDTO voucher = voucherService.finalizeVoucher(voucherId);
         return ResponseEntity.ok(ApiResponse.success("Voucher finalized successfully", voucher));

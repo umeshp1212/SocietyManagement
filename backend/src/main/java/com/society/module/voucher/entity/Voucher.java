@@ -82,6 +82,38 @@ public class Voucher extends BaseEntity {
     @Column(name = "financial_year", nullable = false, length = 10)
     private String financialYear;
 
+    // ===== Approval Workflow Fields =====
+
+    @Column(name = "viewed_by_treasurer")
+    @Builder.Default
+    private Boolean viewedByTreasurer = false;
+
+    @Column(name = "treasurer_name", length = 100)
+    private String treasurerName;
+
+    @Column(name = "treasurer_viewed_on")
+    private LocalDateTime treasurerViewedOn;
+
+    @Column(name = "verified_by_secretary")
+    @Builder.Default
+    private Boolean verifiedBySecretary = false;
+
+    @Column(name = "secretary_name", length = 100)
+    private String secretaryName;
+
+    @Column(name = "secretary_verified_on")
+    private LocalDateTime secretaryVerifiedOn;
+
+    @Column(name = "approved_by_chairman")
+    @Builder.Default
+    private Boolean approvedByChairman = false;
+
+    @Column(name = "chairman_name", length = 100)
+    private String chairmanName;
+
+    @Column(name = "chairman_approved_on")
+    private LocalDateTime chairmanApprovedOn;
+
     @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<VoucherDocument> documents = new ArrayList<>();

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatButtonModule } from '@angular/material/button';
@@ -126,7 +127,7 @@ export class VoucherListComponent implements OnInit {
   bulkStartDate = '';
   bulkEndDate = '';
 
-  constructor(private voucherService: VoucherService) {}
+  constructor(private voucherService: VoucherService, private http: HttpClient) {}
   ngOnInit(): void { this.loadVouchers(); }
 
   loadVouchers(): void {
@@ -147,6 +148,15 @@ export class VoucherListComponent implements OnInit {
       this.bulkEndDate || undefined,
       this.bulkFinancialYear || undefined
     );
-    window.open(url, '_blank');
+    this.http.get(url, { responseType: 'blob' }).subscribe(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = this.bulkFinancialYear
+        ? `Vouchers_FY_${this.bulkFinancialYear}.pdf`
+        : `Vouchers_${this.bulkStartDate}_to_${this.bulkEndDate}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(blobUrl);
+    });
   }
 }

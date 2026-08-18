@@ -12,11 +12,21 @@ export interface Voucher {
   referenceNumber?: string;
   billInvoiceNumber?: string;
   billDate?: string;
-  status: 'DRAFT' | 'FINAL' | 'CANCELLED';
+  status: 'DRAFT' | 'PENDING_APPROVAL' | 'FINAL' | 'CANCELLED';
   cancellationReason?: string;
   cancelledBy?: string;
   cancelledOn?: string;
   financialYear: string;
+  // Approval workflow
+  viewedByTreasurer?: boolean;
+  treasurerName?: string;
+  treasurerViewedOn?: string;
+  verifiedBySecretary?: boolean;
+  secretaryName?: string;
+  secretaryVerifiedOn?: string;
+  approvedByChairman?: boolean;
+  chairmanName?: string;
+  chairmanApprovedOn?: string;
   documents?: VoucherDocument[];
   createdBy?: string;
   createdOn?: string;
