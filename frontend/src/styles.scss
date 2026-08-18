@@ -15,6 +15,8 @@ html, body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 
   h2 {
     margin: 0;
@@ -40,12 +42,14 @@ html, body {
   font-size: 12px;
   font-weight: 500;
   text-transform: uppercase;
+  white-space: nowrap;
 
   &.active { background: #e8f5e9; color: #2e7d32; }
   &.transferred { background: #fff3e0; color: #e65100; }
   &.rented { background: #e3f2fd; color: #1565c0; }
   &.vacant { background: #fafafa; color: #616161; }
   &.pending { background: #fff8e1; color: #f57f17; }
+  &.pending_approval { background: #fff3e0; color: #e65100; }
   &.approved { background: #e8f5e9; color: #2e7d32; }
   &.rejected { background: #ffebee; color: #c62828; }
   &.draft { background: #f3e5f5; color: #6a1b9a; }
@@ -76,6 +80,7 @@ html, body {
   gap: 8px;
   justify-content: flex-end;
   margin-top: 20px;
+  flex-wrap: wrap;
 }
 
 .card-grid {
@@ -100,3 +105,104 @@ html, body {
     margin-top: 4px;
   }
 }
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+
+    h2 { font-size: 1.25rem; }
+  }
+
+  .form-container {
+    padding: 12px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .action-buttons {
+    justify-content: stretch;
+
+    button, a {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .summary-card .summary-value {
+    font-size: 1.5rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make tables horizontally scrollable on mobile */
+  .mat-mdc-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reduce padding in mat-cards */
+  mat-card {
+    padding: 12px !important;
+  }
+
+  mat-card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Stack approval grid vertically on mobile */
+  .approval-grid {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .approval-actions {
+    flex-direction: column !important;
+
+    button {
+      width: 100%;
+    }
+  }
+
+  /* Full-width buttons in action cards */
+  .action-buttons button,
+  .action-buttons a {
+    font-size: 13px;
+  }
+
+  /* Header actions stack vertically */
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header h2 {
+    font-size: 1.1rem;
+  }
+}
+

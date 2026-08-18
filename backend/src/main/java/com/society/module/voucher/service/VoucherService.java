@@ -304,20 +304,22 @@ public class VoucherService {
         Pageable pageable = PageRequest.of(page, size, Sort.by("voucherDate").descending());
         Page<Voucher> voucherPage;
 
+        // Build dynamic query using specifications for combined filters
         if (search != null && !search.isBlank()) {
-            voucherPage = voucherRepository.searchVouchers(search, pageable);
-        } else if (startDate != null && endDate != null) {
-            voucherPage = voucherRepository.findByVoucherDateBetween(startDate, endDate, pageable);
-        } else if (type != null && !type.isBlank()) {
-            voucherPage = voucherRepository.findByVoucherType(VoucherType.valueOf(type), pageable);
-        } else if (status != null && !status.isBlank()) {
-            voucherPage = voucherRepository.findByStatus(VoucherStatus.valueOf(status), pageable);
-        } else if (category != null && !category.isBlank()) {
-            voucherPage = voucherRepository.findByCategory(ExpenseCategory.valueOf(category), pageable);
-        } else if (financialYear != null && !financialYear.isBlank()) {
-            voucherPage = voucherRepository.findByFinancialYear(financialYear, pageable);
+            // Search overrides other filters (full-text search on number + description)
+            voucherPage = voucherRepository.searchVouchersWithFilters(
+                    search,
+                    type != null && !type.isBlank() ? VoucherType.valueOf(type) : null,
+                    status != null && !status.isBlank() ? VoucherStatus.valueOf(status) : null,
+                    pageable);
         } else {
-            voucherPage = voucherRepository.findAll(pageable);
+            voucherPage = voucherRepository.findWithFilters(
+                    type != null && !type.isBlank() ? VoucherType.valueOf(type) : null,
+                    status != null && !status.isBlank() ? VoucherStatus.valueOf(status) : null,
+                    category != null && !category.isBlank() ? ExpenseCategory.valueOf(category) : null,
+                    financialYear != null && !financialYear.isBlank() ? financialYear : null,
+                    startDate, endDate,
+                    pageable);
         }
 
         List<VoucherDTO> content = voucherPage.getContent().stream()
@@ -458,16 +460,15 @@ public class VoucherService {
         sequenceRepository.save(sequence);
 
         String prefix = getVoucherPrefix(type);
-        String yearPart = financialYear.replace("-", "");
-        return String.format("%s-%s-%03d", prefix, yearPart.substring(0, 4), sequence.getLastNumber());
+        return String.format("%s/%s/%03d", prefix, financialYear, sequence.getLastNumber());
     }
 
     private String getVoucherPrefix(VoucherType type) {
         return switch (type) {
-            case PAYMENT -> "PV";
-            case RECEIPT -> "RV";
-            case JOURNAL -> "JV";
-            case CONTRA -> "CV";
+            case PAYMENT -> "PPV/CD";
+            case RECEIPT -> "PPV/CD";
+            case JOURNAL -> "PPV/CD";
+            case CONTRA -> "PPV/CD";
         };
     }
 

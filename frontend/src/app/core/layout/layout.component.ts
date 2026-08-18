@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { MatSidenavModule } from '@angular/material/sidenav';
+import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { MatSidenavModule, MatSidenav } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
@@ -20,48 +21,52 @@ import { AuthService, LoginResponse } from '../services/auth.service';
   ],
   template: `
     <mat-sidenav-container class="sidenav-container">
-      <mat-sidenav #sidenav mode="side" opened class="sidenav">
+      <mat-sidenav #sidenav [mode]="isMobile ? 'over' : 'side'"
+                   [opened]="!isMobile" class="sidenav"
+                   [fixedInViewport]="isMobile" fixedTopGap="56">
         <div class="sidenav-header">
           <mat-icon class="society-icon">apartment</mat-icon>
           <h3>Society Mgmt</h3>
         </div>
         <mat-nav-list>
-          <a mat-list-item routerLink="/dashboard" routerLinkActive="active">
+          <a mat-list-item routerLink="/dashboard" routerLinkActive="active"
+             (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>dashboard</mat-icon>
             <span matListItemTitle>Dashboard</span>
           </a>
 
           <a mat-list-item routerLink="/owners" routerLinkActive="active"
-             *ngIf="hasPermission('OWNER_VIEW')">
+             *ngIf="hasPermission('OWNER_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>people</mat-icon>
             <span matListItemTitle>Owners</span>
           </a>
 
           <a mat-list-item routerLink="/units" routerLinkActive="active"
-             *ngIf="hasPermission('UNIT_VIEW')">
+             *ngIf="hasPermission('UNIT_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>apartment</mat-icon>
             <span matListItemTitle>Units</span>
           </a>
 
           <a mat-list-item routerLink="/vendors" routerLinkActive="active"
-             *ngIf="hasPermission('VENDOR_VIEW')">
+             *ngIf="hasPermission('VENDOR_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>store</mat-icon>
             <span matListItemTitle>Vendors</span>
           </a>
 
           <a mat-list-item routerLink="/tenants" routerLinkActive="active"
-             *ngIf="hasPermission('TENANT_VIEW')">
+             *ngIf="hasPermission('TENANT_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>person_add</mat-icon>
             <span matListItemTitle>Tenants</span>
           </a>
 
           <a mat-list-item routerLink="/vouchers" routerLinkActive="active"
-             *ngIf="hasPermission('VOUCHER_VIEW')">
+             *ngIf="hasPermission('VOUCHER_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>receipt_long</mat-icon>
             <span matListItemTitle>Vouchers</span>
           </a>
 
-          <a mat-list-item routerLink="/maintenance" routerLinkActive="active">
+          <a mat-list-item routerLink="/maintenance" routerLinkActive="active"
+             (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>payments</mat-icon>
             <span matListItemTitle>Maintenance</span>
           </a>
@@ -69,19 +74,21 @@ import { AuthService, LoginResponse } from '../services/auth.service';
           <mat-divider *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"></mat-divider>
 
           <a mat-list-item routerLink="/users" routerLinkActive="active"
-             *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])">
+             *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>manage_accounts</mat-icon>
             <span matListItemTitle>User Management</span>
           </a>
 
           <a mat-list-item routerLink="/reports" routerLinkActive="active"
-             *ngIf="hasPermission('REPORT_FINANCIAL') || hasPermission('REPORT_OCCUPANCY')">
+             *ngIf="hasPermission('REPORT_FINANCIAL') || hasPermission('REPORT_OCCUPANCY')"
+             (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>assessment</mat-icon>
             <span matListItemTitle>Reports</span>
           </a>
 
           <a mat-list-item routerLink="/settings" routerLinkActive="active"
-             *ngIf="hasPermission('SETTINGS_VIEW')">
+             *ngIf="hasPermission('SETTINGS_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>settings</mat-icon>
             <span matListItemTitle>Settings</span>
           </a>
@@ -89,11 +96,11 @@ import { AuthService, LoginResponse } from '../services/auth.service';
       </mat-sidenav>
 
       <mat-sidenav-content>
-        <mat-toolbar color="primary">
+        <mat-toolbar color="primary" class="app-toolbar">
           <button mat-icon-button (click)="sidenav.toggle()">
             <mat-icon>menu</mat-icon>
           </button>
-          <span>Society Management System</span>
+          <span class="toolbar-title">Society Management</span>
           <span class="toolbar-spacer"></span>
 
           <!-- User Menu -->
@@ -129,22 +136,47 @@ import { AuthService, LoginResponse } from '../services/auth.service';
     .content { padding: 20px; }
     .active { background: rgba(25, 118, 210, 0.08) !important; }
     .toolbar-spacer { flex: 1 1 auto; }
+    .toolbar-title { margin-left: 8px; font-size: 18px; }
+    .app-toolbar { position: sticky; top: 0; z-index: 1000; }
     .user-menu-header { padding: 12px 16px; }
     .user-menu-header strong { display: block; }
     .user-menu-header small { color: #666; font-size: 11px; }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+      .sidenav { width: 260px; }
+      .content { padding: 12px; }
+      .toolbar-title { font-size: 15px; }
+    }
   `]
 })
 export class LayoutComponent implements OnInit {
+  @ViewChild('sidenav') sidenav!: MatSidenav;
   isLoggedIn = false;
   currentUser: LoginResponse | null = null;
+  isMobile = false;
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private breakpointObserver: BreakpointObserver
+  ) {}
 
   ngOnInit(): void {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
       this.isLoggedIn = this.authService.isLoggedIn();
     });
+
+    this.breakpointObserver.observe([Breakpoints.Handset, '(max-width: 768px)'])
+      .subscribe(result => {
+        this.isMobile = result.matches;
+      });
+  }
+
+  closeSidenavOnMobile(): void {
+    if (this.isMobile) {
+      this.sidenav.close();
+    }
   }
 
   hasPermission(permission: string): boolean {

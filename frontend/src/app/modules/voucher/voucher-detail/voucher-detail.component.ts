@@ -295,7 +295,7 @@ import { environment } from '@env/environment';
     .upload-more { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .file-name { font-weight: 500; color: #1976d2; font-size: 13px; }
     .approval-grid { display: flex; gap: 24px; padding: 16px 0; flex-wrap: wrap; }
-    .approval-step { display: flex; align-items: flex-start; gap: 10px; min-width: 220px; padding: 12px; border-radius: 8px; background: #f5f5f5; border: 1px solid #e0e0e0; }
+    .approval-step { display: flex; align-items: flex-start; gap: 10px; min-width: 220px; padding: 12px; border-radius: 8px; background: #f5f5f5; border: 1px solid #e0e0e0; flex: 1; }
     .approval-step.done { background: #e8f5e9; border-color: #a5d6a7; }
     .step-icon { color: #bdbdbd; font-size: 28px; height: 28px; width: 28px; }
     .step-icon.done { color: #2e7d32; }
@@ -305,6 +305,20 @@ import { environment } from '@env/environment';
     .step-info .pending { color: #f57c00; font-style: italic; }
     .approval-actions { display: flex; gap: 12px; flex-wrap: wrap; }
     .status-badge.pending_approval { background: #fff3e0; color: #e65100; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+
+    @media (max-width: 768px) {
+      .header-actions { flex-direction: column; width: 100%; }
+      .header-actions button, .header-actions a { width: 100%; }
+      .detail-grid { grid-template-columns: 1fr !important; }
+      .doc-item { flex-direction: column; align-items: flex-start; }
+      .doc-actions { align-self: flex-end; }
+      .approval-grid { flex-direction: column; gap: 12px; }
+      .approval-step { min-width: unset; }
+      .approval-actions { flex-direction: column; }
+      .approval-actions button { width: 100%; }
+      .action-buttons { flex-direction: column; }
+      .action-buttons button, .action-buttons a { width: 100%; text-align: center; }
+    }
   `]
 })
 export class VoucherDetailComponent implements OnInit {

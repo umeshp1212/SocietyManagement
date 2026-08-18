@@ -112,9 +112,10 @@ public class VoucherPdfService {
     /**
      * Generate a single PDF containing all vouchers within a date range.
      * Each voucher starts on a new page. Includes a summary cover page.
+     * Supports filtering by type and status.
      */
     public byte[] generateBulkVoucherPdf(java.time.LocalDate startDate, java.time.LocalDate endDate,
-                                          String financialYear) throws IOException {
+                                          String financialYear, String type, String status) throws IOException {
         List<Voucher> vouchers;
 
         if (financialYear != null && !financialYear.isBlank()) {
@@ -123,6 +124,18 @@ public class VoucherPdfService {
             vouchers = voucherRepository.findByVoucherDateBetweenOrderByVoucherDateAsc(startDate, endDate);
         } else {
             throw new com.society.exception.BusinessException("Either date range or financial year is required");
+        }
+
+        // Apply type filter
+        if (type != null && !type.isBlank()) {
+            com.society.enums.VoucherType voucherType = com.society.enums.VoucherType.valueOf(type);
+            vouchers = vouchers.stream().filter(v -> v.getVoucherType() == voucherType).toList();
+        }
+
+        // Apply status filter
+        if (status != null && !status.isBlank()) {
+            com.society.enums.VoucherStatus voucherStatus = com.society.enums.VoucherStatus.valueOf(status);
+            vouchers = vouchers.stream().filter(v -> v.getStatus() == voucherStatus).toList();
         }
 
         if (vouchers.isEmpty()) {
@@ -155,6 +168,13 @@ public class VoucherPdfService {
             period = "Financial Year: " + financialYear;
         } else {
             period = "Period: " + startDate.format(DATE_FORMAT) + " to " + endDate.format(DATE_FORMAT);
+        }
+        // Add filter info
+        if (type != null && !type.isBlank()) {
+            period += " | Type: " + type;
+        }
+        if (status != null && !status.isBlank()) {
+            period += " | Status: " + status;
         }
         document.add(new Paragraph(period)
                 .setFont(regularFont).setFontSize(12)
