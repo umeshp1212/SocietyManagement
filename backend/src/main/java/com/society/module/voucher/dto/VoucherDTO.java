@@ -35,6 +35,13 @@ public class VoucherDTO {
     private LocalDateTime cancelledOn;
     private String financialYear;
 
+    // TDS fields
+    private Boolean tdsApplicable;
+    private String tdsSection;
+    private BigDecimal tdsRate;
+    private BigDecimal tdsAmount;
+    private BigDecimal netPayable;
+
     // Approval workflow fields
     private Boolean viewedByTreasurer;
     private String treasurerName;

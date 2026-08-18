@@ -17,6 +17,12 @@ export interface Voucher {
   cancelledBy?: string;
   cancelledOn?: string;
   financialYear: string;
+  // TDS fields
+  tdsApplicable?: boolean;
+  tdsSection?: string;
+  tdsRate?: number;
+  tdsAmount?: number;
+  netPayable?: number;
   // Approval workflow
   viewedByTreasurer?: boolean;
   treasurerName?: string;

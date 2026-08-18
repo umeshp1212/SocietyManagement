@@ -82,6 +82,24 @@ public class Voucher extends BaseEntity {
     @Column(name = "financial_year", nullable = false, length = 10)
     private String financialYear;
 
+    // ===== TDS Fields =====
+
+    @Column(name = "tds_applicable")
+    @Builder.Default
+    private Boolean tdsApplicable = false;
+
+    @Column(name = "tds_section", length = 20)
+    private String tdsSection;  // e.g., "194C", "194J"
+
+    @Column(name = "tds_rate", precision = 5, scale = 2)
+    private BigDecimal tdsRate;  // e.g., 2.00
+
+    @Column(name = "tds_amount", precision = 12, scale = 2)
+    private BigDecimal tdsAmount;  // calculated: amount * tdsRate / 100
+
+    @Column(name = "net_payable", precision = 12, scale = 2)
+    private BigDecimal netPayable;  // amount - tdsAmount (cheque amount)
+
     // ===== Approval Workflow Fields =====
 
     @Column(name = "viewed_by_treasurer")
