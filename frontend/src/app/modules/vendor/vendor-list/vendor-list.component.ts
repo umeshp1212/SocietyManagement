@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { BreakpointObserver } from '@angular/cdk/layout';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatButtonModule } from '@angular/material/button';
@@ -52,8 +53,8 @@ import { Vendor } from '@core/models/vendor.model';
           <a mat-icon-button [routerLink]="['/vendors', v.vendorId, 'ledger']" matTooltip="Ledger"><mat-icon>receipt_long</mat-icon></a>
           <a mat-icon-button [routerLink]="['/vendors/edit', v.vendorId]" matTooltip="Edit"><mat-icon>edit</mat-icon></a>
         </td></ng-container>
-        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        <tr mat-header-row *matHeaderRowDef="isMobile ? mobileColumns : displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: isMobile ? mobileColumns : displayedColumns;"></tr>
       </table>
       <mat-paginator [length]="totalElements" [pageSize]="pageSize" [pageSizeOptions]="[10,20,50]" (page)="onPageChange($event)"></mat-paginator>
     </div>
@@ -62,11 +63,18 @@ import { Vendor } from '@core/models/vendor.model';
 export class VendorListComponent implements OnInit {
   vendors: Vendor[] = [];
   displayedColumns = ['vendorName', 'category', 'phone', 'contractedAmount', 'status', 'actions'];
+  mobileColumns = ['vendorName', 'contractedAmount', 'status', 'actions'];
   totalElements = 0; pageSize = 20; currentPage = 0;
   searchTerm = ''; statusFilter = '';
+  isMobile = false;
 
-  constructor(private vendorService: VendorService) {}
-  ngOnInit(): void { this.loadVendors(); }
+  constructor(private vendorService: VendorService, private breakpointObserver: BreakpointObserver) {}
+  ngOnInit(): void {
+    this.breakpointObserver.observe(['(max-width: 768px)']).subscribe(result => {
+      this.isMobile = result.matches;
+    });
+    this.loadVendors();
+  }
 
   loadVendors(): void {
     this.vendorService.getAllVendors(this.currentPage, this.pageSize, this.statusFilter || undefined, undefined, this.searchTerm || undefined)

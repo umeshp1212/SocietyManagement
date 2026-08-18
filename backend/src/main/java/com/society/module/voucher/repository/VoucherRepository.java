@@ -43,6 +43,31 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
            "LOWER(v.description) LIKE LOWER(CONCAT('%', :search, '%'))")
     Page<Voucher> searchVouchers(@Param("search") String search, Pageable pageable);
 
+    @Query("SELECT v FROM Voucher v LEFT JOIN FETCH v.vendor WHERE " +
+           "(LOWER(v.voucherNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(v.description) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+           "(:type IS NULL OR v.voucherType = :type) AND " +
+           "(:status IS NULL OR v.status = :status)")
+    Page<Voucher> searchVouchersWithFilters(@Param("search") String search,
+                                            @Param("type") VoucherType type,
+                                            @Param("status") VoucherStatus status,
+                                            Pageable pageable);
+
+    @Query("SELECT v FROM Voucher v LEFT JOIN FETCH v.vendor WHERE " +
+           "(:type IS NULL OR v.voucherType = :type) AND " +
+           "(:status IS NULL OR v.status = :status) AND " +
+           "(:category IS NULL OR v.category = :category) AND " +
+           "(:financialYear IS NULL OR v.financialYear = :financialYear) AND " +
+           "(:startDate IS NULL OR v.voucherDate >= :startDate) AND " +
+           "(:endDate IS NULL OR v.voucherDate <= :endDate)")
+    Page<Voucher> findWithFilters(@Param("type") VoucherType type,
+                                   @Param("status") VoucherStatus status,
+                                   @Param("category") ExpenseCategory category,
+                                   @Param("financialYear") String financialYear,
+                                   @Param("startDate") LocalDate startDate,
+                                   @Param("endDate") LocalDate endDate,
+                                   Pageable pageable);
+
     // Monthly expense summary
     @Query("SELECT v.category, SUM(v.amount) FROM Voucher v WHERE " +
            "v.voucherType = 'PAYMENT' AND v.status != 'CANCELLED' AND " +

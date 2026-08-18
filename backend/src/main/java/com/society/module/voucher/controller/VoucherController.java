@@ -210,9 +210,11 @@ public class VoucherController {
     public ResponseEntity<byte[]> downloadBulkVoucherPdf(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) String financialYear) throws IOException {
+            @RequestParam(required = false) String financialYear,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String status) throws IOException {
 
-        byte[] pdfBytes = voucherPdfService.generateBulkVoucherPdf(startDate, endDate, financialYear);
+        byte[] pdfBytes = voucherPdfService.generateBulkVoucherPdf(startDate, endDate, financialYear, type, status);
 
         String filename;
         if (financialYear != null && !financialYear.isBlank()) {
