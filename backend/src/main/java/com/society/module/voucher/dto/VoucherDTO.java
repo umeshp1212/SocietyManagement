@@ -34,6 +34,18 @@ public class VoucherDTO {
     private String cancelledBy;
     private LocalDateTime cancelledOn;
     private String financialYear;
+
+    // Approval workflow fields
+    private Boolean viewedByTreasurer;
+    private String treasurerName;
+    private LocalDateTime treasurerViewedOn;
+    private Boolean verifiedBySecretary;
+    private String secretaryName;
+    private LocalDateTime secretaryVerifiedOn;
+    private Boolean approvedByChairman;
+    private String chairmanName;
+    private LocalDateTime chairmanApprovedOn;
+
     private List<VoucherDocumentDTO> documents;
     private String createdBy;
     private LocalDateTime createdOn;

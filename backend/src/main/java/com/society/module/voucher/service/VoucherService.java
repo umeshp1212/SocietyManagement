@@ -123,20 +123,140 @@ public class VoucherService {
         return mapToDTO(voucher);
     }
 
-    // ==================== FINALIZE VOUCHER ====================
+    // ==================== SUBMIT FOR APPROVAL ====================
+
+    @Transactional
+    public VoucherDTO submitForApproval(Long voucherId, String submittedBy) {
+        Voucher voucher = voucherRepository.findById(voucherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Voucher", "voucherId", voucherId));
+
+        if (voucher.getStatus() != VoucherStatus.DRAFT) {
+            throw new BusinessException("Only DRAFT vouchers can be submitted for approval");
+        }
+
+        createAuditEntry(voucher, "status", "DRAFT", "PENDING_APPROVAL",
+                "Voucher submitted for approval", submittedBy);
+
+        voucher.setStatus(VoucherStatus.PENDING_APPROVAL);
+        voucher = voucherRepository.save(voucher);
+        return mapToDTO(voucher);
+    }
+
+    // ==================== APPROVAL WORKFLOW ====================
+
+    @Transactional
+    public VoucherDTO treasurerView(Long voucherId, String treasurerName) {
+        Voucher voucher = voucherRepository.findById(voucherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Voucher", "voucherId", voucherId));
+
+        if (voucher.getStatus() != VoucherStatus.PENDING_APPROVAL) {
+            throw new BusinessException("Voucher must be in PENDING_APPROVAL status for treasurer review");
+        }
+
+        if (Boolean.TRUE.equals(voucher.getViewedByTreasurer())) {
+            throw new BusinessException("Voucher already viewed by treasurer: " + voucher.getTreasurerName());
+        }
+
+        voucher.setViewedByTreasurer(true);
+        voucher.setTreasurerName(treasurerName);
+        voucher.setTreasurerViewedOn(LocalDateTime.now());
+
+        createAuditEntry(voucher, "treasurerView", null, "VIEWED",
+                "Viewed by Treasurer: " + treasurerName, treasurerName);
+
+        voucher = voucherRepository.save(voucher);
+        checkAndFinalize(voucher);
+        return mapToDTO(voucher);
+    }
+
+    @Transactional
+    public VoucherDTO secretaryVerify(Long voucherId, String secretaryName) {
+        Voucher voucher = voucherRepository.findById(voucherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Voucher", "voucherId", voucherId));
+
+        if (voucher.getStatus() != VoucherStatus.PENDING_APPROVAL) {
+            throw new BusinessException("Voucher must be in PENDING_APPROVAL status for secretary verification");
+        }
+
+        if (Boolean.TRUE.equals(voucher.getVerifiedBySecretary())) {
+            throw new BusinessException("Voucher already verified by secretary: " + voucher.getSecretaryName());
+        }
+
+        voucher.setVerifiedBySecretary(true);
+        voucher.setSecretaryName(secretaryName);
+        voucher.setSecretaryVerifiedOn(LocalDateTime.now());
+
+        createAuditEntry(voucher, "secretaryVerify", null, "VERIFIED",
+                "Verified by Secretary: " + secretaryName, secretaryName);
+
+        voucher = voucherRepository.save(voucher);
+        checkAndFinalize(voucher);
+        return mapToDTO(voucher);
+    }
+
+    @Transactional
+    public VoucherDTO chairmanApprove(Long voucherId, String chairmanName) {
+        Voucher voucher = voucherRepository.findById(voucherId)
+                .orElseThrow(() -> new ResourceNotFoundException("Voucher", "voucherId", voucherId));
+
+        if (voucher.getStatus() != VoucherStatus.PENDING_APPROVAL) {
+            throw new BusinessException("Voucher must be in PENDING_APPROVAL status for chairman approval");
+        }
+
+        if (Boolean.TRUE.equals(voucher.getApprovedByChairman())) {
+            throw new BusinessException("Voucher already approved by chairman: " + voucher.getChairmanName());
+        }
+
+        voucher.setApprovedByChairman(true);
+        voucher.setChairmanName(chairmanName);
+        voucher.setChairmanApprovedOn(LocalDateTime.now());
+
+        createAuditEntry(voucher, "chairmanApprove", null, "APPROVED",
+                "Approved by Chairman: " + chairmanName, chairmanName);
+
+        voucher = voucherRepository.save(voucher);
+        checkAndFinalize(voucher);
+        return mapToDTO(voucher);
+    }
+
+    /**
+     * Check if all three approvals are done. If yes, auto-finalize the voucher.
+     */
+    private void checkAndFinalize(Voucher voucher) {
+        if (Boolean.TRUE.equals(voucher.getViewedByTreasurer())
+                && Boolean.TRUE.equals(voucher.getVerifiedBySecretary())
+                && Boolean.TRUE.equals(voucher.getApprovedByChairman())) {
+
+            createAuditEntry(voucher, "status", "PENDING_APPROVAL", "FINAL",
+                    "Auto-finalized: All approvals received (Treasurer viewed, Secretary verified, Chairman approved)",
+                    "SYSTEM");
+
+            voucher.setStatus(VoucherStatus.FINAL);
+            voucherRepository.save(voucher);
+        }
+    }
+
+    // ==================== FINALIZE VOUCHER (Legacy - direct finalize by SUPER_ADMIN) ====================
 
     @Transactional
     public VoucherDTO finalizeVoucher(Long voucherId) {
         Voucher voucher = voucherRepository.findById(voucherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Voucher", "voucherId", voucherId));
 
-        if (voucher.getStatus() != VoucherStatus.DRAFT) {
-            throw new BusinessException("Only DRAFT vouchers can be finalized");
+        if (voucher.getStatus() == VoucherStatus.FINAL) {
+            throw new BusinessException("Voucher is already finalized");
+        }
+        if (voucher.getStatus() == VoucherStatus.CANCELLED) {
+            throw new BusinessException("Cancelled vouchers cannot be finalized");
         }
 
-        createAuditEntry(voucher, "status", "DRAFT", "FINAL", "Voucher finalized", "SYSTEM");
+        String oldStatus = voucher.getStatus().name();
+        createAuditEntry(voucher, "status", oldStatus, "FINAL", "Voucher directly finalized by Super Admin", "SYSTEM");
 
         voucher.setStatus(VoucherStatus.FINAL);
+        voucher.setViewedByTreasurer(true);
+        voucher.setVerifiedBySecretary(true);
+        voucher.setApprovedByChairman(true);
         voucher = voucherRepository.save(voucher);
         return mapToDTO(voucher);
     }
@@ -429,6 +549,15 @@ public class VoucherService {
                 .cancelledBy(voucher.getCancelledBy())
                 .cancelledOn(voucher.getCancelledOn())
                 .financialYear(voucher.getFinancialYear())
+                .viewedByTreasurer(voucher.getViewedByTreasurer())
+                .treasurerName(voucher.getTreasurerName())
+                .treasurerViewedOn(voucher.getTreasurerViewedOn())
+                .verifiedBySecretary(voucher.getVerifiedBySecretary())
+                .secretaryName(voucher.getSecretaryName())
+                .secretaryVerifiedOn(voucher.getSecretaryVerifiedOn())
+                .approvedByChairman(voucher.getApprovedByChairman())
+                .chairmanName(voucher.getChairmanName())
+                .chairmanApprovedOn(voucher.getChairmanApprovedOn())
                 .documents(docs)
                 .createdBy(voucher.getCreatedBy())
                 .createdOn(voucher.getCreatedOn())

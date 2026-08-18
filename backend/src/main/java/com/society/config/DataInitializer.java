@@ -37,13 +37,6 @@ public class DataInitializer implements CommandLineRunner {
             User admin = existingAdmin.get();
             boolean updated = false;
 
-            // Reset admin password to default if it doesn't match
-            if (!passwordEncoder.matches("Admin@123", admin.getPassword())) {
-                admin.setPassword(passwordEncoder.encode("Admin@123"));
-                updated = true;
-                log.info("Admin password reset to default: Admin@123");
-            }
-
             if (!admin.getIsActive()) {
                 admin.setIsActive(true);
                 updated = true;

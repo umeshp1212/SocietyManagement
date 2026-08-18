@@ -1734,3 +1734,42 @@ The backend will connect to the imported data. JPA `ddl-auto: update` will add a
         ↓
   Application running with production data
 ```
+
+---
+
+## 23. Transfer Uploaded Files to Production
+
+Uploaded files (invoices, vendor documents, tenant documents, etc.) are stored locally during development. These files must be transferred to EC2 for downloads/viewing to work in production.
+
+### 23.1 Transfer Files from Local Machine
+
+From your **local Windows PowerShell**:
+
+```powershell
+scp -i "path\to\your-key.pem" -r "D:\Tutorial\SocietyManagement\uploads" ubuntu@YOUR_ELASTIC_IP:/opt/society-management/
+```
+
+### 23.2 Set Permissions on EC2
+
+```bash
+sudo chown -R ubuntu:ubuntu /opt/society-management/uploads
+sudo systemctl restart society-backend
+```
+
+### 23.3 Verify
+
+```bash
+ls -la /opt/society-management/uploads/
+```
+
+You should see subfolders like `vouchers/`, `vendors/`, `tenants/`, etc.
+
+Test a file URL in browser:
+
+```
+http://YOUR_ELASTIC_IP/api/files/view/vouchers/1/filename.pdf
+```
+
+### 23.4 For Future Uploads
+
+Once the app is running in production, any new file uploads will automatically be stored at `/opt/society-management/uploads/` on the EC2 server. No manual transfer needed for new files.

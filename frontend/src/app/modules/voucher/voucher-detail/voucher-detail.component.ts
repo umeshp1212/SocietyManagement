@@ -12,6 +12,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { VoucherService } from '@core/services/voucher.service';
+import { AuthService } from '@core/services/auth.service';
 import { Voucher, VoucherAudit } from '@core/models/voucher.model';
 import { environment } from '@env/environment';
 
@@ -125,6 +126,76 @@ import { environment } from '@env/environment';
         </mat-card-content>
       </mat-card>
 
+      <!-- Approval Status Card -->
+      <mat-card style="margin-top: 16px" *ngIf="voucher.status === 'PENDING_APPROVAL' || voucher.status === 'FINAL'">
+        <mat-card-header>
+          <mat-card-title>Approval Workflow</mat-card-title>
+          <span class="status-badge" [ngClass]="voucher.status.toLowerCase()">{{ voucher.status }}</span>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="approval-grid">
+            <!-- Treasurer -->
+            <div class="approval-step" [class.done]="voucher.viewedByTreasurer">
+              <mat-icon class="step-icon" [class.done]="voucher.viewedByTreasurer">
+                {{ voucher.viewedByTreasurer ? 'check_circle' : 'radio_button_unchecked' }}
+              </mat-icon>
+              <div class="step-info">
+                <strong>Treasurer View</strong>
+                <span *ngIf="voucher.viewedByTreasurer">
+                  {{ voucher.treasurerName }} | {{ voucher.treasurerViewedOn | date:'dd-MM-yyyy HH:mm' }}
+                </span>
+                <span *ngIf="!voucher.viewedByTreasurer" class="pending">Pending</span>
+              </div>
+            </div>
+
+            <!-- Secretary -->
+            <div class="approval-step" [class.done]="voucher.verifiedBySecretary">
+              <mat-icon class="step-icon" [class.done]="voucher.verifiedBySecretary">
+                {{ voucher.verifiedBySecretary ? 'check_circle' : 'radio_button_unchecked' }}
+              </mat-icon>
+              <div class="step-info">
+                <strong>Secretary Verification</strong>
+                <span *ngIf="voucher.verifiedBySecretary">
+                  {{ voucher.secretaryName }} | {{ voucher.secretaryVerifiedOn | date:'dd-MM-yyyy HH:mm' }}
+                </span>
+                <span *ngIf="!voucher.verifiedBySecretary" class="pending">Pending</span>
+              </div>
+            </div>
+
+            <!-- Chairman -->
+            <div class="approval-step" [class.done]="voucher.approvedByChairman">
+              <mat-icon class="step-icon" [class.done]="voucher.approvedByChairman">
+                {{ voucher.approvedByChairman ? 'check_circle' : 'radio_button_unchecked' }}
+              </mat-icon>
+              <div class="step-info">
+                <strong>Chairman Approval</strong>
+                <span *ngIf="voucher.approvedByChairman">
+                  {{ voucher.chairmanName }} | {{ voucher.chairmanApprovedOn | date:'dd-MM-yyyy HH:mm' }}
+                </span>
+                <span *ngIf="!voucher.approvedByChairman" class="pending">Pending</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Approval Action Buttons -->
+          <div class="approval-actions" *ngIf="voucher.status === 'PENDING_APPROVAL'">
+            <mat-divider style="margin: 12px 0;"></mat-divider>
+            <button mat-raised-button color="primary" (click)="treasurerView()"
+                    *ngIf="!voucher.viewedByTreasurer && hasAnyRole(['SUPER_ADMIN', 'TREASURER'])">
+              <mat-icon>visibility</mat-icon> Mark as Viewed (Treasurer)
+            </button>
+            <button mat-raised-button color="accent" (click)="secretaryVerify()"
+                    *ngIf="!voucher.verifiedBySecretary && hasAnyRole(['SUPER_ADMIN', 'SECRETARY'])">
+              <mat-icon>verified</mat-icon> Verify (Secretary)
+            </button>
+            <button mat-raised-button style="background: #2e7d32; color: white;" (click)="chairmanApprove()"
+                    *ngIf="!voucher.approvedByChairman && hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN'])">
+              <mat-icon>thumb_up</mat-icon> Approve (Chairman)
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <!-- Action Buttons -->
       <mat-card style="margin-top: 16px" *ngIf="voucher.status !== 'CANCELLED'">
         <mat-card-content>
@@ -133,11 +204,16 @@ import { environment } from '@env/environment';
                *ngIf="voucher.status === 'DRAFT'">
               <mat-icon>edit</mat-icon> Edit Voucher
             </a>
-            <button mat-raised-button color="accent" (click)="finalizeVoucher()"
+            <button mat-raised-button color="accent" (click)="submitForApproval()"
                     *ngIf="voucher.status === 'DRAFT'">
-              <mat-icon>check_circle</mat-icon> Finalize
+              <mat-icon>send</mat-icon> Submit for Approval
             </button>
-            <button mat-raised-button color="warn" (click)="showCancelDialog = true">
+            <button mat-raised-button color="warn" (click)="finalizeVoucher()"
+                    *ngIf="voucher.status !== 'FINAL' && hasAnyRole(['SUPER_ADMIN'])">
+              <mat-icon>check_circle</mat-icon> Force Finalize (Admin)
+            </button>
+            <button mat-raised-button color="warn" (click)="showCancelDialog = true"
+                    *ngIf="voucher.status !== 'FINAL'">
               <mat-icon>cancel</mat-icon> Cancel Voucher
             </button>
           </div>
@@ -218,6 +294,17 @@ import { environment } from '@env/environment';
     .doc-actions { display: flex; gap: 4px; }
     .upload-more { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .file-name { font-weight: 500; color: #1976d2; font-size: 13px; }
+    .approval-grid { display: flex; gap: 24px; padding: 16px 0; flex-wrap: wrap; }
+    .approval-step { display: flex; align-items: flex-start; gap: 10px; min-width: 220px; padding: 12px; border-radius: 8px; background: #f5f5f5; border: 1px solid #e0e0e0; }
+    .approval-step.done { background: #e8f5e9; border-color: #a5d6a7; }
+    .step-icon { color: #bdbdbd; font-size: 28px; height: 28px; width: 28px; }
+    .step-icon.done { color: #2e7d32; }
+    .step-info { display: flex; flex-direction: column; }
+    .step-info strong { font-size: 13px; }
+    .step-info span { font-size: 12px; color: #666; margin-top: 2px; }
+    .step-info .pending { color: #f57c00; font-style: italic; }
+    .approval-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .status-badge.pending_approval { background: #fff3e0; color: #e65100; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
   `]
 })
 export class VoucherDetailComponent implements OnInit {
@@ -235,6 +322,7 @@ export class VoucherDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private http: HttpClient,
     private voucherService: VoucherService,
+    private authService: AuthService,
     private snackBar: MatSnackBar
   ) {}
 
@@ -259,22 +347,24 @@ export class VoucherDetailComponent implements OnInit {
 
   downloadPdf(): void {
     if (!this.voucher) return;
-    const url = `${this.apiUrl}/vouchers/${this.voucher.voucherId}/pdf`;
-    // Trigger download via hidden link
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Voucher_${this.voucher.voucherNumber}.pdf`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    this.http.get(`${this.apiUrl}/vouchers/${this.voucher.voucherId}/pdf`, { responseType: 'blob' })
+      .subscribe(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Voucher_${this.voucher!.voucherNumber}.pdf`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      });
   }
 
   printVoucher(): void {
     if (!this.voucher) return;
-    const url = `${this.apiUrl}/vouchers/${this.voucher.voucherId}/pdf/view`;
-    // Open PDF in new tab for printing
-    window.open(url, '_blank');
+    this.http.get(`${this.apiUrl}/vouchers/${this.voucher.voucherId}/pdf/view`, { responseType: 'blob' })
+      .subscribe(blob => {
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      });
   }
 
   finalizeVoucher(): void {
@@ -286,6 +376,66 @@ export class VoucherDetailComponent implements OnInit {
         this.loadAuditTrail(this.voucher!.voucherId);
       }
     });
+  }
+
+  submitForApproval(): void {
+    if (!this.voucher) return;
+    this.voucherService.submitForApproval(this.voucher.voucherId).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.snackBar.open('Voucher submitted for approval', 'Close', { duration: 3000 });
+          this.voucher = res.data;
+          this.loadAuditTrail(this.voucher!.voucherId);
+        }
+      },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 5000 })
+    });
+  }
+
+  treasurerView(): void {
+    if (!this.voucher) return;
+    this.voucherService.treasurerView(this.voucher.voucherId).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.snackBar.open('Marked as viewed by Treasurer', 'Close', { duration: 3000 });
+          this.voucher = res.data;
+          this.loadAuditTrail(this.voucher!.voucherId);
+        }
+      },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 5000 })
+    });
+  }
+
+  secretaryVerify(): void {
+    if (!this.voucher) return;
+    this.voucherService.secretaryVerify(this.voucher.voucherId).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.snackBar.open('Verified by Secretary', 'Close', { duration: 3000 });
+          this.voucher = res.data;
+          this.loadAuditTrail(this.voucher!.voucherId);
+        }
+      },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 5000 })
+    });
+  }
+
+  chairmanApprove(): void {
+    if (!this.voucher) return;
+    this.voucherService.chairmanApprove(this.voucher.voucherId).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.snackBar.open('Approved by Chairman', 'Close', { duration: 3000 });
+          this.voucher = res.data;
+          this.loadAuditTrail(this.voucher!.voucherId);
+        }
+      },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 5000 })
+    });
+  }
+
+  hasAnyRole(roles: string[]): boolean {
+    return this.authService.hasAnyRole(roles);
   }
 
   cancelVoucher(): void {
@@ -322,19 +472,32 @@ export class VoucherDetailComponent implements OnInit {
   }
 
   viewDocument(doc: any): void {
-    const url = `${this.apiUrl}/files/view/${doc.filePath}`;
-    window.open(url, '_blank');
+    this.http.get(`${this.apiUrl}/files/view/${doc.filePath}`, { responseType: 'blob' })
+      .subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          window.open(url, '_blank');
+        },
+        error: (err) => {
+          this.snackBar.open('Failed to load document: ' + (err.status === 404 ? 'File not found' : err.statusText), 'Close', { duration: 5000 });
+        }
+      });
   }
 
   downloadDocument(doc: any): void {
     this.http.get(`${this.apiUrl}/files/download/${doc.filePath}`, { responseType: 'blob' })
-      .subscribe(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = doc.documentName;
-        link.click();
-        window.URL.revokeObjectURL(url);
+      .subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = doc.documentName;
+          link.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: (err) => {
+          this.snackBar.open('Failed to download: ' + (err.status === 404 ? 'File not found' : err.statusText), 'Close', { duration: 5000 });
+        }
       });
   }
 

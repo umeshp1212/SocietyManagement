@@ -103,11 +103,27 @@ export class MaintenanceService {
   // ======================== PDF DOWNLOADS ========================
 
   downloadBillPdf(billId: number): void {
-    window.open(`${this.apiUrl}/bills/${billId}/pdf`, '_blank');
+    this.http.get(`${this.apiUrl}/bills/${billId}/pdf`, { responseType: 'blob' })
+      .subscribe(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Bill_${billId}.pdf`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      });
   }
 
   downloadBulkBillsPdf(month: number, year: number): void {
-    window.open(`${this.apiUrl}/bills/pdf/bulk?month=${month}&year=${year}`, '_blank');
+    this.http.get(`${this.apiUrl}/bills/pdf/bulk?month=${month}&year=${year}`, { responseType: 'blob' })
+      .subscribe(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Bills_${month}_${year}.pdf`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      });
   }
 
   // ======================== PENALTIES ========================

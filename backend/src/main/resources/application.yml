@@ -65,7 +65,7 @@ logging:
 # File upload directory
 app:
   upload:
-    dir: ./uploads
+    dir: ${APP_UPLOAD_DIR:./uploads}
   jwt:
     secret: MySuperSecretKeyForJwtTokenGenerationMustBeLongEnough12345678
     expiration: 86400000

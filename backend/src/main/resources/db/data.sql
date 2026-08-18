@@ -46,7 +46,8 @@ INSERT IGNORE INTO roles (role_id, role_name, display_name, description) VALUES
 (5, 'COMMITTEE_MEMBER', 'Committee Member', 'View reports, approve NOC if assigned'),
 (6, 'OWNER', 'Unit Owner', 'View own details, register tenant, pay maintenance'),
 (7, 'TENANT', 'Tenant', 'View own details, pay maintenance if authorized'),
-(8, 'AUDITOR', 'Auditor', 'Read-only access to all financial data');
+(8, 'AUDITOR', 'Auditor', 'Read-only access to all financial data'),
+(9, 'MANAGER', 'Manager', 'Create and manage vouchers, submit for approval');
 
 -- ============================================================
 -- PERMISSIONS
@@ -132,6 +133,10 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 -- AUDITOR
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (8, 1), (8, 6), (8, 10), (8, 13), (8, 18), (8, 23), (8, 24), (8, 31), (8, 32);
+
+-- MANAGER (create/update/view vouchers, view vendors)
+INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
+(9, 10), (9, 18), (9, 19), (9, 20), (9, 23);
 
 -- ============================================================
 -- MAINTENANCE CHARGE CONFIGURATION

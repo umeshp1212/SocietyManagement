@@ -34,24 +34,16 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // Public endpoints
+                // Public endpoints - Auth
                 .requestMatchers("/auth/login", "/auth/register", "/auth/refresh-token").permitAll()
                 .requestMatchers("/auth/forgot-password", "/auth/reset-password", "/auth/reset-password/validate").permitAll()
+                // Public - Swagger (disable in production if needed)
                 .requestMatchers("/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
+                // Public - CORS preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // File serving (public for now - can be secured later)
-                .requestMatchers("/files/**").permitAll()
-                // Voucher PDF endpoints (accessed via browser directly)
-                .requestMatchers("/vouchers/*/pdf", "/vouchers/*/pdf/view", "/vouchers/pdf/bulk").permitAll()
-                // Bulk upload templates (download without auth)
-                .requestMatchers("/bulk-upload/templates/**").permitAll()
-                // Maintenance webhook (Cashfree callback - no auth)
+                // Public - Cashfree payment webhook (server-to-server callback)
                 .requestMatchers("/maintenance/payments/webhook").permitAll()
-                .requestMatchers("/maintenance/pay/**").permitAll()
-                // Maintenance bill PDF downloads
-                .requestMatchers("/maintenance/bills/*/pdf").permitAll()
-                .requestMatchers("/maintenance/bills/pdf/bulk").permitAll()
-                // All other endpoints require authentication
+                // All other endpoints require authentication (token)
                 .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
