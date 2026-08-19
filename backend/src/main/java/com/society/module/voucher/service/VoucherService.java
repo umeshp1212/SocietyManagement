@@ -347,7 +347,7 @@ public class VoucherService {
     public PagedResponse<VoucherDTO> getAllVouchers(int page, int size, String type, String status,
                                                     String category, String financialYear,
                                                     LocalDate startDate, LocalDate endDate, String search) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("voucherDate").descending());
+        Pageable pageable = PageRequest.of(page, size);
         Page<Voucher> voucherPage;
 
         // Build dynamic query using specifications for combined filters
