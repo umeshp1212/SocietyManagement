@@ -424,12 +424,12 @@ public class VoucherPdfService {
                 .setWidth(UnitValue.createPercentValue(100));
 
         // Signature lines
-        sigTable.addCell(createSignatureCell("Prepared By", settings.getTreasurerName(),
-                "Treasurer", boldFont, regularFont));
-        sigTable.addCell(createSignatureCell("Verified By", settings.getSecretaryName(),
-                "Secretary", boldFont, regularFont));
         sigTable.addCell(createSignatureCell("Approved By", settings.getChairmanName(),
                 "Chairman", boldFont, regularFont));
+        sigTable.addCell(createSignatureCell("Verified By", settings.getSecretaryName(),
+                "Secretary", boldFont, regularFont));
+        sigTable.addCell(createSignatureCell("Prepared By", settings.getTreasurerName(),
+                "Treasurer", boldFont, regularFont));
 
         document.add(sigTable);
     }
