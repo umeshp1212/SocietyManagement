@@ -10,6 +10,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { TenantService } from '@core/services/tenant.service';
+import { AuthService } from '@core/services/auth.service';
 import { Tenant } from '@core/models/tenant.model';
 
 @Component({
@@ -26,7 +27,7 @@ import { Tenant } from '@core/models/tenant.model';
         <div class="header-actions">
           <a mat-raised-button color="primary"
              [routerLink]="['/tenants/edit', tenant.tenantId]"
-             *ngIf="tenant.status !== 'VACATED'">
+             *ngIf="tenant.status !== 'VACATED' && hasPermission('TENANT_UPDATE')">
             <mat-icon>edit</mat-icon> Edit
           </a>
           <a mat-button routerLink="/tenants">Back to List</a>
@@ -110,22 +111,22 @@ import { Tenant } from '@core/models/tenant.model';
           <div class="compliance-actions" *ngIf="tenant.status === 'ACTIVE'">
             <mat-divider style="margin: 12px 0"></mat-divider>
             <button mat-raised-button color="primary"
-                    *ngIf="tenant.nocStatus === 'PENDING'"
+                    *ngIf="tenant.nocStatus === 'PENDING' && hasPermission('TENANT_NOC_APPROVE')"
                     (click)="approveNoc()">
               <mat-icon>verified</mat-icon> Approve NOC
             </button>
             <button mat-stroked-button color="warn"
-                    *ngIf="tenant.nocStatus === 'PENDING'"
+                    *ngIf="tenant.nocStatus === 'PENDING' && hasPermission('TENANT_NOC_APPROVE')"
                     (click)="rejectNoc()">
               <mat-icon>cancel</mat-icon> Reject NOC
             </button>
             <button mat-raised-button
-                    *ngIf="tenant.policeVerificationStatus === 'NOT_INITIATED'"
+                    *ngIf="tenant.policeVerificationStatus === 'NOT_INITIATED' && hasPermission('TENANT_UPDATE')"
                     (click)="updatePoliceStatus('SUBMITTED')">
               <mat-icon>send</mat-icon> Mark Submitted
             </button>
             <button mat-raised-button color="primary"
-                    *ngIf="tenant.policeVerificationStatus === 'SUBMITTED'"
+                    *ngIf="tenant.policeVerificationStatus === 'SUBMITTED' && hasPermission('TENANT_UPDATE')"
                     (click)="updatePoliceStatus('VERIFIED')">
               <mat-icon>verified_user</mat-icon> Mark Verified
             </button>
@@ -208,11 +209,12 @@ import { Tenant } from '@core/models/tenant.model';
         <mat-card-content>
           <div class="action-buttons" style="justify-content: flex-start;">
             <button mat-raised-button color="accent"
-                    *ngIf="tenant.status === 'ACTIVE'"
+                    *ngIf="tenant.status === 'ACTIVE' && hasPermission('TENANT_UPDATE')"
                     (click)="markNoticePeriod()">
               <mat-icon>notifications</mat-icon> Mark Notice Period
             </button>
             <button mat-raised-button color="warn"
+                    *ngIf="hasPermission('TENANT_UPDATE')"
                     (click)="showMoveOut = true">
               <mat-icon>exit_to_app</mat-icon> Move Out Tenant
             </button>
@@ -271,7 +273,8 @@ export class TenantDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private tenantService: TenantService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -357,4 +360,6 @@ export class TenantDetailComponent implements OnInit {
       }
     });
   }
+
+  hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
 }

@@ -10,6 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { TenantService } from '@core/services/tenant.service';
+import { AuthService } from '@core/services/auth.service';
 import { Tenant } from '@core/models/tenant.model';
 
 @Component({
@@ -22,10 +23,12 @@ import { Tenant } from '@core/models/tenant.model';
       <div class="page-header">
         <h2>Tenant Management</h2>
         <div style="display: flex; gap: 8px;">
-          <a mat-raised-button color="accent" routerLink="/tenants/bulk-upload">
+          <a mat-raised-button color="accent" routerLink="/tenants/bulk-upload"
+             *ngIf="hasPermission('TENANT_BULK_UPLOAD')">
             <mat-icon>upload_file</mat-icon> Bulk Upload
           </a>
-          <a mat-raised-button color="primary" routerLink="/tenants/register">
+          <a mat-raised-button color="primary" routerLink="/tenants/register"
+             *ngIf="hasPermission('TENANT_CREATE')">
             <mat-icon>add</mat-icon> Register Tenant
           </a>
         </div>
@@ -53,7 +56,8 @@ import { Tenant } from '@core/models/tenant.model';
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let t"><span class="status-badge" [ngClass]="t.status.toLowerCase().replace('_','')">{{ t.status.replace('_', ' ') }}</span></td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let t">
           <a mat-icon-button [routerLink]="['/tenants', t.tenantId]"><mat-icon>visibility</mat-icon></a>
-          <a mat-icon-button [routerLink]="['/tenants/edit', t.tenantId]"><mat-icon>edit</mat-icon></a>
+          <a mat-icon-button [routerLink]="['/tenants/edit', t.tenantId]"
+             *ngIf="hasPermission('TENANT_UPDATE')"><mat-icon>edit</mat-icon></a>
         </td></ng-container>
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
@@ -68,7 +72,7 @@ export class TenantListComponent implements OnInit {
   totalElements = 0; pageSize = 20; currentPage = 0;
   searchTerm = ''; statusFilter = '';
 
-  constructor(private tenantService: TenantService) {}
+  constructor(private tenantService: TenantService, private authService: AuthService) {}
   ngOnInit(): void { this.loadTenants(); }
 
   loadTenants(): void {
@@ -77,4 +81,6 @@ export class TenantListComponent implements OnInit {
   }
 
   onPageChange(event: PageEvent): void { this.currentPage = event.pageIndex; this.pageSize = event.pageSize; this.loadTenants(); }
+
+  hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
 }
