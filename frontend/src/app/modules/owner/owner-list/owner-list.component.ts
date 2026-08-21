@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { OwnerService } from '@core/services/owner.service';
+import { AuthService } from '@core/services/auth.service';
 import { Owner } from '@core/models/owner.model';
 
 @Component({
@@ -27,13 +28,16 @@ import { Owner } from '@core/models/owner.model';
       <div class="page-header">
         <h2>Owner Management</h2>
         <div style="display: flex; gap: 8px;">
-          <a mat-raised-button routerLink="/units" matTooltip="Add/Remove co-owners for any unit">
+          <a mat-raised-button routerLink="/units" matTooltip="Add/Remove co-owners for any unit"
+             *ngIf="hasPermission('UNIT_MANAGE_OWNERS')">
             <mat-icon>group</mat-icon> Manage Unit Owners
           </a>
-          <a mat-raised-button color="accent" routerLink="/owners/bulk-upload">
+          <a mat-raised-button color="accent" routerLink="/owners/bulk-upload"
+             *ngIf="hasPermission('OWNER_BULK_UPLOAD')">
             <mat-icon>upload_file</mat-icon> Bulk Upload
           </a>
-          <a mat-raised-button color="primary" routerLink="/owners/add">
+          <a mat-raised-button color="primary" routerLink="/owners/add"
+             *ngIf="hasPermission('OWNER_CREATE')">
             <mat-icon>add</mat-icon> Add Owner
           </a>
         </div>
@@ -93,7 +97,8 @@ import { Owner } from '@core/models/owner.model';
             <a mat-icon-button [routerLink]="['/owners', owner.ownerId]" matTooltip="View">
               <mat-icon>visibility</mat-icon>
             </a>
-            <a mat-icon-button [routerLink]="['/owners/edit', owner.ownerId]" matTooltip="Edit">
+            <a mat-icon-button [routerLink]="['/owners/edit', owner.ownerId]" matTooltip="Edit"
+               *ngIf="hasPermission('OWNER_UPDATE')">
               <mat-icon>edit</mat-icon>
             </a>
           </td>
@@ -121,7 +126,7 @@ export class OwnerListComponent implements OnInit {
   searchTerm = '';
   statusFilter = '';
 
-  constructor(private ownerService: OwnerService) {}
+  constructor(private ownerService: OwnerService, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.loadOwners();
@@ -144,5 +149,9 @@ export class OwnerListComponent implements OnInit {
     this.currentPage = event.pageIndex;
     this.pageSize = event.pageSize;
     this.loadOwners();
+  }
+
+  hasPermission(permission: string): boolean {
+    return this.authService.hasPermission(permission);
   }
 }

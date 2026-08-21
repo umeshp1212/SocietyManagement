@@ -12,6 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { VendorService } from '@core/services/vendor.service';
+import { AuthService } from '@core/services/auth.service';
 import { Vendor } from '@core/models/vendor.model';
 
 @Component({
@@ -23,7 +24,8 @@ import { Vendor } from '@core/models/vendor.model';
     <div class="container">
       <div class="page-header">
         <h2>Vendor Management</h2>
-        <a mat-raised-button color="primary" routerLink="/vendors/add">
+        <a mat-raised-button color="primary" routerLink="/vendors/add"
+           *ngIf="hasPermission('VENDOR_CREATE')">
           <mat-icon>add</mat-icon> Add Vendor
         </a>
       </div>
@@ -51,7 +53,8 @@ import { Vendor } from '@core/models/vendor.model';
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let v">
           <a mat-icon-button [routerLink]="['/vendors', v.vendorId]" matTooltip="View"><mat-icon>visibility</mat-icon></a>
           <a mat-icon-button [routerLink]="['/vendors', v.vendorId, 'ledger']" matTooltip="Ledger"><mat-icon>receipt_long</mat-icon></a>
-          <a mat-icon-button [routerLink]="['/vendors/edit', v.vendorId]" matTooltip="Edit"><mat-icon>edit</mat-icon></a>
+          <a mat-icon-button [routerLink]="['/vendors/edit', v.vendorId]" matTooltip="Edit"
+             *ngIf="hasPermission('VENDOR_UPDATE')"><mat-icon>edit</mat-icon></a>
         </td></ng-container>
         <tr mat-header-row *matHeaderRowDef="isMobile ? mobileColumns : displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: isMobile ? mobileColumns : displayedColumns;"></tr>
@@ -68,7 +71,7 @@ export class VendorListComponent implements OnInit {
   searchTerm = ''; statusFilter = '';
   isMobile = false;
 
-  constructor(private vendorService: VendorService, private breakpointObserver: BreakpointObserver) {}
+  constructor(private vendorService: VendorService, private breakpointObserver: BreakpointObserver, private authService: AuthService) {}
   ngOnInit(): void {
     this.breakpointObserver.observe(['(max-width: 768px)']).subscribe(result => {
       this.isMobile = result.matches;
@@ -82,4 +85,6 @@ export class VendorListComponent implements OnInit {
   }
 
   onPageChange(event: PageEvent): void { this.currentPage = event.pageIndex; this.pageSize = event.pageSize; this.loadVendors(); }
+
+  hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
 }

@@ -12,6 +12,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
 import { MaintenanceService } from '@core/services/maintenance.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-bill-detail',
@@ -137,7 +138,7 @@ import { MaintenanceService } from '@core/services/maintenance.service';
       </div>
 
       <!-- Record Offline Payment -->
-      <mat-card class="payment-form-card" *ngIf="bill.status !== 'PAID'">
+      <mat-card class="payment-form-card" *ngIf="bill.status !== 'PAID' && hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
         <mat-card-header><mat-card-title>Record Offline Payment</mat-card-title></mat-card-header>
         <mat-card-content>
           <form class="payment-form" (ngSubmit)="recordPayment()">
@@ -286,7 +287,7 @@ export class BillDetailComponent implements OnInit {
     remarks: ''
   };
 
-  constructor(private maintenanceService: MaintenanceService, private route: ActivatedRoute) {}
+  constructor(private maintenanceService: MaintenanceService, private route: ActivatedRoute, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.billId = +this.route.snapshot.paramMap.get('id')!;
@@ -355,4 +356,6 @@ export class BillDetailComponent implements OnInit {
   downloadPdf(): void {
     this.maintenanceService.downloadBillPdf(this.billId);
   }
+
+  hasAnyRole(roles: string[]): boolean { return this.authService.hasAnyRole(roles); }
 }

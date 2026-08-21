@@ -12,6 +12,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { VoucherService } from '@core/services/voucher.service';
+import { AuthService } from '@core/services/auth.service';
 import { Voucher } from '@core/models/voucher.model';
 import { environment } from '@env/environment';
 
@@ -25,10 +26,12 @@ import { environment } from '@env/environment';
       <div class="page-header">
         <h2>Voucher Management</h2>
         <div style="display: flex; gap: 8px;">
-          <button mat-raised-button color="accent" (click)="showBulkDownload = !showBulkDownload">
+          <button mat-raised-button color="accent" (click)="showBulkDownload = !showBulkDownload"
+                  *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>picture_as_pdf</mat-icon> Bulk PDF
           </button>
-          <a mat-raised-button color="primary" routerLink="/vouchers/create">
+          <a mat-raised-button color="primary" routerLink="/vouchers/create"
+             *ngIf="hasPermission('VOUCHER_CREATE')">
             <mat-icon>add</mat-icon> Create Voucher
           </a>
         </div>
@@ -101,7 +104,8 @@ import { environment } from '@env/environment';
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let v"><span class="status-badge" [ngClass]="v.status.toLowerCase()">{{ v.status }}</span></td></ng-container>
         <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Actions</th><td mat-cell *matCellDef="let v">
           <a mat-icon-button [routerLink]="['/vouchers', v.voucherId]"><mat-icon>visibility</mat-icon></a>
-          <a mat-icon-button [routerLink]="['/vouchers/edit', v.voucherId]" *ngIf="v.status !== 'CANCELLED'"><mat-icon>edit</mat-icon></a>
+          <a mat-icon-button [routerLink]="['/vouchers/edit', v.voucherId]"
+             *ngIf="v.status === 'DRAFT' && hasPermission('VOUCHER_UPDATE')"><mat-icon>edit</mat-icon></a>
         </td></ng-container>
         <tr mat-header-row *matHeaderRowDef="isMobile ? mobileColumns : displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: isMobile ? mobileColumns : displayedColumns;"></tr>
@@ -138,7 +142,7 @@ export class VoucherListComponent implements OnInit {
   bulkStartDate = '';
   bulkEndDate = '';
 
-  constructor(private voucherService: VoucherService, private http: HttpClient, private breakpointObserver: BreakpointObserver) {}
+  constructor(private voucherService: VoucherService, private http: HttpClient, private breakpointObserver: BreakpointObserver, private authService: AuthService) {}
   ngOnInit(): void {
     this.breakpointObserver.observe(['(max-width: 768px)']).subscribe(result => {
       this.isMobile = result.matches;
@@ -181,5 +185,9 @@ export class VoucherListComponent implements OnInit {
       },
       error: () => {}
     });
+  }
+
+  hasPermission(permission: string): boolean {
+    return this.authService.hasPermission(permission);
   }
 }

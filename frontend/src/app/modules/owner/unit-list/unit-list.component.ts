@@ -10,6 +10,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { OwnerService } from '@core/services/owner.service';
+import { AuthService } from '@core/services/auth.service';
 import { Unit } from '@core/models/owner.model';
 
 @Component({
@@ -23,7 +24,8 @@ import { Unit } from '@core/models/owner.model';
     <div class="container">
       <div class="page-header">
         <h2>Unit Management</h2>
-        <a mat-raised-button color="primary" routerLink="/units/add">
+        <a mat-raised-button color="primary" routerLink="/units/add"
+           *ngIf="hasPermission('UNIT_CREATE')">
           <mat-icon>add</mat-icon> Add Unit
         </a>
       </div>
@@ -84,10 +86,12 @@ import { Unit } from '@core/models/owner.model';
             <a mat-icon-button [routerLink]="['/units', u.unitId, 'history']" matTooltip="Ownership & Tenant History">
               <mat-icon>history</mat-icon>
             </a>
-            <a mat-icon-button [routerLink]="['/units', u.unitId, 'owners']" matTooltip="Manage Owners">
+            <a mat-icon-button [routerLink]="['/units', u.unitId, 'owners']" matTooltip="Manage Owners"
+               *ngIf="hasPermission('UNIT_MANAGE_OWNERS')">
               <mat-icon>group</mat-icon>
             </a>
-            <a mat-icon-button [routerLink]="['/units/edit', u.unitId]" matTooltip="Edit Unit">
+            <a mat-icon-button [routerLink]="['/units/edit', u.unitId]" matTooltip="Edit Unit"
+               *ngIf="hasPermission('UNIT_UPDATE')">
               <mat-icon>edit</mat-icon>
             </a>
           </td>
@@ -111,7 +115,7 @@ export class UnitListComponent implements OnInit {
   typeFilter = '';
   occupancyFilter = '';
 
-  constructor(private ownerService: OwnerService) {}
+  constructor(private ownerService: OwnerService, private authService: AuthService) {}
 
   ngOnInit(): void { this.loadUnits(); }
 
@@ -134,4 +138,6 @@ export class UnitListComponent implements OnInit {
     this.pageSize = event.pageSize;
     this.loadUnits();
   }
+
+  hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
 }

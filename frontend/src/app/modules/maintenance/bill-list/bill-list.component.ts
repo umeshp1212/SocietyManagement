@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatChipsModule } from '@angular/material/chips';
 import { MaintenanceService } from '@core/services/maintenance.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-bill-list',
@@ -26,13 +27,15 @@ import { MaintenanceService } from '@core/services/maintenance.service';
           <a mat-button routerLink="/maintenance/penalties">
             <mat-icon>gavel</mat-icon> Penalties
           </a>
-          <a mat-button routerLink="/maintenance/charge-config">
+          <a mat-button routerLink="/maintenance/charge-config"
+             *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
             <mat-icon>settings</mat-icon> Charge Config
           </a>
           <button mat-raised-button color="accent" (click)="downloadAllPdf()">
             <mat-icon>download</mat-icon> Download All Bills PDF
           </button>
-          <a mat-raised-button color="primary" routerLink="/maintenance/generate">
+          <a mat-raised-button color="primary" routerLink="/maintenance/generate"
+             *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
             <mat-icon>add</mat-icon> Generate Bills
           </a>
         </div>
@@ -177,7 +180,7 @@ export class BillListComponent implements OnInit {
   months = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
-  constructor(private maintenanceService: MaintenanceService) {
+  constructor(private maintenanceService: MaintenanceService, private authService: AuthService) {
     const now = new Date();
     this.selectedMonth = now.getMonth() + 1;
     this.selectedYear = now.getFullYear();
@@ -240,4 +243,7 @@ export class BillListComponent implements OnInit {
   downloadAllPdf(): void {
     this.maintenanceService.downloadBulkBillsPdf(this.selectedMonth, this.selectedYear);
   }
+
+  hasAnyRole(roles: string[]): boolean { return this.authService.hasAnyRole(roles); }
+  hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
 }

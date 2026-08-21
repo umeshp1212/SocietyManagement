@@ -29,10 +29,12 @@ import { environment } from '@env/environment';
       <div class="page-header">
         <h2>Voucher: {{ voucher.voucherNumber }}</h2>
         <div class="header-actions">
-          <button mat-raised-button color="primary" (click)="downloadPdf()">
+          <button mat-raised-button color="primary" (click)="downloadPdf()"
+                  *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>download</mat-icon> Download PDF
           </button>
-          <button mat-raised-button color="accent" (click)="printVoucher()">
+          <button mat-raised-button color="accent" (click)="printVoucher()"
+                  *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>print</mat-icon> Print Voucher
           </button>
           <a mat-button routerLink="/vouchers">Back to List</a>
@@ -127,7 +129,7 @@ import { environment } from '@env/environment';
           </div>
 
           <!-- Upload more documents -->
-          <div class="upload-more" *ngIf="voucher.status !== 'CANCELLED'">
+          <div class="upload-more" *ngIf="voucher.status !== 'CANCELLED' && hasPermission('VOUCHER_UPDATE')">
             <mat-divider style="margin: 12px 0;"></mat-divider>
             <input type="file" #docInput (change)="onDocumentSelected($event)"
                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none">
@@ -217,11 +219,11 @@ import { environment } from '@env/environment';
         <mat-card-content>
           <div class="action-buttons" style="justify-content: flex-start;">
             <a mat-raised-button color="primary" [routerLink]="['/vouchers/edit', voucher.voucherId]"
-               *ngIf="voucher.status === 'DRAFT'">
+               *ngIf="voucher.status === 'DRAFT' && hasPermission('VOUCHER_UPDATE')">
               <mat-icon>edit</mat-icon> Edit Voucher
             </a>
             <button mat-raised-button color="accent" (click)="submitForApproval()"
-                    *ngIf="voucher.status === 'DRAFT'">
+                    *ngIf="voucher.status === 'DRAFT' && hasPermission('VOUCHER_CREATE')">
               <mat-icon>send</mat-icon> Submit for Approval
             </button>
             <button mat-raised-button color="warn" (click)="finalizeVoucher()"
@@ -229,7 +231,7 @@ import { environment } from '@env/environment';
               <mat-icon>check_circle</mat-icon> Force Finalize (Admin)
             </button>
             <button mat-raised-button color="warn" (click)="showCancelDialog = true"
-                    *ngIf="voucher.status !== 'FINAL'">
+                    *ngIf="voucher.status !== 'FINAL' && hasPermission('VOUCHER_CANCEL')">
               <mat-icon>cancel</mat-icon> Cancel Voucher
             </button>
           </div>
@@ -468,6 +470,10 @@ export class VoucherDetailComponent implements OnInit {
 
   hasAnyRole(roles: string[]): boolean {
     return this.authService.hasAnyRole(roles);
+  }
+
+  hasPermission(permission: string): boolean {
+    return this.authService.hasPermission(permission);
   }
 
   cancelVoucher(): void {
