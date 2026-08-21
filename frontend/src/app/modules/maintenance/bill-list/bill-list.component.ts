@@ -27,6 +27,12 @@ import { AuthService } from '@core/services/auth.service';
           <a mat-button routerLink="/maintenance/penalties">
             <mat-icon>gavel</mat-icon> Penalties
           </a>
+          <a mat-button routerLink="/maintenance/opening-balances">
+            <mat-icon>account_balance_wallet</mat-icon> Opening Balances
+          </a>
+          <a mat-button routerLink="/maintenance/suspense">
+            <mat-icon>help_outline</mat-icon> Suspense
+          </a>
           <a mat-button routerLink="/maintenance/charge-config"
              *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
             <mat-icon>settings</mat-icon> Charge Config

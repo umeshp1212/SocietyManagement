@@ -20,6 +20,7 @@ import com.society.module.maintenance.repository.BillLineItemRepository;
 import com.society.module.maintenance.repository.MaintenanceBillRepository;
 import com.society.module.maintenance.repository.MaintenanceChargeConfigRepository;
 import com.society.module.maintenance.repository.MaintenancePaymentRepository;
+import com.society.module.maintenance.repository.OpeningBalanceRepository;
 import com.society.module.maintenance.repository.PenaltyRepository;
 import com.society.module.owner.entity.Unit;
 import com.society.module.owner.repository.UnitRepository;
@@ -53,6 +54,7 @@ public class MaintenanceBillService {
     private final UnitRepository unitRepository;
     private final WaterChargeConfigService waterChargeConfigService;
     private final PenaltyRepository penaltyRepository;
+    private final OpeningBalanceRepository openingBalanceRepository;
 
     /**
      * Interest rate: 1% per month on unpaid arrears
@@ -290,8 +292,9 @@ public class MaintenanceBillService {
 
     /**
      * Calculate the total unpaid arrears from all previous months for a unit.
-     * This is the sum of balanceAmount from all unpaid/partially-paid/overdue bills
-     * EXCLUDING the current month being generated.
+     * This includes:
+     * 1. Balance from all unpaid/partially-paid/overdue bills (EXCLUDING current month)
+     * 2. Opening balance (legacy arrears from before app deployment)
      */
     private BigDecimal calculatePreviousArrears(Long unitId, int currentMonth, int currentYear) {
         List<MaintenanceBill> outstandingBills = billRepository.findOutstandingByUnit(unitId);
@@ -305,6 +308,13 @@ public class MaintenanceBillService {
                 totalArrears = totalArrears.add(balance);
             }
         }
+
+        // Add opening balance (legacy arrears)
+        BigDecimal openingBalance = openingBalanceRepository.getTotalOpeningBalanceByUnit(unitId);
+        if (openingBalance != null && openingBalance.compareTo(BigDecimal.ZERO) > 0) {
+            totalArrears = totalArrears.add(openingBalance);
+        }
+
         return totalArrears;
     }
 
@@ -349,8 +359,11 @@ public class MaintenanceBillService {
     }
 
     public BigDecimal getTotalOutstanding(Long unitId) {
-        BigDecimal total = billRepository.getTotalOutstandingByUnit(unitId);
-        return total != null ? total : BigDecimal.ZERO;
+        BigDecimal billOutstanding = billRepository.getTotalOutstandingByUnit(unitId);
+        BigDecimal openingBalance = openingBalanceRepository.getTotalOpeningBalanceByUnit(unitId);
+        BigDecimal total = (billOutstanding != null ? billOutstanding : BigDecimal.ZERO)
+                .add(openingBalance != null ? openingBalance : BigDecimal.ZERO);
+        return total;
     }
 
     public List<BillDTO> getDefaulters(int month, int year) {

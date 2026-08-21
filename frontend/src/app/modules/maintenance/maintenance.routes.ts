@@ -22,6 +22,14 @@ export const MAINTENANCE_ROUTES: Routes = [
     loadComponent: () => import('./penalty-management/penalty-management.component').then(m => m.PenaltyManagementComponent)
   },
   {
+    path: 'opening-balances',
+    loadComponent: () => import('./opening-balance/opening-balance.component').then(m => m.OpeningBalanceComponent)
+  },
+  {
+    path: 'suspense',
+    loadComponent: () => import('./suspense-account/suspense-account.component').then(m => m.SuspenseAccountComponent)
+  },
+  {
     path: 'bill/:id',
     loadComponent: () => import('./bill-detail/bill-detail.component').then(m => m.BillDetailComponent)
   },
