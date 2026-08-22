@@ -91,6 +91,12 @@ export const routes: Routes = [
       .then(m => m.VoucherCategoryComponent)
   },
   {
+    path: 'settings/vendor-categories',
+    canActivate: [authGuard],
+    loadComponent: () => import('./modules/settings/vendor-category/vendor-category.component')
+      .then(m => m.VendorCategoryComponent)
+  },
+  {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () => import('./modules/reports/reports.component')
