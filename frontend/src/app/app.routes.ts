@@ -79,24 +79,6 @@ export const routes: Routes = [
       .then(m => m.SettingsComponent)
   },
   {
-    path: 'settings/tds',
-    canActivate: [authGuard],
-    loadComponent: () => import('./modules/settings/tds-config/tds-config.component')
-      .then(m => m.TdsConfigComponent)
-  },
-  {
-    path: 'settings/voucher-categories',
-    canActivate: [authGuard],
-    loadComponent: () => import('./modules/settings/voucher-category/voucher-category.component')
-      .then(m => m.VoucherCategoryComponent)
-  },
-  {
-    path: 'settings/vendor-categories',
-    canActivate: [authGuard],
-    loadComponent: () => import('./modules/settings/vendor-category/vendor-category.component')
-      .then(m => m.VendorCategoryComponent)
-  },
-  {
     path: 'reports',
     canActivate: [authGuard],
     loadComponent: () => import('./modules/reports/reports.component')

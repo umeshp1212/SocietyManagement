@@ -10,6 +10,10 @@ export const VENDOR_ROUTES: Routes = [
     loadComponent: () => import('./vendor-form/vendor-form.component').then(m => m.VendorFormComponent)
   },
   {
+    path: 'categories',
+    loadComponent: () => import('./vendor-category/vendor-category.component').then(m => m.VendorCategoryComponent)
+  },
+  {
     path: 'edit/:id',
     loadComponent: () => import('./vendor-form/vendor-form.component').then(m => m.VendorFormComponent)
   },

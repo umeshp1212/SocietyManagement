@@ -30,6 +30,10 @@ export const MAINTENANCE_ROUTES: Routes = [
     loadComponent: () => import('./suspense-account/suspense-account.component').then(m => m.SuspenseAccountComponent)
   },
   {
+    path: 'tds-config',
+    loadComponent: () => import('./tds-config/tds-config.component').then(m => m.TdsConfigComponent)
+  },
+  {
     path: 'bill/:id',
     loadComponent: () => import('./bill-detail/bill-detail.component').then(m => m.BillDetailComponent)
   },
