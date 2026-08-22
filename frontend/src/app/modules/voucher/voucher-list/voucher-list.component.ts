@@ -26,6 +26,10 @@ import { environment } from '@env/environment';
       <div class="page-header">
         <h2>Voucher Management</h2>
         <div style="display: flex; gap: 8px;">
+          <a mat-button routerLink="/vouchers/categories"
+             *ngIf="hasPermission('VOUCHER_CREATE')">
+            <mat-icon>category</mat-icon> Categories
+          </a>
           <button mat-raised-button color="accent" (click)="showBulkDownload = !showBulkDownload"
                   *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>picture_as_pdf</mat-icon> Bulk PDF
