@@ -14,7 +14,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { VoucherService } from '@core/services/voucher.service';
 import { VendorService } from '@core/services/vendor.service';
+import { VoucherCategoryService } from '@core/services/voucher-category.service';
 import { Vendor } from '@core/models/vendor.model';
+import { VoucherCategory } from '@core/models/voucher-category.model';
 import { environment } from '@env/environment';
 
 @Component({
@@ -209,35 +211,15 @@ export class VoucherFormComponent implements OnInit {
   selectedFile: File | null = null;
   uploadedDocuments: any[] = [];
 
-  expenseCategories = [
-    { value: 'SECURITY', label: 'Security' },
-    { value: 'HOUSEKEEPING', label: 'Housekeeping' },
-    { value: 'ELECTRICITY_COMMON', label: 'Electricity (Common)' },
-    { value: 'WATER', label: 'Water' },
-    { value: 'LIFT_MAINTENANCE', label: 'Lift Maintenance' },
-    { value: 'GARDEN', label: 'Garden' },
-    { value: 'REPAIRS_MAINTENANCE', label: 'Repairs & Maintenance' },
-    { value: 'PEST_CONTROL', label: 'Pest Control' },
-    { value: 'LEGAL_PROFESSIONAL', label: 'Legal & Professional' },
-    { value: 'STATIONERY_PRINTING', label: 'Stationery & Printing' },
-    { value: 'EVENTS_CELEBRATIONS', label: 'Events & Celebrations' },
-    { value: 'INSURANCE', label: 'Insurance' },
-    { value: 'SINKING_FUND', label: 'Sinking Fund' },
-    { value: 'BANK_CHARGES', label: 'Bank Charges' },
-    { value: 'MISCELLANEOUS', label: 'Miscellaneous' }
-  ];
-
-  incomeCategories = [
-    { value: 'MAINTENANCE_INCOME', label: 'Maintenance Income' },
-    { value: 'INTEREST_INCOME', label: 'Interest Income' },
-    { value: 'PENALTY_INCOME', label: 'Penalty Income' }
-  ];
+  expenseCategories: { value: string; label: string }[] = [];
+  incomeCategories: { value: string; label: string }[] = [];
 
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
     private voucherService: VoucherService,
     private vendorService: VendorService,
+    private categoryService: VoucherCategoryService,
     private route: ActivatedRoute,
     private router: Router,
     private snackBar: MatSnackBar
@@ -261,6 +243,18 @@ export class VoucherFormComponent implements OnInit {
     // Load active vendors for dropdown
     this.vendorService.getActiveVendorsList().subscribe(res => {
       if (res.success) this.vendors = res.data;
+    });
+
+    // Load categories from API
+    this.categoryService.getActiveCategories().subscribe(res => {
+      if (res.success) {
+        this.expenseCategories = res.data
+          .filter(c => c.type === 'EXPENSE')
+          .map(c => ({ value: c.code, label: c.name }));
+        this.incomeCategories = res.data
+          .filter(c => c.type === 'INCOME')
+          .map(c => ({ value: c.code, label: c.name }));
+      }
     });
 
     const id = this.route.snapshot.paramMap.get('id');
