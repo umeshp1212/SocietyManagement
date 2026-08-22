@@ -12,6 +12,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { VendorService } from '@core/services/vendor.service';
+import { VendorCategoryService } from '@core/services/vendor-category.service';
 
 @Component({
   selector: 'app-vendor-form',
@@ -169,26 +170,12 @@ export class VendorFormComponent implements OnInit {
   isEdit = false;
   vendorId?: number;
 
-  categories = [
-    { value: 'SECURITY', label: 'Security' },
-    { value: 'HOUSEKEEPING', label: 'Housekeeping' },
-    { value: 'GARDENING', label: 'Gardening' },
-    { value: 'LIFT_MAINTENANCE', label: 'Lift Maintenance' },
-    { value: 'PLUMBING', label: 'Plumbing' },
-    { value: 'ELECTRICAL', label: 'Electrical' },
-    { value: 'PEST_CONTROL', label: 'Pest Control' },
-    { value: 'FIRE_SAFETY', label: 'Fire Safety' },
-    { value: 'CCTV_INTERCOM', label: 'CCTV / Intercom' },
-    { value: 'WATER_TANK_CLEANING', label: 'Water Tank Cleaning' },
-    { value: 'PAINTING_CIVIL', label: 'Painting / Civil' },
-    { value: 'LEGAL_AUDIT', label: 'Legal / Audit' },
-    { value: 'SOFTWARE_IT', label: 'Software / IT' },
-    { value: 'OTHER', label: 'Other' }
-  ];
+  categories: { value: string; label: string }[] = [];
 
   constructor(
     private fb: FormBuilder,
     private vendorService: VendorService,
+    private vendorCategoryService: VendorCategoryService,
     private route: ActivatedRoute,
     private router: Router,
     private snackBar: MatSnackBar
@@ -220,6 +207,13 @@ export class VendorFormComponent implements OnInit {
       this.vendorId = +id;
       this.loadVendor();
     }
+
+    // Load vendor categories from API
+    this.vendorCategoryService.getActiveCategories().subscribe(res => {
+      if (res.success) {
+        this.categories = res.data.map(c => ({ value: c.code, label: c.name }));
+      }
+    });
   }
 
   loadVendor(): void {

@@ -1,6 +1,5 @@
 package com.society.module.voucher.dto;
 
-import com.society.enums.VendorCategory;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +13,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class TdsConfigDTO {
     private Long tdsConfigId;
-    private VendorCategory vendorCategory;
+    private String vendorCategory;
     private String tdsSection;
     private BigDecimal tdsRate;
     private BigDecimal thresholdAmount;

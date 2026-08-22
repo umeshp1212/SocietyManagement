@@ -215,3 +215,25 @@ INSERT IGNORE INTO voucher_categories (category_id, code, name, type, descriptio
 (16, 'MAINTENANCE_INCOME', 'Maintenance Income', 'INCOME', 'Monthly maintenance collection', 1, 1),
 (17, 'INTEREST_INCOME', 'Interest Income', 'INCOME', 'Bank interest income', 2, 1),
 (18, 'PENALTY_INCOME', 'Penalty Income', 'INCOME', 'Late payment penalties collected', 3, 1);
+
+
+-- ============================================================
+-- VENDOR CATEGORIES
+-- Dynamic vendor categories (replaces VendorCategory enum)
+-- Used in vendor creation and TDS configuration
+-- ============================================================
+INSERT IGNORE INTO vendor_categories (category_id, code, name, description, display_order, is_active) VALUES
+(1, 'SECURITY', 'Security', 'Security services', 1, 1),
+(2, 'HOUSEKEEPING', 'Housekeeping', 'Housekeeping and cleaning services', 2, 1),
+(3, 'GARDENING', 'Gardening', 'Garden and landscaping services', 3, 1),
+(4, 'LIFT_MAINTENANCE', 'Lift Maintenance', 'Lift/Elevator maintenance and AMC', 4, 1),
+(5, 'PLUMBING', 'Plumbing', 'Plumbing works and repairs', 5, 1),
+(6, 'ELECTRICAL', 'Electrical', 'Electrical works and repairs', 6, 1),
+(7, 'PEST_CONTROL', 'Pest Control', 'Pest control services', 7, 1),
+(8, 'FIRE_SAFETY', 'Fire Safety', 'Fire safety equipment and AMC', 8, 1),
+(9, 'CCTV_INTERCOM', 'CCTV / Intercom', 'CCTV and intercom services', 9, 1),
+(10, 'WATER_TANK_CLEANING', 'Water Tank Cleaning', 'Water tank cleaning services', 10, 1),
+(11, 'PAINTING_CIVIL', 'Painting / Civil', 'Painting and civil works', 11, 1),
+(12, 'LEGAL_AUDIT', 'Legal / Audit', 'Legal and audit professional services', 12, 1),
+(13, 'SOFTWARE_IT', 'Software / IT', 'Software and IT services', 13, 1),
+(14, 'OTHER', 'Other', 'Other services', 14, 1);

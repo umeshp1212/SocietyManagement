@@ -106,6 +106,13 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <mat-icon matListItemIcon>category</mat-icon>
             <span matListItemTitle>Voucher Categories</span>
           </a>
+
+          <a mat-list-item routerLink="/settings/vendor-categories" routerLinkActive="active"
+             *ngIf="hasPermission('SETTINGS_VIEW') || hasAnyRole(['SUPER_ADMIN', 'TREASURER', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>store</mat-icon>
+            <span matListItemTitle>Vendor Categories</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
 

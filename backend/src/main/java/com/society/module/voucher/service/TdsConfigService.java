@@ -1,6 +1,5 @@
 package com.society.module.voucher.service;
 
-import com.society.enums.VendorCategory;
 import com.society.exception.ResourceNotFoundException;
 import com.society.module.voucher.dto.TdsConfigDTO;
 import com.society.module.voucher.entity.TdsConfig;
@@ -11,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,19 +39,19 @@ public class TdsConfigService {
     }
 
     /**
-     * Get TDS config for a vendor category. Returns null if not configured or inactive.
+     * Get TDS config for a vendor category code. Returns null if not configured or inactive.
      */
-    public TdsConfig getTdsConfigForCategory(VendorCategory category) {
-        if (category == null) return null;
-        return tdsConfigRepository.findByVendorCategoryAndIsActiveTrue(category).orElse(null);
+    public TdsConfig getTdsConfigForCategory(String vendorCategory) {
+        if (vendorCategory == null || vendorCategory.isEmpty()) return null;
+        return tdsConfigRepository.findByVendorCategoryAndIsActiveTrue(vendorCategory).orElse(null);
     }
 
     /**
      * Calculate TDS amount for a given vendor category and bill amount.
      * Returns null if TDS is not applicable (inactive or below threshold).
      */
-    public TdsCalculation calculateTds(VendorCategory category, BigDecimal amount) {
-        TdsConfig config = getTdsConfigForCategory(category);
+    public TdsCalculation calculateTds(String vendorCategory, BigDecimal amount) {
+        TdsConfig config = getTdsConfigForCategory(vendorCategory);
         if (config == null) return null;
 
         // Check threshold

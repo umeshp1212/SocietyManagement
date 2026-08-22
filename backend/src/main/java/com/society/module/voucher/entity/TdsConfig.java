@@ -1,6 +1,5 @@
 package com.society.module.voucher.entity;
 
-import com.society.enums.VendorCategory;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,9 +19,8 @@ public class TdsConfig {
     @Column(name = "tds_config_id")
     private Long tdsConfigId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "vendor_category", nullable = false, unique = true)
-    private VendorCategory vendorCategory;
+    @Column(name = "vendor_category", nullable = false, unique = true, length = 50)
+    private String vendorCategory;
 
     @Column(name = "tds_section", length = 20)
     private String tdsSection;  // e.g., "194C", "194J"
