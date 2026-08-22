@@ -99,6 +99,13 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <mat-icon matListItemIcon>percent</mat-icon>
             <span matListItemTitle>TDS Config</span>
           </a>
+
+          <a mat-list-item routerLink="/settings/voucher-categories" routerLinkActive="active"
+             *ngIf="hasPermission('SETTINGS_VIEW') || hasAnyRole(['SUPER_ADMIN', 'TREASURER', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>category</mat-icon>
+            <span matListItemTitle>Voucher Categories</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
 

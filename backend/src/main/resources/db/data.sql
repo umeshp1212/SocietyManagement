@@ -189,3 +189,29 @@ INSERT IGNORE INTO tds_config (tds_config_id, vendor_category, tds_section, tds_
 (12, 'LEGAL_AUDIT', '194J', 10.00, 30000.00, 'Legal/Audit professional fees - TDS on professional services', 1),
 (13, 'SOFTWARE_IT', '194J', 10.00, 30000.00, 'Software/IT services - TDS on technical services', 1),
 (14, 'OTHER', '194C', 2.00, 30000.00, 'Other services - TDS on contract payments', 0);
+
+
+-- ============================================================
+-- VOUCHER CATEGORIES
+-- Dynamic expense/income categories for voucher classification
+-- Replaces the hard-coded ExpenseCategory enum
+-- ============================================================
+INSERT IGNORE INTO voucher_categories (category_id, code, name, type, description, display_order, is_active) VALUES
+(1, 'SECURITY', 'Security', 'EXPENSE', 'Security services expenses', 1, 1),
+(2, 'HOUSEKEEPING', 'Housekeeping', 'EXPENSE', 'Housekeeping services expenses', 2, 1),
+(3, 'ELECTRICITY_COMMON', 'Electricity (Common)', 'EXPENSE', 'Common area electricity charges', 3, 1),
+(4, 'WATER', 'Water', 'EXPENSE', 'Water supply charges', 4, 1),
+(5, 'LIFT_MAINTENANCE', 'Lift Maintenance', 'EXPENSE', 'Lift maintenance and AMC', 5, 1),
+(6, 'GARDEN', 'Garden', 'EXPENSE', 'Garden and landscaping expenses', 6, 1),
+(7, 'REPAIRS_MAINTENANCE', 'Repairs & Maintenance', 'EXPENSE', 'General repairs and maintenance', 7, 1),
+(8, 'PEST_CONTROL', 'Pest Control', 'EXPENSE', 'Pest control services', 8, 1),
+(9, 'LEGAL_PROFESSIONAL', 'Legal & Professional', 'EXPENSE', 'Legal and professional fees', 9, 1),
+(10, 'STATIONERY_PRINTING', 'Stationery & Printing', 'EXPENSE', 'Stationery and printing expenses', 10, 1),
+(11, 'EVENTS_CELEBRATIONS', 'Events & Celebrations', 'EXPENSE', 'Events and celebration expenses', 11, 1),
+(12, 'INSURANCE', 'Insurance', 'EXPENSE', 'Insurance premium expenses', 12, 1),
+(13, 'SINKING_FUND', 'Sinking Fund', 'EXPENSE', 'Sinking fund contributions', 13, 1),
+(14, 'BANK_CHARGES', 'Bank Charges', 'EXPENSE', 'Bank service charges', 14, 1),
+(15, 'MISCELLANEOUS', 'Miscellaneous', 'EXPENSE', 'Miscellaneous expenses', 15, 1),
+(16, 'MAINTENANCE_INCOME', 'Maintenance Income', 'INCOME', 'Monthly maintenance collection', 1, 1),
+(17, 'INTEREST_INCOME', 'Interest Income', 'INCOME', 'Bank interest income', 2, 1),
+(18, 'PENALTY_INCOME', 'Penalty Income', 'INCOME', 'Late payment penalties collected', 3, 1);
