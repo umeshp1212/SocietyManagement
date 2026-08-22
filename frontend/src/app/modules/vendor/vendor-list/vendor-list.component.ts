@@ -24,10 +24,16 @@ import { Vendor } from '@core/models/vendor.model';
     <div class="container">
       <div class="page-header">
         <h2>Vendor Management</h2>
-        <a mat-raised-button color="primary" routerLink="/vendors/add"
-           *ngIf="hasPermission('VENDOR_CREATE')">
-          <mat-icon>add</mat-icon> Add Vendor
-        </a>
+        <div style="display: flex; gap: 8px;">
+          <a mat-button routerLink="/vendors/categories"
+             *ngIf="hasPermission('VENDOR_CREATE')">
+            <mat-icon>store</mat-icon> Categories
+          </a>
+          <a mat-raised-button color="primary" routerLink="/vendors/add"
+             *ngIf="hasPermission('VENDOR_CREATE')">
+            <mat-icon>add</mat-icon> Add Vendor
+          </a>
+        </div>
       </div>
       <div class="search-bar">
         <mat-form-field appearance="outline">

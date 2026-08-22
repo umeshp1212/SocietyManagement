@@ -24,6 +24,9 @@ import { AuthService } from '@core/services/auth.service';
       <div class="page-header">
         <h2>Maintenance Bills</h2>
         <div class="header-actions">
+          <a mat-button routerLink="/maintenance/tds-config">
+            <mat-icon>percent</mat-icon> TDS Config
+          </a>
           <a mat-button routerLink="/maintenance/penalties">
             <mat-icon>gavel</mat-icon> Penalties
           </a>

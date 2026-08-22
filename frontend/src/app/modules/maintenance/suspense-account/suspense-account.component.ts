@@ -283,7 +283,7 @@ interface UnitOption {
           <div class="action-buttons">
             <button mat-button (click)="showReverseDialog = false">Cancel</button>
             <button mat-raised-button color="warn" (click)="reverseEntry()"
-                    [disabled]="!reverseForm.reason?.trim()">
+                    [disabled]="!reverseForm.reason.trim()">
               <mat-icon>undo</mat-icon> Confirm Reversal
             </button>
           </div>
