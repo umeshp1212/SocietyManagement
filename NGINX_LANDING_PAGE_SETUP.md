@@ -36,10 +36,16 @@ server {
         client_max_body_size 10M;
     }
 
-    # Angular App - served from /app/ (MUST be before the static cache rule)
+    # Angular App - served from /app/
+    # Files must be at /var/www/society-management/app/
     location /app/ {
-        alias /var/www/society-management/app/;
+        root /var/www/society-management;
         try_files $uri $uri/ /app/index.html;
+
+        location ~* \.(js|css|map|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
     }
 
     # Landing page - served from root
@@ -53,8 +59,8 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Cache static assets (excluding /api/ and /app/ paths - those are handled above)
-    location ~* ^(?!/api/)(?!/app/).*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$ {
+    # Landing page static assets (for landing page only)
+    location ~* ^/(?!api|app).*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$ {
         root /var/www/society-management/landing;
         expires 1y;
         add_header Cache-Control "public, immutable";
