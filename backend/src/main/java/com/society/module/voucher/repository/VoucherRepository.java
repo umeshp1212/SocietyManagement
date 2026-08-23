@@ -47,7 +47,8 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
            "(LOWER(v.voucherNumber) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(v.description) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
            "(:type IS NULL OR v.voucherType = :type) AND " +
-           "(:status IS NULL OR v.status = :status) " +
+           "(:status IS NULL OR v.status = :status) AND " +
+           "(:status IS NOT NULL OR v.status != 'CANCELLED') " +
            "ORDER BY CASE v.status WHEN 'DRAFT' THEN 0 WHEN 'PENDING_APPROVAL' THEN 1 WHEN 'FINAL' THEN 2 WHEN 'CANCELLED' THEN 3 END ASC, v.createdOn DESC")
     Page<Voucher> searchVouchersWithFilters(@Param("search") String search,
                                             @Param("type") VoucherType type,
@@ -57,6 +58,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     @Query("SELECT v FROM Voucher v LEFT JOIN FETCH v.vendor WHERE " +
            "(:type IS NULL OR v.voucherType = :type) AND " +
            "(:status IS NULL OR v.status = :status) AND " +
+           "(:status IS NOT NULL OR v.status != 'CANCELLED') AND " +
            "(:category IS NULL OR v.category = :category) AND " +
            "(:financialYear IS NULL OR v.financialYear = :financialYear) AND " +
            "(:startDate IS NULL OR v.voucherDate >= :startDate) AND " +
