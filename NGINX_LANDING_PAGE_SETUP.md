@@ -66,6 +66,21 @@ server {
 }
 ```
 
+### Test and Reload
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Directory Structure on Server
+
+```
+/var/www/society-management/
+├── app/              ← Angular build files (index.html, *.js, *.css, chunks)
+└── landing/          ← Landing page (index.html)
+```
+
 ### Deployment Steps
 
 1. **Build the Angular app:**
@@ -91,12 +106,21 @@ sudo cp -r dist/society-management/browser/* /var/www/society-management/app/
 sudo cp frontend/src/landing/index.html /var/www/society-management/landing/index.html
 ```
 
-5. **Set permissions:**
+5. **Deploy backend JAR:**
+```bash
+cd backend
+mvn clean package -DskipTests
+scp target/society-management-*.jar ubuntu@<EC2_IP>:/opt/society-management/backend/app.jar
+# On server:
+sudo systemctl restart society-backend
+```
+
+6. **Set permissions:**
 ```bash
 sudo chown -R www-data:www-data /var/www/society-management
 ```
 
-6. **Test and reload Nginx:**
+7. **Test and reload Nginx:**
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
@@ -113,12 +137,12 @@ sudo systemctl reload nginx
 | `https://ppvcd.in/api/files/view/*` | Uploaded files (served inline via backend) |
 | `https://ppvcd.in/api/files/download/*` | Uploaded files (download via backend) |
 
-### Key Changes from Previous Setup
+### Key Points
 
-1. **Angular app moved from `/` to `/app/`** — `base href` changed to `/app/` in `index.html`
-2. **Landing page at root `/`** — static HTML that calls public APIs for society info and committee members
-3. **Nginx uses `alias`** for `/app/` instead of `root` to correctly map the directory
-4. **`try_files` for `/app/`** falls back to `/app/index.html` for Angular SPA routing
+- Angular base href is `/app/` so all Angular routes resolve under `/app/`
+- Landing page is plain HTML that calls public API endpoints via JavaScript fetch
+- The `/api/` proxy block handles everything including file uploads/downloads — no separate block needed
+- SSL is managed by Certbot with auto-renewal
 
 ### Public API Endpoints (No Auth Required)
 
@@ -130,8 +154,12 @@ The landing page calls these endpoints:
 
 | Issue | Fix |
 |-------|-----|
-| Landing page shows blank | Check `/var/www/society-management/landing/index.html` exists |
+| Site unreachable | `sudo systemctl status nginx` — check if running |
+| Conflicting server name warning | Remove duplicate server blocks with same `server_name` |
+| SSL error "can't provide secure connection" | Check `ssl_certificate` path, add `include /etc/letsencrypt/options-ssl-nginx.conf;` |
+| Landing page blank | Check `/var/www/society-management/landing/index.html` exists |
 | Angular app 404 on refresh | Ensure `try_files` has `/app/index.html` fallback |
-| API calls 404 from landing page | Verify `/api/` location block is above the root `/` block |
-| Committee photos not loading | Apply the Nginx regex fix: `^(?!/api/)` for static assets |
-| Angular assets (JS/CSS) 404 | Ensure files are in `/var/www/society-management/app/` not a subdirectory |
+| Angular chunks/CSS 404 | Use `root` not `alias` for `/app/` location. Verify files at `/var/www/society-management/app/` |
+| API 403 on public endpoints | Redeploy backend JAR with updated SecurityConfig |
+| Uploaded file view 404 | No separate `/api/files/` block needed — `/api/` proxy handles it |
+| Committee photos not loading | `/files/view/**` must be permitted in SecurityConfig |
