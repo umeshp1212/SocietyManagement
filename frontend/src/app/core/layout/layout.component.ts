@@ -92,6 +92,13 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <mat-icon matListItemIcon>settings</mat-icon>
             <span matListItemTitle>Settings</span>
           </a>
+
+          <a mat-list-item routerLink="/committee" routerLinkActive="active"
+             *ngIf="hasPermission('SETTINGS_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>groups</mat-icon>
+            <span matListItemTitle>Committee</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
 

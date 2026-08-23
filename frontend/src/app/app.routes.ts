@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
   {
     path: 'login',
     loadComponent: () => import('./modules/auth/login/login.component')
@@ -77,6 +77,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./modules/settings/settings.component')
       .then(m => m.SettingsComponent)
+  },
+  {
+    path: 'committee',
+    canActivate: [authGuard],
+    loadComponent: () => import('./modules/committee/committee-list.component')
+      .then(m => m.CommitteeListComponent)
   },
   {
     path: 'reports',

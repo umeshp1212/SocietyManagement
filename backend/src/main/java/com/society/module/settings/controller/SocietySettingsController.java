@@ -14,6 +14,16 @@ public class SocietySettingsController {
 
     private final SocietySettingsService settingsService;
 
+    /**
+     * Public endpoint for landing page - no authentication required.
+     * Returns society name, address, registration details.
+     */
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<SocietySettings>> getPublicSettings() {
+        SocietySettings settings = settingsService.getSettings();
+        return ResponseEntity.ok(ApiResponse.success(settings));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<SocietySettings>> getSettings() {
         SocietySettings settings = settingsService.getSettings();
