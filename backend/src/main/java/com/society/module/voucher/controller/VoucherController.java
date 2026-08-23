@@ -183,8 +183,9 @@ public class VoucherController {
     // ==================== PDF DOWNLOAD / PRINT ====================
 
     @GetMapping("/{voucherId}/pdf")
-    public ResponseEntity<byte[]> downloadVoucherPdf(@PathVariable Long voucherId) throws IOException {
-        byte[] pdfBytes = voucherPdfService.generateVoucherPdf(voucherId);
+    public ResponseEntity<byte[]> downloadVoucherPdf(@PathVariable Long voucherId,
+            @RequestParam(defaultValue = "false") boolean includeBills) throws IOException {
+        byte[] pdfBytes = voucherPdfService.generateVoucherPdf(voucherId, includeBills);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
@@ -195,8 +196,9 @@ public class VoucherController {
     }
 
     @GetMapping("/{voucherId}/pdf/view")
-    public ResponseEntity<byte[]> viewVoucherPdf(@PathVariable Long voucherId) throws IOException {
-        byte[] pdfBytes = voucherPdfService.generateVoucherPdf(voucherId);
+    public ResponseEntity<byte[]> viewVoucherPdf(@PathVariable Long voucherId,
+            @RequestParam(defaultValue = "false") boolean includeBills) throws IOException {
+        byte[] pdfBytes = voucherPdfService.generateVoucherPdf(voucherId, includeBills);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
@@ -212,9 +214,10 @@ public class VoucherController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String financialYear,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String status) throws IOException {
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "false") boolean includeBills) throws IOException {
 
-        byte[] pdfBytes = voucherPdfService.generateBulkVoucherPdf(startDate, endDate, financialYear, type, status);
+        byte[] pdfBytes = voucherPdfService.generateBulkVoucherPdf(startDate, endDate, financialYear, type, status, includeBills);
 
         String filename;
         if (financialYear != null && !financialYear.isBlank()) {

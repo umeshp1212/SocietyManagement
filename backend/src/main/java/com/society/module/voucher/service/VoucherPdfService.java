@@ -1,19 +1,23 @@
 package com.society.module.voucher.service;
 
 import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfPage;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.pdf.extgstate.PdfExtGState;
+import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.utils.PdfMerger;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.SolidBorder;
-import com.itextpdf.layout.element.Cell;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.*;
 import com.itextpdf.layout.properties.HorizontalAlignment;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
@@ -22,29 +26,47 @@ import com.society.exception.ResourceNotFoundException;
 import com.society.module.settings.entity.SocietySettings;
 import com.society.module.settings.service.SocietySettingsService;
 import com.society.module.voucher.entity.Voucher;
+import com.society.module.voucher.entity.VoucherDocument;
+import com.society.module.voucher.repository.VoucherDocumentRepository;
 import com.society.module.voucher.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VoucherPdfService {
 
     private final VoucherRepository voucherRepository;
+    private final VoucherDocumentRepository voucherDocumentRepository;
     private final SocietySettingsService settingsService;
+
+    @Value("${app.upload.dir:./uploads}")
+    private String uploadDir;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd-MM-yyyy");
     private static final DeviceRgb HEADER_BG = new DeviceRgb(25, 118, 210);
     private static final DeviceRgb LIGHT_GRAY_BG = new DeviceRgb(245, 245, 245);
 
+    // Backward-compatible overload
     public byte[] generateVoucherPdf(Long voucherId) throws IOException {
+        return generateVoucherPdf(voucherId, false);
+    }
+
+    public byte[] generateVoucherPdf(Long voucherId, boolean includeBills) throws IOException {
         Voucher voucher = voucherRepository.findById(voucherId)
                 .orElseThrow(() -> new ResourceNotFoundException("Voucher", "voucherId", voucherId));
 
@@ -105,17 +127,34 @@ public class VoucherPdfService {
                 .setTextAlignment(TextAlignment.CENTER)
                 .setFontColor(ColorConstants.GRAY));
 
+        // ===== WATERMARK =====
+        addWatermarkToAllPages(pdfDoc, settings);
+
         document.close();
+
+        // If includeBills is true, append attached documents (PDFs/images) after the voucher
+        if (includeBills) {
+            return appendBillDocuments(baos.toByteArray(), voucher.getVoucherId());
+        }
+
         return baos.toByteArray();
+    }
+
+    // Backward-compatible overload
+    public byte[] generateBulkVoucherPdf(java.time.LocalDate startDate, java.time.LocalDate endDate,
+                                          String financialYear, String type, String status) throws IOException {
+        return generateBulkVoucherPdf(startDate, endDate, financialYear, type, status, false);
     }
 
     /**
      * Generate a single PDF containing all vouchers within a date range.
      * Each voucher starts on a new page. Includes a summary cover page.
      * Supports filtering by type and status.
+     * When includeBills=true, attached documents are appended after each voucher in sequence.
      */
     public byte[] generateBulkVoucherPdf(java.time.LocalDate startDate, java.time.LocalDate endDate,
-                                          String financialYear, String type, String status) throws IOException {
+                                          String financialYear, String type, String status,
+                                          boolean includeBills) throws IOException {
         List<Voucher> vouchers;
 
         if (financialYear != null && !financialYear.isBlank()) {
@@ -266,9 +305,23 @@ public class VoucherPdfService {
                     .setFont(italicFont).setFontSize(8)
                     .setTextAlignment(TextAlignment.CENTER)
                     .setFontColor(ColorConstants.GRAY));
+
+            // If includeBills, append attached documents inline (images on new pages)
+            if (includeBills) {
+                appendBillDocumentsInline(pdfDoc, document, voucher.getVoucherId());
+            }
         }
 
+        // ===== WATERMARK =====
+        addWatermarkToAllPages(pdfDoc, settings);
+
         document.close();
+
+        // If includeBills, merge any attached PDFs after the main document per voucher
+        if (includeBills) {
+            return mergeAttachedPdfs(baos.toByteArray(), vouchers);
+        }
+
         return baos.toByteArray();
     }
 
@@ -545,5 +598,224 @@ public class VoucherPdfService {
                 (number % 100000 != 0 ? " " + numberToWords(number % 100000) : "");
         return numberToWords(number / 10000000) + " Crore" +
                 (number % 10000000 != 0 ? " " + numberToWords(number % 10000000) : "");
+    }
+
+    // ===== BILL/DOCUMENT APPENDING METHODS =====
+
+    /**
+     * Appends attached bill documents (PDFs and images) to a single voucher PDF.
+     * PDFs are merged page-by-page. Images are added as full-page images.
+     */
+    private byte[] appendBillDocuments(byte[] voucherPdfBytes, Long voucherId) throws IOException {
+        List<VoucherDocument> documents = voucherDocumentRepository
+                .findByVoucher_VoucherIdOrderByUploadedOnDesc(voucherId);
+
+        if (documents.isEmpty()) {
+            return voucherPdfBytes;
+        }
+
+        ByteArrayOutputStream mergedBaos = new ByteArrayOutputStream();
+        PdfDocument mergedDoc = new PdfDocument(new PdfWriter(mergedBaos));
+        PdfMerger merger = new PdfMerger(mergedDoc);
+
+        // First, add the voucher PDF pages
+        PdfDocument voucherDoc = new PdfDocument(new PdfReader(new ByteArrayInputStream(voucherPdfBytes)));
+        merger.merge(voucherDoc, 1, voucherDoc.getNumberOfPages());
+        voucherDoc.close();
+
+        // Then append each attached document
+        for (VoucherDocument doc : documents) {
+            try {
+                Path filePath = Paths.get(uploadDir, doc.getFilePath());
+                if (!Files.exists(filePath)) {
+                    log.warn("Attached document not found on disk: {}", filePath);
+                    continue;
+                }
+
+                String fileName = doc.getDocumentName().toLowerCase();
+                if (fileName.endsWith(".pdf")) {
+                    // Merge PDF pages
+                    PdfDocument attachedPdf = new PdfDocument(new PdfReader(filePath.toString()));
+                    merger.merge(attachedPdf, 1, attachedPdf.getNumberOfPages());
+                    attachedPdf.close();
+                } else if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") || fileName.endsWith(".png")) {
+                    // Add image as a full page
+                    addImageAsPage(mergedDoc, filePath);
+                }
+                // Skip unsupported formats (doc, docx, etc.)
+            } catch (Exception e) {
+                log.warn("Failed to append document '{}' to PDF: {}", doc.getDocumentName(), e.getMessage());
+            }
+        }
+
+        mergedDoc.close();
+        return mergedBaos.toByteArray();
+    }
+
+    /**
+     * Appends image documents inline within the currently open PDF document (for bulk generation).
+     * PDF attachments are handled separately via mergeAttachedPdfs after document.close().
+     */
+    private void appendBillDocumentsInline(PdfDocument pdfDoc, Document document, Long voucherId) {
+        List<VoucherDocument> documents = voucherDocumentRepository
+                .findByVoucher_VoucherIdOrderByUploadedOnDesc(voucherId);
+
+        for (VoucherDocument doc : documents) {
+            try {
+                Path filePath = Paths.get(uploadDir, doc.getFilePath());
+                if (!Files.exists(filePath)) {
+                    continue;
+                }
+
+                String fileName = doc.getDocumentName().toLowerCase();
+                if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") || fileName.endsWith(".png")) {
+                    // Add image on a new page within the same document flow
+                    document.add(new AreaBreak());
+                    Image img = new Image(ImageDataFactory.create(filePath.toString()));
+                    img.setAutoScale(true);
+                    img.setHorizontalAlignment(HorizontalAlignment.CENTER);
+                    document.add(img);
+                }
+                // PDF attachments are handled by mergeAttachedPdfs after document.close()
+            } catch (Exception e) {
+                log.warn("Failed to add inline image for voucher {}: {}", voucherId, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * After the bulk PDF is generated, merge any attached PDF documents into the output.
+     * For bulk mode: voucher page → its images (inline) → its PDF attachments (merged after).
+     */
+    private byte[] mergeAttachedPdfs(byte[] mainPdfBytes, List<Voucher> vouchers) throws IOException {
+        // Check if any voucher has PDF attachments
+        boolean hasPdfAttachments = false;
+        for (Voucher v : vouchers) {
+            List<VoucherDocument> docs = voucherDocumentRepository
+                    .findByVoucher_VoucherIdOrderByUploadedOnDesc(v.getVoucherId());
+            for (VoucherDocument doc : docs) {
+                if (doc.getDocumentName().toLowerCase().endsWith(".pdf")) {
+                    Path filePath = Paths.get(uploadDir, doc.getFilePath());
+                    if (Files.exists(filePath)) {
+                        hasPdfAttachments = true;
+                        break;
+                    }
+                }
+            }
+            if (hasPdfAttachments) break;
+        }
+
+        if (!hasPdfAttachments) {
+            return mainPdfBytes;
+        }
+
+        // We need to rebuild: for each voucher's pages, insert its PDF attachments after
+        // Simple approach: since images are already inline, just append all PDF attachments at the end
+        // grouped by voucher for reference
+        ByteArrayOutputStream mergedBaos = new ByteArrayOutputStream();
+        PdfDocument mergedDoc = new PdfDocument(new PdfWriter(mergedBaos));
+        PdfMerger merger = new PdfMerger(mergedDoc);
+
+        // Add main bulk PDF
+        PdfDocument mainDoc = new PdfDocument(new PdfReader(new ByteArrayInputStream(mainPdfBytes)));
+        merger.merge(mainDoc, 1, mainDoc.getNumberOfPages());
+        mainDoc.close();
+
+        // Append PDF attachments per voucher in sequence
+        for (Voucher v : vouchers) {
+            List<VoucherDocument> docs = voucherDocumentRepository
+                    .findByVoucher_VoucherIdOrderByUploadedOnDesc(v.getVoucherId());
+            for (VoucherDocument doc : docs) {
+                try {
+                    if (!doc.getDocumentName().toLowerCase().endsWith(".pdf")) continue;
+                    Path filePath = Paths.get(uploadDir, doc.getFilePath());
+                    if (!Files.exists(filePath)) continue;
+
+                    PdfDocument attachedPdf = new PdfDocument(new PdfReader(filePath.toString()));
+                    merger.merge(attachedPdf, 1, attachedPdf.getNumberOfPages());
+                    attachedPdf.close();
+                } catch (Exception e) {
+                    log.warn("Failed to merge PDF attachment '{}' for voucher {}: {}",
+                            doc.getDocumentName(), v.getVoucherNumber(), e.getMessage());
+                }
+            }
+        }
+
+        mergedDoc.close();
+        return mergedBaos.toByteArray();
+    }
+
+    /**
+     * Adds an image file as a full A4 page in the PDF document.
+     */
+    private void addImageAsPage(PdfDocument pdfDoc, Path imagePath) throws IOException {
+        byte[] imageBytes = Files.readAllBytes(imagePath);
+        Image img = new Image(ImageDataFactory.create(imageBytes));
+
+        // Create a new page and add the image scaled to fit
+        pdfDoc.addNewPage(PageSize.A4);
+        Document tempDoc = new Document(pdfDoc, PageSize.A4, false);
+        tempDoc.setMargins(20, 20, 20, 20);
+
+        float pageWidth = PageSize.A4.getWidth() - 40;
+        float pageHeight = PageSize.A4.getHeight() - 40;
+
+        // Scale image to fit within page bounds
+        float imgWidth = img.getImageWidth();
+        float imgHeight = img.getImageHeight();
+        float scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
+        img.setWidth(imgWidth * scale);
+        img.setHorizontalAlignment(HorizontalAlignment.CENTER);
+
+        // Position on the last page
+        int lastPage = pdfDoc.getNumberOfPages();
+        img.setFixedPosition(lastPage, 20, PageSize.A4.getHeight() - 20 - (imgHeight * scale));
+
+        tempDoc.add(img);
+        tempDoc.flush();
+    }
+
+    // ===== WATERMARK =====
+
+    /**
+     * Adds a diagonal watermark with society name and registration number on all pages.
+     * The watermark is semi-transparent light gray text drawn behind content.
+     */
+    private void addWatermarkToAllPages(PdfDocument pdfDoc, SocietySettings settings) {
+        try {
+            String watermarkText = settings.getSocietyName() + " | Reg. No: " + settings.getRegistrationNumber();
+            PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+
+            PdfExtGState gs = new PdfExtGState().setFillOpacity(0.06f);
+
+            for (int i = 1; i <= pdfDoc.getNumberOfPages(); i++) {
+                PdfPage page = pdfDoc.getPage(i);
+                float pageWidth = page.getPageSize().getWidth();
+                float pageHeight = page.getPageSize().getHeight();
+
+                PdfCanvas canvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdfDoc);
+                canvas.saveState();
+                canvas.setExtGState(gs);
+                canvas.beginText();
+                canvas.setFontAndSize(font, 28);
+                canvas.setFillColor(new DeviceRgb(150, 150, 150));
+
+                // Position at center of page, rotated 45 degrees diagonally
+                float centerX = pageWidth / 2;
+                float centerY = pageHeight / 2;
+                double angle = Math.toRadians(45);
+
+                canvas.setTextMatrix(
+                        (float) Math.cos(angle), (float) Math.sin(angle),
+                        (float) -Math.sin(angle), (float) Math.cos(angle),
+                        centerX - 200, centerY - 50
+                );
+                canvas.showText(watermarkText);
+                canvas.endText();
+                canvas.restoreState();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to add watermark: {}", e.getMessage());
+        }
     }
 }

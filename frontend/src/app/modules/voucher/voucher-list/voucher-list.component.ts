@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { VoucherService } from '@core/services/voucher.service';
 import { AuthService } from '@core/services/auth.service';
 import { Voucher } from '@core/models/voucher.model';
@@ -20,7 +21,7 @@ import { environment } from '@env/environment';
   selector: 'app-voucher-list',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, MatTableModule, MatPaginatorModule,
-    MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule],
+    MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
   template: `
     <div class="container">
       <div class="page-header">
@@ -65,9 +66,18 @@ import { environment } from '@env/environment';
             <mat-label>To Date</mat-label>
             <input matInput type="date" [(ngModel)]="bulkEndDate">
           </mat-form-field>
-          <button mat-raised-button color="primary" (click)="downloadBulkPdf()"
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center; margin-top: 12px;">
+          <mat-slide-toggle [(ngModel)]="bulkIncludeBills" color="primary">
+            Include Attached Bills/Invoices
+          </mat-slide-toggle>
+          <button mat-raised-button color="primary" (click)="downloadBulkPdf(false)"
                   [disabled]="!canDownloadBulk()">
-            <mat-icon>download</mat-icon> Download PDF
+            <mat-icon>download</mat-icon> Download Without Bills
+          </button>
+          <button mat-raised-button color="accent" (click)="downloadBulkPdf(true)"
+                  [disabled]="!canDownloadBulk()">
+            <mat-icon>attach_file</mat-icon> Download With Bills
           </button>
         </div>
       </div>
@@ -145,6 +155,7 @@ export class VoucherListComponent implements OnInit {
   bulkFinancialYear = '';
   bulkStartDate = '';
   bulkEndDate = '';
+  bulkIncludeBills = false;
 
   constructor(private voucherService: VoucherService, private http: HttpClient, private breakpointObserver: BreakpointObserver, private authService: AuthService) {}
   ngOnInit(): void {
@@ -166,7 +177,7 @@ export class VoucherListComponent implements OnInit {
     return !!this.bulkFinancialYear || (!!this.bulkStartDate && !!this.bulkEndDate);
   }
 
-  downloadBulkPdf(): void {
+  downloadBulkPdf(includeBills: boolean): void {
     let url = `${environment.apiUrl}/vouchers/pdf/bulk?`;
     const params: string[] = [];
     if (this.bulkFinancialYear) params.push(`financialYear=${this.bulkFinancialYear}`);
@@ -174,6 +185,7 @@ export class VoucherListComponent implements OnInit {
     if (this.bulkEndDate) params.push(`endDate=${this.bulkEndDate}`);
     if (this.typeFilter) params.push(`type=${this.typeFilter}`);
     if (this.statusFilter) params.push(`status=${this.statusFilter}`);
+    if (includeBills) params.push(`includeBills=true`);
     url += params.join('&');
 
     this.http.get(url, { responseType: 'blob' }).subscribe({
@@ -181,9 +193,10 @@ export class VoucherListComponent implements OnInit {
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
+        const suffix = includeBills ? '_with_bills' : '';
         link.download = this.bulkFinancialYear
-          ? `Vouchers_FY_${this.bulkFinancialYear}.pdf`
-          : `Vouchers_${this.bulkStartDate}_to_${this.bulkEndDate}.pdf`;
+          ? `Vouchers_FY_${this.bulkFinancialYear}${suffix}.pdf`
+          : `Vouchers_${this.bulkStartDate}_to_${this.bulkEndDate}${suffix}.pdf`;
         link.click();
         window.URL.revokeObjectURL(blobUrl);
       },

@@ -29,11 +29,15 @@ import { environment } from '@env/environment';
       <div class="page-header">
         <h2>Voucher: {{ voucher.voucherNumber }}</h2>
         <div class="header-actions">
-          <button mat-raised-button color="primary" (click)="downloadPdf()"
+          <button mat-raised-button color="primary" (click)="downloadPdf(false)"
                   *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>download</mat-icon> Download PDF
           </button>
-          <button mat-raised-button color="accent" (click)="printVoucher()"
+          <button mat-raised-button color="accent" (click)="downloadPdf(true)"
+                  *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF') && documents.length > 0">
+            <mat-icon>attach_file</mat-icon> Download With Bills
+          </button>
+          <button mat-raised-button (click)="printVoucher()"
                   *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>print</mat-icon> Print Voucher
           </button>
@@ -379,16 +383,18 @@ export class VoucherDetailComponent implements OnInit {
     });
   }
 
-  downloadPdf(): void {
+  downloadPdf(includeBills: boolean = false): void {
     if (!this.voucher) return;
-    this.http.get(`${this.apiUrl}/vouchers/${this.voucher.voucherId}/pdf`, { responseType: 'blob' })
+    const url = `${this.apiUrl}/vouchers/${this.voucher.voucherId}/pdf?includeBills=${includeBills}`;
+    this.http.get(url, { responseType: 'blob' })
       .subscribe(blob => {
-        const url = window.URL.createObjectURL(blob);
+        const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = url;
-        link.download = `Voucher_${this.voucher!.voucherNumber}.pdf`;
+        link.href = blobUrl;
+        const suffix = includeBills ? '_with_bills' : '';
+        link.download = `Voucher_${this.voucher!.voucherNumber}${suffix}.pdf`;
         link.click();
-        window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(blobUrl);
       });
   }
 
