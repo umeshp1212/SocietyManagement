@@ -6,25 +6,41 @@ The application now has two parts:
 - **Landing page** at `https://ppvcd.in/` (static HTML showing committee members)
 - **Angular app** at `https://ppvcd.in/app/` (the management application)
 
-### Updated Nginx Config
+### Nginx Config File
+
+Path: `/etc/nginx/sites-enabled/society-management`
 
 ```bash
-sudo nano /etc/nginx/sites-available/society-management
+sudo nano /etc/nginx/sites-enabled/society-management
 ```
 
-Replace the existing server block with:
+Replace the **entire file** with:
 
 ```nginx
+# HTTP - Redirect to HTTPS
 server {
     listen 80;
     server_name ppvcd.in www.ppvcd.in;
+    return 301 https://$host$request_uri;
+}
 
-    # Gzip compression
+# HTTPS - Main config
+server {
+    listen 443 ssl;
+    server_name ppvcd.in www.ppvcd.in;
+
+    # SSL
+    ssl_certificate /etc/letsencrypt/live/ppvcd.in/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ppvcd.in/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Gzip
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
     gzip_min_length 1000;
 
-    # Backend API proxy (handles ALL /api/* including uploaded file view/download)
+    # Backend API (handles all /api/* including file view/download)
     location /api/ {
         proxy_pass http://localhost:8080/api/;
         proxy_set_header Host $host;
@@ -36,34 +52,16 @@ server {
         client_max_body_size 10M;
     }
 
-    # Angular App - served from /app/
-    # Files must be at /var/www/society-management/app/
+    # Angular App at /app/
     location /app/ {
         root /var/www/society-management;
         try_files $uri $uri/ /app/index.html;
-
-        location ~* \.(js|css|map|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
     }
 
-    # Landing page - served from root
-    location = / {
-        root /var/www/society-management/landing;
-        try_files /index.html =404;
-    }
-
+    # Landing page at root /
     location / {
         root /var/www/society-management/landing;
         try_files $uri $uri/ /index.html;
-    }
-
-    # Landing page static assets (for landing page only)
-    location ~* ^/(?!api|app).*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$ {
-        root /var/www/society-management/landing;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
     }
 }
 ```
