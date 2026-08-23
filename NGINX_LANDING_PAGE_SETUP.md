@@ -24,7 +24,7 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript;
     gzip_min_length 1000;
 
-    # Backend API proxy
+    # Backend API proxy (handles ALL /api/* including uploaded file view/download)
     location /api/ {
         proxy_pass http://localhost:8080/api/;
         proxy_set_header Host $host;
@@ -36,7 +36,7 @@ server {
         client_max_body_size 10M;
     }
 
-    # Angular App - served from /app/
+    # Angular App - served from /app/ (MUST be before the static cache rule)
     location /app/ {
         alias /var/www/society-management/app/;
         try_files $uri $uri/ /app/index.html;
@@ -53,9 +53,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # Cache static assets (excluding /api/ paths)
-    location ~* ^(?!/api/).*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$ {
-        root /var/www/society-management/app;
+    # Cache static assets (excluding /api/ and /app/ paths - those are handled above)
+    location ~* ^(?!/api/)(?!/app/).*\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf)$ {
+        root /var/www/society-management/landing;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
@@ -106,6 +106,8 @@ sudo systemctl reload nginx
 | `https://ppvcd.in/app/login` | Angular app (`/var/www/society-management/app/index.html`) |
 | `https://ppvcd.in/app/dashboard` | Angular app (SPA routing) |
 | `https://ppvcd.in/api/*` | Backend API (proxied to Spring Boot on port 8080) |
+| `https://ppvcd.in/api/files/view/*` | Uploaded files (served inline via backend) |
+| `https://ppvcd.in/api/files/download/*` | Uploaded files (download via backend) |
 
 ### Key Changes from Previous Setup
 

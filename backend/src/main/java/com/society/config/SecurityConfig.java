@@ -43,10 +43,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 // Public - Cashfree payment webhook (server-to-server callback)
                 .requestMatchers("/maintenance/payments/webhook").permitAll()
-                // Public - Committee members for landing page
-                .requestMatchers("/committee-members/public").permitAll()
-                // Public - Society settings for landing page
-                .requestMatchers("/settings/public").permitAll()
+                // Public - Committee members and settings for landing page
+                .requestMatchers(HttpMethod.GET, "/committee-members/public", "/settings/public").permitAll()
+                // Public - Committee member photos (served via files endpoint)
+                .requestMatchers(HttpMethod.GET, "/files/view/**", "/files/download/**").permitAll()
                 // All other endpoints require authentication (token)
                 .anyRequest().authenticated()
             )
