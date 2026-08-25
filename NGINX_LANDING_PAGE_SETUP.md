@@ -163,3 +163,66 @@ The landing page calls these endpoints:
 | API 403 on public endpoints | Redeploy backend JAR with updated SecurityConfig |
 | Uploaded file view 404 | No separate `/api/files/` block needed — `/api/` proxy handles it |
 | Committee photos not loading | `/files/view/**` must be permitted in SecurityConfig |
+
+---
+
+## Database Migration (Run on Production MySQL)
+
+After deploying the new backend JAR, run these SQL commands on production to fix schema issues:
+
+### Fix `status` Column Length (Required)
+
+The `vouchers.status` column may be too short to hold `PENDING_APPROVAL` (16 characters). This causes "Data truncated for column 'status'" error when submitting vouchers for approval.
+
+```sql
+-- Check current column definition
+SHOW COLUMNS FROM vouchers WHERE Field = 'status';
+
+-- Fix: expand to VARCHAR(20)
+ALTER TABLE vouchers MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'DRAFT';
+```
+
+### Create `committee_members` Table (Auto-created by Hibernate)
+
+Hibernate `ddl-auto: update` will auto-create this table on first deploy. If it doesn't, run manually:
+
+```sql
+CREATE TABLE IF NOT EXISTS committee_members (
+    member_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(150) NOT NULL,
+    designation VARCHAR(100) NOT NULL,
+    photo_path VARCHAR(500),
+    phone VARCHAR(15),
+    email VARCHAR(100),
+    display_order INT NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by VARCHAR(255),
+    created_on DATETIME,
+    modified_by VARCHAR(255),
+    modified_on DATETIME
+);
+```
+
+### Create Upload Directory for Committee Photos
+
+```bash
+sudo mkdir -p /opt/society-management/uploads/committee
+sudo chown -R society-backend:society-backend /opt/society-management/uploads/committee
+```
+
+---
+
+## Full Deployment Checklist
+
+| Step | Command | Where |
+|------|---------|-------|
+| 1. Build frontend | `cd frontend && npx ng build --configuration production` | Local |
+| 2. Build backend | `cd backend && mvn clean package -DskipTests` | Local |
+| 3. Copy frontend to server | `sudo cp -r dist/society-management/browser/* /var/www/society-management/app/` | Server |
+| 4. Copy landing page | `sudo cp frontend/src/landing/index.html /var/www/society-management/landing/` | Server |
+| 5. Copy backend JAR | `scp target/*.jar ubuntu@<IP>:/opt/society-management/backend/app.jar` | Local→Server |
+| 6. Run DB migration | `ALTER TABLE vouchers MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'DRAFT';` | MySQL |
+| 7. Restart backend | `sudo systemctl restart society-backend` | Server |
+| 8. Reload Nginx | `sudo nginx -t && sudo systemctl reload nginx` | Server |
+| 9. Set permissions | `sudo chown -R www-data:www-data /var/www/society-management` | Server |
+| 10. Verify | Check `https://ppvcd.in/`, `/app/login`, `/api/settings/public` | Browser |
