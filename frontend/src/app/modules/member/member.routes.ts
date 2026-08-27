@@ -7,5 +7,11 @@ export const MEMBER_ROUTES: Routes = [
     canActivate: [memberAuthGuard],
     loadComponent: () => import('./member-dashboard/member-dashboard.component')
       .then(m => m.MemberDashboardComponent)
+  },
+  {
+    path: 'profile',
+    canActivate: [memberAuthGuard],
+    loadComponent: () => import('./member-profile/member-profile.component')
+      .then(m => m.MemberProfileComponent)
   }
 ];

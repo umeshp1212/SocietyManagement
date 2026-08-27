@@ -23,12 +23,13 @@ public class MemberAuthController {
      */
     @PostMapping("/send-otp")
     public ResponseEntity<ApiResponse<String>> sendOtp(@Valid @RequestBody SendOtpRequest request) {
-        memberAuthService.sendOtp(request.getPhone());
-        return ResponseEntity.ok(ApiResponse.success(
-                "OTP sent successfully to your registered mobile and email",
-                "OTP sent to " + request.getPhone().substring(0, 2) + "******"
-                        + request.getPhone().substring(8)
-        ));
+        String maskedEmail = memberAuthService.sendOtp(request.getPhone());
+        String maskedPhone = request.getPhone().substring(0, 2) + "******"
+                + request.getPhone().substring(8);
+        String message = maskedEmail != null
+                ? "OTP sent to " + maskedPhone + " and " + maskedEmail
+                : "OTP sent to " + maskedPhone;
+        return ResponseEntity.ok(ApiResponse.success(message, message));
     }
 
     /**

@@ -2,7 +2,12 @@ import { Routes } from '@angular/router';
 import { authGuard, roleGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'login', pathMatch: 'full' },
+  {
+    path: '',
+    loadComponent: () => import('./modules/public/landing-page.component')
+      .then(m => m.LandingPageComponent),
+    pathMatch: 'full'
+  },
   {
     path: 'member-login',
     loadComponent: () => import('./modules/member/member-login/member-login.component')

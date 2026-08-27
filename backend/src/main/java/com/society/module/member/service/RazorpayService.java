@@ -146,6 +146,7 @@ public class RazorpayService {
             }
 
             return PaymentOrderResponse.builder()
+                    .gateway("RAZORPAY")
                     .razorpayOrderId(razorpayOrderId)
                     .amount(request.getAmount())
                     .currency("INR")
@@ -200,46 +201,39 @@ public class RazorpayService {
         Owner owner = ownerRepository.findById(ownerId)
                 .orElseThrow(() -> new BusinessException("Owner not found"));
 
-        // Apply payment to outstanding bills (oldest first)
+        // Get all outstanding bills ordered oldest first
+        List<MaintenanceBill> outstandingBills = billRepository.findOutstandingByUnit(request.getUnitId());
+        if (outstandingBills.isEmpty()) {
+            throw new BusinessException("No outstanding bills found to apply payment.");
+        }
+
         BigDecimal remainingAmount = request.getAmount();
         MaintenancePayment lastPayment = null;
 
-        // If specific bill ID provided, pay that bill first
-        if (request.getBillId() != null) {
-            MaintenanceBill specificBill = billRepository.findById(request.getBillId())
-                    .orElseThrow(() -> new BusinessException("Bill not found"));
+        // ========== PASS 1: Pay ALL principal across all bills (oldest first) ==========
+        // Principal = current month charges (amount) + previous arrears
+        for (MaintenanceBill bill : outstandingBills) {
+            if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) break;
 
-            if (specificBill.getUnit().getUnitId().equals(request.getUnitId())) {
-                BigDecimal billBalance = specificBill.getBalanceAmount() != null
-                        ? specificBill.getBalanceAmount() : specificBill.getTotalAmount();
-                BigDecimal payForBill = remainingAmount.min(billBalance);
+            BigDecimal principalOutstanding = getPrincipalOutstanding(bill);
+            if (principalOutstanding.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-                lastPayment = recordPaymentForBill(specificBill, payForBill, request, owner);
-                remainingAmount = remainingAmount.subtract(payForBill);
-            }
+            BigDecimal payForBill = remainingAmount.min(principalOutstanding);
+            lastPayment = recordPaymentForBill(bill, payForBill, request, owner);
+            remainingAmount = remainingAmount.subtract(payForBill);
         }
 
-        // Apply remaining to outstanding bills (oldest first)
-        if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
-            List<MaintenanceBill> outstandingBills = billRepository.findOutstandingByUnit(request.getUnitId());
+        // ========== PASS 2: Pay ALL interest across all bills (oldest first) ==========
+        // Interest is settled only after all principal is cleared
+        for (MaintenanceBill bill : outstandingBills) {
+            if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) break;
 
-            for (MaintenanceBill bill : outstandingBills) {
-                if (remainingAmount.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal interestOutstanding = getInterestOutstanding(bill);
+            if (interestOutstanding.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-                // Skip already-paid-in-this-transaction bill
-                if (request.getBillId() != null && bill.getBillId().equals(request.getBillId())) {
-                    continue;
-                }
-
-                BigDecimal billBalance = bill.getBalanceAmount() != null
-                        ? bill.getBalanceAmount() : bill.getTotalAmount();
-
-                if (billBalance.compareTo(BigDecimal.ZERO) <= 0) continue;
-
-                BigDecimal payForBill = remainingAmount.min(billBalance);
-                lastPayment = recordPaymentForBill(bill, payForBill, request, owner);
-                remainingAmount = remainingAmount.subtract(payForBill);
-            }
+            BigDecimal payForBill = remainingAmount.min(interestOutstanding);
+            lastPayment = recordPaymentForBill(bill, payForBill, request, owner);
+            remainingAmount = remainingAmount.subtract(payForBill);
         }
 
         if (lastPayment == null) {
@@ -251,6 +245,38 @@ public class RazorpayService {
                 request.getAmount(), request.getUnitId());
 
         return lastPayment;
+    }
+
+    /**
+     * Get the outstanding principal for a bill.
+     * Principal = current month charges (amount) + previous arrears, minus what's already been paid towards principal.
+     */
+    private BigDecimal getPrincipalOutstanding(MaintenanceBill bill) {
+        BigDecimal currentCharges = bill.getAmount() != null ? bill.getAmount() : BigDecimal.ZERO;
+        BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
+        BigDecimal totalPrincipal = currentCharges.add(arrears);
+
+        BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
+        // Paid amount goes to principal first, so outstanding principal = max(0, totalPrincipal - paidSoFar)
+        return totalPrincipal.subtract(paidSoFar).max(BigDecimal.ZERO);
+    }
+
+    /**
+     * Get the outstanding interest for a bill.
+     * Interest is only considered outstanding once all principal is paid off.
+     */
+    private BigDecimal getInterestOutstanding(MaintenanceBill bill) {
+        BigDecimal interest = bill.getInterestOnArrears() != null ? bill.getInterestOnArrears() : BigDecimal.ZERO;
+        if (interest.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+
+        BigDecimal currentCharges = bill.getAmount() != null ? bill.getAmount() : BigDecimal.ZERO;
+        BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
+        BigDecimal totalPrincipal = currentCharges.add(arrears);
+
+        BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
+        // Amount paid beyond principal goes towards interest
+        BigDecimal paidTowardsInterest = paidSoFar.subtract(totalPrincipal).max(BigDecimal.ZERO);
+        return interest.subtract(paidTowardsInterest).max(BigDecimal.ZERO);
     }
 
     /**
@@ -277,15 +303,22 @@ public class RazorpayService {
                 .payerType("OWNER")
                 .receiptNumber(receiptNumber)
                 .status(MaintenancePayment.PaymentStatus.SUCCESS)
-                .remarks("Online payment via Razorpay")
+                .remarks(request.getDiscountAmount() != null && request.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? "Online payment via Razorpay (discount applied)" : "Online payment via Razorpay")
+                .originalAmount(request.getDiscountAmount() != null && request.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? payAmount.add(request.getDiscountAmount()) : null)
+                .discountPercent(request.getDiscountAmount() != null && request.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? request.getDiscountAmount().multiply(new BigDecimal("100")).divide(payAmount.add(request.getDiscountAmount()), 2, java.math.RoundingMode.HALF_UP) : null)
+                .discountAmount(request.getDiscountAmount() != null && request.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0
+                        ? request.getDiscountAmount() : null)
                 .build();
         paymentRepository.save(payment);
 
-        // Update bill amounts
+        // Update bill totals
         BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal newPaidAmount = paidSoFar.add(payAmount);
         bill.setPaidAmount(newPaidAmount);
-        bill.setBalanceAmount(bill.getTotalAmount().subtract(newPaidAmount));
+        bill.setBalanceAmount(bill.getTotalAmount().subtract(newPaidAmount).max(BigDecimal.ZERO));
 
         if (bill.getBalanceAmount().compareTo(BigDecimal.ZERO) <= 0) {
             bill.setStatus(MaintenanceBill.BillStatus.PAID);

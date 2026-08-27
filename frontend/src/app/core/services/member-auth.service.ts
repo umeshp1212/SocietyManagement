@@ -34,14 +34,26 @@ export interface MemberDashboard {
   totalPaid: number;
   outstandingBills: any[];
   recentPayments: any[];
+  discountEnabled: boolean;
+  discountPercent: number;
+  discountDueDays: number;
+  discountMessage: string;
+  discountEligible: boolean;
 }
 
 export interface PaymentOrderResponse {
+  gateway: string;
   razorpayOrderId: string;
+  razorpayKeyId: string;
+  cashfreeOrderId: string;
+  cashfreePaymentSessionId: string;
   amount: number;
   currency: string;
-  razorpayKeyId: string;
   receipt: string;
+  originalAmount: number;
+  discountAmount: number;
+  discountPercent: number;
+  discountApplied: boolean;
   ownerName: string;
   email: string;
   phone: string;
@@ -112,6 +124,43 @@ export class MemberAuthService {
     billId?: number;
   }): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/payments/verify`, data);
+  }
+
+  // ===== PDF Downloads =====
+
+  downloadBillPdf(unitId: number, billId: number): void {
+    this.http.get(`${this.apiUrl}/maintenance/bill-pdf/${unitId}/${billId}`, {
+      responseType: 'blob'
+    }).subscribe(blob => {
+      this.downloadFile(blob, `bill-${billId}.pdf`);
+    });
+  }
+
+  downloadReceiptPdf(unitId: number, paymentId: number): void {
+    this.http.get(`${this.apiUrl}/maintenance/receipt-pdf/${unitId}/${paymentId}`, {
+      responseType: 'blob'
+    }).subscribe(blob => {
+      this.downloadFile(blob, `receipt-${paymentId}.pdf`);
+    });
+  }
+
+  private downloadFile(blob: Blob, filename: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
+
+  // ===== Profile =====
+
+  getProfile(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/profile`);
+  }
+
+  submitProfileUpdateRequest(data: { newMobile?: string; newEmail?: string; reason?: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/profile/update-request`, data);
   }
 
   // ===== Token Management =====

@@ -1773,3 +1773,232 @@ http://YOUR_ELASTIC_IP/api/files/view/vouchers/1/filename.pdf
 ### 23.4 For Future Uploads
 
 Once the app is running in production, any new file uploads will automatically be stored at `/opt/society-management/uploads/` on the EC2 server. No manual transfer needed for new files.
+
+
+---
+
+## 24. Release Notes — August 27, 2026
+
+Summary of all changes made in this session. These need to be deployed to production.
+
+### 24.1 Database Changes (Auto-applied by JPA ddl-auto=update)
+
+The following new columns will be auto-created when the backend starts:
+
+| Table | New Column | Type | Default | Purpose |
+|-------|-----------|------|---------|---------|
+| `society_settings` | `payment_gateway` | VARCHAR(20) | RAZORPAY | Active payment gateway toggle |
+| `society_settings` | `discount_enabled` | TINYINT(1) | 0 | Enable online payment discount |
+| `society_settings` | `discount_percent` | DECIMAL(5,2) | 0.00 | Discount percentage |
+| `society_settings` | `discount_due_days` | INT | 10 | Days from bill date for discount eligibility |
+| `society_settings` | `discount_message` | VARCHAR(500) | Pay online before... | Promotional message for members |
+| `maintenance_payments` | `original_amount` | DECIMAL(10,2) | NULL | Original amount before discount |
+| `maintenance_payments` | `discount_percent` | DECIMAL(5,2) | NULL | Discount % applied |
+| `maintenance_payments` | `discount_amount` | DECIMAL(10,2) | NULL | Discount amount deducted |
+| `vouchers` | `category` column type | Changed from ENUM to VARCHAR(50) | - | Supports dynamic voucher categories |
+
+**Manual SQL required after deployment:**
+
+```sql
+-- Set default payment gateway for existing settings row
+UPDATE society_settings SET payment_gateway = 'CASHFREE' WHERE id = 1 AND payment_gateway IS NULL;
+
+-- Optional: Enable discount
+UPDATE society_settings SET discount_enabled = 1, discount_percent = 1.00, discount_due_days = 10,
+  discount_message = 'Pay online within 10 days and get 1% discount!' WHERE id = 1;
+```
+
+### 24.2 Bug Fixes
+
+#### Voucher Category Deserialization Error
+- **Problem:** Creating vouchers with dynamic categories (e.g., "Generator Diesel") failed with JSON deserialization error because the backend used a hardcoded `ExpenseCategory` enum
+- **Fix:** Changed `category` field from `ExpenseCategory` enum to `String` across Voucher entity, DTOs, repository, and service
+- **Files changed:** VoucherCreateRequest, VoucherUpdateRequest, VoucherDTO, Voucher entity, VoucherRepository, VoucherService, VoucherPdfService, VendorService
+
+#### CORS Error on Login
+- **Problem:** Frontend at localhost:4200 couldn't reach backend at localhost:8080 — CORS preflight blocked by Spring Security
+- **Fix:** Added `.cors(cors -> cors.configurationSource(corsConfigurationSource))` to SecurityConfig
+- **File changed:** SecurityConfig.java
+
+#### Email STARTTLS Error
+- **Problem:** OTP emails failing with "Must issue a STARTTLS command first"
+- **Fix:** Added `starttls.required: true` and timeout settings to mail config
+- **File changed:** application.yml
+
+#### Member Dashboard Layout
+- **Problem:** Member dashboard at `/member/dashboard` was wrapped in admin sidebar, causing navigation to admin login
+- **Fix:** Added `/member` routes to `isAuthPage` check so they render without admin layout
+- **File changed:** app.component.ts
+
+#### Bill PDF Unit Number Duplication
+- **Problem:** Bill/receipt PDF showed "Unit: D-D-105" (wing concatenated with unit number that already contains wing)
+- **Fix:** Changed to use `unit.getUnitNumber()` directly
+- **File changed:** MaintenancePdfService.java
+
+### 24.3 New Features
+
+#### Landing Page for Local Development
+- Root URL (`/`) now shows a landing page with society info, committee members, and "Member Login" button
+- Production keeps the static `src/landing/index.html` served by nginx at `ppvcd.in/`
+- Angular base href: `/` for dev, `/app/` for production build
+- **Files:** LandingPageComponent, app.routes.ts, app.component.ts, angular.json, index.html
+
+#### Member Portal — OTP Email with Masked Email Display
+- OTP sent message now shows both masked phone AND masked email: "OTP sent to 94******42 and um****@gmail.com"
+- **Files:** MemberAuthService.java, MemberAuthController.java, member-login.component.ts
+
+#### Member Portal — Bill Breakdown (Expandable Rows)
+- Clicking a bill row expands to show: line items (maintenance, sinking fund, water, parking, etc.), principal arrears, interest on arrears, total/paid/balance summary, and bill/due dates
+- Backend now loads line items for outstanding bills
+- **Files:** MaintenanceBillService.java, member-dashboard.component.ts
+
+#### Maintenance Bill PDF Download
+- Members can download their maintenance bill as PDF from the expanded bill detail
+- PDF includes: society header, unit/owner info, line items breakdown with rates, arrears & interest section, total/paid/balance summary
+- **Endpoint:** `GET /member/maintenance/bill-pdf/{unitId}/{billId}`
+- **Files:** MaintenancePdfService.java, MemberMaintenanceController.java, member-dashboard.component.ts, member-auth.service.ts
+
+#### Payment Receipt PDF Download
+- Members can download payment receipts from the payment history tab
+- Receipt shows: receipt number, payer name, payment mode, transaction ID, bill period, amount paid, remaining balance
+- Partial payments are clearly labeled with "PARTIAL PAYMENT" and outstanding balance note
+- **Endpoint:** `GET /member/maintenance/receipt-pdf/{unitId}/{paymentId}`
+- **Files:** MaintenancePdfService.java, MemberMaintenanceController.java, member-dashboard.component.ts
+
+#### Payment Allocation — Principal First, Interest Last
+- Payment is now applied across all bills in two passes: first all principal (oldest bill first), then all interest (oldest first)
+- Unpaid interest carries forward to next month's bill generation
+- **File:** RazorpayService.java, CashfreeService.java
+
+#### Payment Gateway Switching (Razorpay / Cashfree)
+- Admin can switch between Razorpay and Cashfree from Settings page
+- `SocietySettings.paymentGateway` field controls which gateway is active
+- `PaymentGatewayRouter` reads the setting and delegates to the correct service
+- Frontend payment dialog automatically uses the right checkout SDK based on gateway response
+- Separate webhook endpoints for each gateway + legacy backward-compatible webhook
+- **Backend files:** SocietySettings entity, PaymentGatewayRouter, MemberPaymentController, CashfreeService (new member checkout methods), PaymentOrderResponse, VerifyPaymentRequest
+- **Frontend files:** index.html (Cashfree SDK), settings.component.ts, member-payment-dialog.component.ts, member-auth.service.ts
+- **Security:** SecurityConfig updated for new webhook paths
+
+#### Online Payment Discount
+- Admin can configure a discount for members who pay online within a specified number of days
+- Settings: discount toggle, percentage, due days window, promotional message
+- Green banner on member dashboard when discount is eligible
+- Discount auto-applied at payment time, shown on success screen with original amount struck through
+- Bill totals adjusted after discounted payment so discount doesn't carry as arrears
+- Discount tracked on payment record for audit: `original_amount`, `discount_percent`, `discount_amount`
+- Receipt PDF shows discount details: original amount, discount %, discount amount, net paid
+- **Backend files:** SocietySettings entity, PaymentGatewayRouter, RazorpayService, CashfreeService, MaintenancePdfService, MemberMaintenanceService, MemberDashboardResponse, PaymentOrderResponse, VerifyPaymentRequest, MaintenancePayment entity
+- **Frontend files:** settings.component.ts, member-dashboard.component.ts, member-payment-dialog.component.ts, member-auth.service.ts
+
+### 24.4 Production Configuration Changes
+
+#### application-prod.yml — Add/Update These Settings
+
+```yaml
+app:
+  # Payment Gateway (choose one)
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+  cashfree:
+    app-id: YOUR_PRODUCTION_CASHFREE_APP_ID
+    secret-key: YOUR_PRODUCTION_CASHFREE_SECRET_KEY
+    api-version: 2023-08-01
+    environment: production
+    return-url: https://ppvcd.in/app/maintenance/payment-status
+    notify-url: https://ppvcd.in/api/member/payments/webhook/cashfree
+
+  # Email (Gmail SMTP)
+  # Ensure MAIL_USERNAME and MAIL_PASSWORD env vars are set
+```
+
+```yaml
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+```
+
+#### Nginx — Add Webhook Paths (if not already proxied)
+
+The existing `/api/` proxy rule covers all new endpoints. No nginx changes needed.
+
+#### Cashfree Webhook Configuration
+
+In Cashfree Dashboard (Production mode):
+- **Webhook URL:** `https://ppvcd.in/api/member/payments/webhook/cashfree`
+- **Events:** ORDER_PAID, PAYMENT_SUCCESS, PAYMENT_FAILED
+
+### 24.5 Deployment Steps
+
+```bash
+# 1. SSH into EC2
+ssh -i your-key.pem ubuntu@YOUR_ELASTIC_IP
+
+# 2. Pull latest code
+cd /opt/society-management/repo
+git pull origin main
+
+# 3. Build backend
+cd backend
+mvn clean package -DskipTests
+cp target/society-management-1.0.0-SNAPSHOT.jar /opt/society-management/backend/app.jar
+
+# 4. Build frontend (production with /app/ base href)
+cd ../frontend
+npm install
+npx ng build --configuration production
+sudo rm -rf /var/www/society-management/app/*
+sudo cp -r dist/society-management/browser/* /var/www/society-management/app/
+
+# 5. Restart services
+sudo systemctl restart society-backend
+sudo systemctl reload nginx
+
+# 6. Verify
+sudo journalctl -u society-backend -f --lines=50
+# Wait for "Started SocietyManagementApplication" message
+
+# 7. Run post-deployment SQL (if first time deploying these changes)
+mysql -u society_app -p society_management
+```
+
+```sql
+-- Set payment gateway preference
+UPDATE society_settings SET payment_gateway = 'CASHFREE' WHERE id = 1;
+
+-- Enable online payment discount (optional)
+UPDATE society_settings SET discount_enabled = 1, discount_percent = 1.00,
+  discount_due_days = 10,
+  discount_message = 'Pay online within 10 days and get 1% discount!'
+  WHERE id = 1;
+```
+
+### 24.6 Post-Deployment Verification Checklist
+
+| Check | URL/Command | Expected |
+|-------|------------|----------|
+| Landing page | `https://ppvcd.in/` | Shows society info, committee, "Member Login" button |
+| Admin login | `https://ppvcd.in/app/login` | Login form loads |
+| Member login | `https://ppvcd.in/app/member-login` | OTP login form loads |
+| OTP email | Send OTP from member login | Email received with OTP |
+| Member dashboard | Login as member | Shows bills with expandable details |
+| Bill PDF | Click "Download Bill" on expanded row | PDF downloads with line items |
+| Payment | Click "Pay" on a bill | Cashfree checkout opens |
+| Receipt PDF | Payment history → download icon | PDF downloads with payment details |
+| Admin settings | `/app/settings` | Shows Payment Gateway + Discount sections |
+| Forgot password | `/app/forgot-password` | Reset email sent |
+| Voucher creation | Create voucher with dynamic category | No deserialization error |

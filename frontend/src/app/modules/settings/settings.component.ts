@@ -7,6 +7,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '@env/environment';
 
@@ -21,6 +23,8 @@ import { environment } from '@env/environment';
     MatInputModule,
     MatButtonModule,
     MatIconModule,
+    MatSelectModule,
+    MatSlideToggleModule,
     MatSnackBarModule
   ],
   template: `
@@ -137,6 +141,69 @@ import { environment } from '@env/environment';
           </mat-card-content>
         </mat-card>
 
+        <!-- Payment Gateway -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Payment Gateway</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="gateway-hint">Select the payment gateway for online maintenance payments on the member portal.</p>
+            <div class="form-row">
+              <mat-form-field>
+                <mat-label>Active Gateway</mat-label>
+                <mat-select formControlName="paymentGateway">
+                  <mat-option value="RAZORPAY">Razorpay</mat-option>
+                  <mat-option value="CASHFREE">Cashfree</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+            <p class="gateway-note" *ngIf="settingsForm.get('paymentGateway')?.value === 'RAZORPAY'">
+              Razorpay credentials are configured in application settings (environment variables).
+            </p>
+            <p class="gateway-note" *ngIf="settingsForm.get('paymentGateway')?.value === 'CASHFREE'">
+              Cashfree credentials are configured in application settings (environment variables).
+            </p>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Online Payment Discount -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Online Payment Discount</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="gateway-hint">Encourage members to pay maintenance online by offering an early payment discount.</p>
+
+            <div class="form-row">
+              <mat-slide-toggle formControlName="discountEnabled" color="primary">
+                Enable Online Payment Discount
+              </mat-slide-toggle>
+            </div>
+
+            <div *ngIf="settingsForm.get('discountEnabled')?.value" class="discount-fields">
+              <div class="form-row">
+                <mat-form-field>
+                  <mat-label>Discount Percentage (%)</mat-label>
+                  <input matInput type="number" formControlName="discountPercent" min="0" max="100" step="0.5">
+                  <mat-hint>e.g., 2 means 2% off</mat-hint>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Discount Valid For (Days)</mat-label>
+                  <input matInput type="number" formControlName="discountDueDays" min="1" max="30">
+                  <mat-hint>Days from bill date to avail discount</mat-hint>
+                </mat-form-field>
+              </div>
+              <div class="form-row">
+                <mat-form-field class="full-width">
+                  <mat-label>Promotional Message</mat-label>
+                  <input matInput formControlName="discountMessage" maxlength="500">
+                  <mat-hint>Shown to members on their dashboard</mat-hint>
+                </mat-form-field>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
         <div class="form-actions">
           <button mat-raised-button color="primary" type="submit" [disabled]="settingsForm.invalid">
             <mat-icon>save</mat-icon> Save Settings
@@ -174,6 +241,10 @@ import { environment } from '@env/environment';
       justify-content: flex-end;
       margin-top: 16px;
     }
+
+    .gateway-hint { color: #666; font-size: 13px; margin-bottom: 12px; }
+    .gateway-note { color: #888; font-size: 12px; font-style: italic; margin-top: -8px; }
+    .discount-fields { margin-top: 16px; }
   `]
 })
 export class SettingsComponent implements OnInit {
@@ -197,7 +268,12 @@ export class SettingsComponent implements OnInit {
       email: [''],
       chairmanName: [''],
       secretaryName: [''],
-      treasurerName: ['']
+      treasurerName: [''],
+      paymentGateway: ['RAZORPAY'],
+      discountEnabled: [false],
+      discountPercent: [0],
+      discountDueDays: [10],
+      discountMessage: ['Pay online before the due date and get a discount!']
     });
   }
 

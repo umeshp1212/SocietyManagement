@@ -11,6 +11,8 @@ import com.society.module.owner.entity.Unit;
 import com.society.module.owner.entity.UnitOwner;
 import com.society.module.owner.repository.OwnerRepository;
 import com.society.module.owner.repository.UnitOwnerRepository;
+import com.society.module.settings.entity.SocietySettings;
+import com.society.module.settings.service.SocietySettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class MemberMaintenanceService {
     private final MaintenanceBillService billService;
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
+    private final SocietySettingsService settingsService;
 
     /**
      * Get the dashboard summary for a member's unit.
@@ -69,7 +72,7 @@ public class MemberMaintenanceService {
                 .map(b -> b.getPaidAmount() != null ? b.getPaidAmount() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        return MemberDashboardResponse.builder()
+        MemberDashboardResponse.MemberDashboardResponseBuilder builder = MemberDashboardResponse.builder()
                 .ownerId(ownerId)
                 .ownerName(owner.getFullName())
                 .unitId(unitId)
@@ -80,8 +83,26 @@ public class MemberMaintenanceService {
                 .outstandingBillCount(outstandingBills.size())
                 .totalPaid(totalPaidAllTime)
                 .outstandingBills(outstandingBills)
-                .recentPayments(recentPayments)
-                .build();
+                .recentPayments(recentPayments);
+
+        // Add discount info
+        SocietySettings settings = settingsService.getSettings();
+        boolean discountEnabled = Boolean.TRUE.equals(settings.getDiscountEnabled());
+        builder.discountEnabled(discountEnabled);
+        if (discountEnabled) {
+            builder.discountPercent(settings.getDiscountPercent())
+                    .discountDueDays(settings.getDiscountDueDays())
+                    .discountMessage(settings.getDiscountMessage());
+
+            // Check eligibility — any bill within discount due days?
+            boolean eligible = outstandingBills.stream().anyMatch(b -> {
+                if (b.getBillDate() == null || settings.getDiscountDueDays() == null) return false;
+                return !java.time.LocalDate.now().isAfter(b.getBillDate().plusDays(settings.getDiscountDueDays()));
+            });
+            builder.discountEligible(eligible);
+        }
+
+        return builder.build();
     }
 
     /**
@@ -123,6 +144,14 @@ public class MemberMaintenanceService {
             throw new BusinessException("This bill does not belong to your unit");
         }
         return billService.getPaymentsByBill(billId);
+    }
+
+    /**
+     * Validate that the owner actually owns the specified unit.
+     * Public access for controller-level validation.
+     */
+    public void validateUnitAccess(Long ownerId, Long unitId) {
+        validateOwnerUnit(ownerId, unitId);
     }
 
     /**

@@ -37,4 +37,11 @@ public class MemberDashboardResponse {
 
     // Recent payment history (last 10)
     private List<PaymentDTO> recentPayments;
+
+    // Online payment discount info
+    private Boolean discountEnabled;
+    private BigDecimal discountPercent;
+    private Integer discountDueDays;
+    private String discountMessage;
+    private Boolean discountEligible;
 }

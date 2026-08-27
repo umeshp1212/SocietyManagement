@@ -31,8 +31,12 @@ public class MemberAuthService {
      * Send OTP to the registered phone number.
      * Looks up the owner by phone to get their email for dual delivery.
      */
+    /**
+     * Send OTP to the registered phone number.
+     * Returns masked email for UI display.
+     */
     @Transactional
-    public void sendOtp(String phone) {
+    public String sendOtp(String phone) {
         // Find owner by contact number to get email
         Owner owner = findOwnerByPhone(phone);
 
@@ -40,6 +44,17 @@ public class MemberAuthService {
         otpService.generateAndSendOtp(phone, owner.getEmail());
 
         log.info("OTP sent for member phone: {}, owner: {}", phone, owner.getFullName());
+
+        // Return masked email for display
+        String email = owner.getEmail();
+        if (email != null && !email.isBlank() && email.contains("@")) {
+            String[] parts = email.split("@");
+            String name = parts[0];
+            String masked = name.substring(0, Math.min(2, name.length()))
+                    + "****@" + parts[1];
+            return masked;
+        }
+        return null;
     }
 
     /**

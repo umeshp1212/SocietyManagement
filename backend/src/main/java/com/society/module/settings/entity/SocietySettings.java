@@ -58,4 +58,42 @@ public class SocietySettings {
 
     @Column(name = "logo_path", length = 500)
     private String logoPath;
+
+    /**
+     * Active payment gateway: RAZORPAY or CASHFREE
+     */
+    @Column(name = "payment_gateway", length = 20)
+    @Builder.Default
+    private String paymentGateway = "RAZORPAY";
+
+    // ===== Online Payment Discount Settings =====
+
+    /**
+     * Enable/disable online payment discount
+     */
+    @Column(name = "discount_enabled")
+    @Builder.Default
+    private Boolean discountEnabled = false;
+
+    /**
+     * Discount percentage on current month charges (e.g., 2.0 means 2%)
+     */
+    @Column(name = "discount_percent", precision = 5, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal discountPercent = java.math.BigDecimal.ZERO;
+
+    /**
+     * Number of days from bill date within which payment qualifies for discount
+     * e.g., 10 means pay within 10 days of bill date to get the discount
+     */
+    @Column(name = "discount_due_days")
+    @Builder.Default
+    private Integer discountDueDays = 10;
+
+    /**
+     * Promotional message shown to members on the dashboard
+     */
+    @Column(name = "discount_message", length = 500)
+    @Builder.Default
+    private String discountMessage = "Pay online before the due date and get a discount!";
 }

@@ -3,9 +3,11 @@ package com.society.module.member.controller;
 import com.society.common.ApiResponse;
 import com.society.module.auth.security.JwtUtil;
 import com.society.module.maintenance.entity.MaintenancePayment;
+import com.society.module.maintenance.service.CashfreeService;
 import com.society.module.member.dto.CreatePaymentOrderRequest;
 import com.society.module.member.dto.PaymentOrderResponse;
 import com.society.module.member.dto.VerifyPaymentRequest;
+import com.society.module.member.service.PaymentGatewayRouter;
 import com.society.module.member.service.RazorpayService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,32 +22,42 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MemberPaymentController {
 
+    private final PaymentGatewayRouter gatewayRouter;
     private final RazorpayService razorpayService;
+    private final CashfreeService cashfreeService;
     private final JwtUtil jwtUtil;
 
     /**
-     * Create a Razorpay payment order.
-     * Member can pay total outstanding or a partial amount.
+     * Get the active payment gateway so the frontend knows which SDK to load.
+     */
+    @GetMapping("/active-gateway")
+    public ResponseEntity<ApiResponse<Map<String, String>>> getActiveGateway() {
+        Map<String, String> result = new LinkedHashMap<>();
+        result.put("gateway", gatewayRouter.getActiveGateway());
+        return ResponseEntity.ok(ApiResponse.success("Active gateway", result));
+    }
+
+    /**
+     * Create a payment order using the active gateway.
      */
     @PostMapping("/create-order")
     public ResponseEntity<ApiResponse<PaymentOrderResponse>> createOrder(
             @Valid @RequestBody CreatePaymentOrderRequest request,
             @RequestHeader("Authorization") String authHeader) {
         Long ownerId = extractOwnerId(authHeader);
-        PaymentOrderResponse response = razorpayService.createOrder(ownerId, request);
+        PaymentOrderResponse response = gatewayRouter.createOrder(ownerId, request);
         return ResponseEntity.ok(ApiResponse.success("Payment order created", response));
     }
 
     /**
-     * Verify Razorpay payment after successful checkout.
-     * Validates signature, records payment against bills.
+     * Verify payment after successful checkout (works for both gateways).
      */
     @PostMapping("/verify")
     public ResponseEntity<ApiResponse<Map<String, Object>>> verifyPayment(
             @Valid @RequestBody VerifyPaymentRequest request,
             @RequestHeader("Authorization") String authHeader) {
         Long ownerId = extractOwnerId(authHeader);
-        MaintenancePayment payment = razorpayService.verifyAndRecordPayment(ownerId, request);
+        MaintenancePayment payment = gatewayRouter.verifyAndRecordPayment(ownerId, request);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("paymentId", payment.getPaymentId());
@@ -54,16 +66,36 @@ public class MemberPaymentController {
         result.put("status", payment.getStatus().name());
         result.put("paymentDate", payment.getPaymentDate());
         result.put("razorpayPaymentId", payment.getRazorpayPaymentId());
+        result.put("cashfreeOrderId", payment.getCashfreeOrderId());
 
         return ResponseEntity.ok(ApiResponse.success("Payment verified and recorded successfully", result));
     }
 
     /**
-     * Razorpay webhook endpoint (server-to-server callback).
-     * This must be PUBLIC — no auth required.
+     * Razorpay webhook (server-to-server callback). PUBLIC — no auth.
+     */
+    @PostMapping("/webhook/razorpay")
+    public ResponseEntity<String> handleRazorpayWebhook(
+            @RequestBody String webhookBody,
+            @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
+        razorpayService.handleWebhook(webhookBody, signature);
+        return ResponseEntity.ok("OK");
+    }
+
+    /**
+     * Cashfree webhook (server-to-server callback). PUBLIC — no auth.
+     */
+    @PostMapping("/webhook/cashfree")
+    public ResponseEntity<String> handleCashfreeWebhook(@RequestBody Map<String, Object> webhookData) {
+        cashfreeService.handlePaymentWebhook(webhookData);
+        return ResponseEntity.ok("OK");
+    }
+
+    /**
+     * Legacy Razorpay webhook path for backward compatibility.
      */
     @PostMapping("/webhook")
-    public ResponseEntity<String> handleWebhook(
+    public ResponseEntity<String> handleLegacyWebhook(
             @RequestBody String webhookBody,
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
         razorpayService.handleWebhook(webhookBody, signature);

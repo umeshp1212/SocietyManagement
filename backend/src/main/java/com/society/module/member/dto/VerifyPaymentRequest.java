@@ -1,6 +1,5 @@
 package com.society.module.member.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -9,14 +8,18 @@ import java.math.BigDecimal;
 @Data
 public class VerifyPaymentRequest {
 
-    @NotBlank(message = "Razorpay order ID is required")
+    /**
+     * Which gateway: RAZORPAY or CASHFREE
+     */
+    private String gateway;
+
+    // Razorpay fields
     private String razorpayOrderId;
-
-    @NotBlank(message = "Razorpay payment ID is required")
     private String razorpayPaymentId;
-
-    @NotBlank(message = "Razorpay signature is required")
     private String razorpaySignature;
+
+    // Cashfree fields
+    private String cashfreeOrderId;
 
     @NotNull(message = "Unit ID is required")
     private Long unitId;
@@ -28,4 +31,10 @@ public class VerifyPaymentRequest {
      * Optional: specific bill ID if payment was for a specific bill.
      */
     private Long billId;
+
+    /**
+     * Discount amount that was applied (set by backend, not frontend).
+     * Used to adjust bill totals so discount doesn't become arrears.
+     */
+    private BigDecimal discountAmount;
 }

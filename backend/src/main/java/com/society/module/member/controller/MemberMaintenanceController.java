@@ -5,12 +5,16 @@ import com.society.common.PagedResponse;
 import com.society.module.auth.security.JwtUtil;
 import com.society.module.maintenance.dto.BillDTO;
 import com.society.module.maintenance.dto.PaymentDTO;
+import com.society.module.maintenance.service.MaintenancePdfService;
 import com.society.module.member.dto.MemberDashboardResponse;
 import com.society.module.member.service.MemberMaintenanceService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -19,6 +23,7 @@ import java.util.List;
 public class MemberMaintenanceController {
 
     private final MemberMaintenanceService memberMaintenanceService;
+    private final MaintenancePdfService maintenancePdfService;
     private final JwtUtil jwtUtil;
 
     /**
@@ -82,6 +87,44 @@ public class MemberMaintenanceController {
         Long ownerId = extractOwnerId(authHeader);
         List<PaymentDTO> payments = memberMaintenanceService.getPaymentsByBill(ownerId, unitId, billId);
         return ResponseEntity.ok(ApiResponse.success("Bill payments fetched", payments));
+    }
+
+    /**
+     * Download maintenance bill as PDF.
+     */
+    @GetMapping("/bill-pdf/{unitId}/{billId}")
+    public ResponseEntity<byte[]> downloadBillPdf(
+            @PathVariable Long unitId,
+            @PathVariable Long billId,
+            @RequestHeader("Authorization") String authHeader) throws IOException {
+        Long ownerId = extractOwnerId(authHeader);
+        // Validate access
+        memberMaintenanceService.validateUnitAccess(ownerId, unitId);
+
+        byte[] pdf = maintenancePdfService.generateBillPdf(billId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=bill-" + billId + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
+    /**
+     * Download payment receipt as PDF.
+     */
+    @GetMapping("/receipt-pdf/{unitId}/{paymentId}")
+    public ResponseEntity<byte[]> downloadReceiptPdf(
+            @PathVariable Long unitId,
+            @PathVariable Long paymentId,
+            @RequestHeader("Authorization") String authHeader) throws IOException {
+        Long ownerId = extractOwnerId(authHeader);
+        // Validate access
+        memberMaintenanceService.validateUnitAccess(ownerId, unitId);
+
+        byte[] pdf = maintenancePdfService.generateReceiptPdf(paymentId);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=receipt-" + paymentId + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 
     /**

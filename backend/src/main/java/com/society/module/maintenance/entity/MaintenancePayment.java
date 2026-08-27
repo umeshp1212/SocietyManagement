@@ -83,6 +83,24 @@ public class MaintenancePayment extends BaseEntity {
     @Column(name = "verified_by", length = 100)
     private String verifiedBy;
 
+    /**
+     * Original amount before discount was applied
+     */
+    @Column(name = "original_amount", precision = 10, scale = 2)
+    private BigDecimal originalAmount;
+
+    /**
+     * Discount percentage applied (e.g., 2.00 for 2%)
+     */
+    @Column(name = "discount_percent", precision = 5, scale = 2)
+    private BigDecimal discountPercent;
+
+    /**
+     * Discount amount deducted
+     */
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount;
+
     public enum PaymentMode {
         CASHFREE_LINK, CASHFREE_QR, RAZORPAY, UPI, GPAY, PHONEPE, NEFT, RTGS, IMPS, CHEQUE, CASH, BANK_TRANSFER
     }

@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe, TitleCasePipe } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { animate, state, style, transition, trigger } from '@angular/animations';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,12 +24,19 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
   selector: 'app-member-dashboard',
   standalone: true,
   imports: [
-    CommonModule, FormsModule,
+    CommonModule, FormsModule, RouterModule,
     MatCardModule, MatButtonModule, MatIconModule, MatTableModule,
     MatChipsModule, MatDividerModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatSelectModule, MatFormFieldModule,
     MatInputModule, MatTabsModule, MatTooltipModule, MatDialogModule,
     CurrencyPipe, DatePipe, TitleCasePipe
+  ],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed,void', style({ height: '0px', minHeight: '0' })),
+      state('expanded', style({ height: '*' })),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
   ],
   template: `
     <div class="member-dashboard">
@@ -54,6 +62,9 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
               </mat-option>
             </mat-select>
           </mat-form-field>
+          <button mat-icon-button routerLink="/member/profile" matTooltip="My Profile" color="primary">
+            <mat-icon>account_circle</mat-icon>
+          </button>
           <button mat-icon-button (click)="logout()" matTooltip="Logout" color="warn">
             <mat-icon>logout</mat-icon>
           </button>
@@ -67,6 +78,15 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
       </div>
 
       <div *ngIf="!loading && dashboard">
+        <!-- Discount Banner -->
+        <div class="discount-banner" *ngIf="dashboard.discountEnabled && dashboard.discountEligible">
+          <mat-icon>local_offer</mat-icon>
+          <div class="discount-content">
+            <strong>{{ dashboard.discountPercent }}% OFF</strong> — {{ dashboard.discountMessage }}
+            <span class="discount-detail">Pay online within {{ dashboard.discountDueDays }} days of bill date</span>
+          </div>
+        </div>
+
         <!-- Summary Cards -->
         <div class="summary-cards">
           <mat-card class="summary-card outstanding">
@@ -124,7 +144,7 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
                   <p>No outstanding bills. You're all caught up!</p>
                 </div>
 
-                <table mat-table [dataSource]="dashboard.outstandingBills"
+                <table mat-table [dataSource]="dashboard.outstandingBills" multiTemplateDataRows
                        *ngIf="dashboard.outstandingBills.length > 0" class="full-width">
 
                   <ng-container matColumnDef="period">
@@ -166,15 +186,85 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
                     <th mat-header-cell *matHeaderCellDef>Action</th>
                     <td mat-cell *matCellDef="let bill">
                       <button mat-mini-fab color="primary"
-                              (click)="openPaymentDialog(bill)"
+                              (click)="openPaymentDialog(bill); $event.stopPropagation()"
                               matTooltip="Pay this bill">
                         <mat-icon>payment</mat-icon>
                       </button>
                     </td>
                   </ng-container>
 
+                  <!-- Expanded detail row -->
+                  <ng-container matColumnDef="expandedDetail">
+                    <td mat-cell *matCellDef="let bill" [attr.colspan]="billColumns.length">
+                      <div class="bill-detail"
+                           [@detailExpand]="bill === expandedBill ? 'expanded' : 'collapsed'">
+                        <div class="bill-breakdown" *ngIf="bill === expandedBill">
+
+                          <!-- Line Items -->
+                          <div class="breakdown-section" *ngIf="bill.lineItems?.length">
+                            <h4>Current Month Charges</h4>
+                            <div class="breakdown-row" *ngFor="let item of bill.lineItems">
+                              <span class="breakdown-label">{{ item.chargeName }}</span>
+                              <span class="breakdown-value">{{ item.amount | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                            <div class="breakdown-row subtotal">
+                              <span class="breakdown-label">Subtotal</span>
+                              <span class="breakdown-value">{{ bill.amount | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                          </div>
+
+                          <!-- Arrears & Interest -->
+                          <div class="breakdown-section"
+                               *ngIf="(bill.previousArrears && bill.previousArrears > 0)
+                                   || (bill.interestOnArrears && bill.interestOnArrears > 0)">
+                            <h4>Arrears & Interest</h4>
+                            <div class="breakdown-row" *ngIf="bill.previousArrears > 0">
+                              <span class="breakdown-label">Principal Outstanding (Arrears)</span>
+                              <span class="breakdown-value arrears">{{ bill.previousArrears | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                            <div class="breakdown-row" *ngIf="bill.interestOnArrears > 0">
+                              <span class="breakdown-label">Interest on Arrears</span>
+                              <span class="breakdown-value arrears">{{ bill.interestOnArrears | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                          </div>
+
+                          <!-- Total Summary -->
+                          <div class="breakdown-section summary">
+                            <div class="breakdown-row total">
+                              <span class="breakdown-label">Total Bill</span>
+                              <span class="breakdown-value">{{ bill.totalAmount | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                            <div class="breakdown-row" *ngIf="bill.paidAmount > 0">
+                              <span class="breakdown-label">Paid</span>
+                              <span class="breakdown-value paid">- {{ bill.paidAmount | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                            <div class="breakdown-row total">
+                              <span class="breakdown-label">Balance Due</span>
+                              <span class="breakdown-value balance">{{ bill.balanceAmount | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                          </div>
+
+                          <div class="bill-meta">
+                            <span *ngIf="bill.billDate">Bill Date: {{ bill.billDate | date:'dd MMM yyyy' }}</span>
+                            <span *ngIf="bill.dueDate">Due Date: {{ bill.dueDate | date:'dd MMM yyyy' }}</span>
+                            <button mat-stroked-button color="primary" class="download-btn"
+                                    (click)="downloadBill(bill); $event.stopPropagation()">
+                              <mat-icon>download</mat-icon> Download Bill
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                  </ng-container>
+
                   <tr mat-header-row *matHeaderRowDef="billColumns"></tr>
-                  <tr mat-row *matRowDef="let row; columns: billColumns;"></tr>
+                  <tr mat-row *matRowDef="let row; columns: billColumns;"
+                      class="bill-row"
+                      [class.expanded-row]="expandedBill === row"
+                      (click)="expandedBill = expandedBill === row ? null : row">
+                  </tr>
+                  <tr mat-row *matRowDef="let row; columns: ['expandedDetail']"
+                      class="detail-row"></tr>
                 </table>
               </div>
             </mat-tab>
@@ -226,6 +316,18 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
                     </td>
                   </ng-container>
 
+                  <ng-container matColumnDef="receipt">
+                    <th mat-header-cell *matHeaderCellDef></th>
+                    <td mat-cell *matCellDef="let p">
+                      <button mat-icon-button color="primary"
+                              (click)="downloadReceipt(p)"
+                              matTooltip="Download Receipt"
+                              *ngIf="p.status === 'SUCCESS' || p.status === 'VERIFIED'">
+                        <mat-icon>download</mat-icon>
+                      </button>
+                    </td>
+                  </ng-container>
+
                   <tr mat-header-row *matHeaderRowDef="paymentColumns"></tr>
                   <tr mat-row *matRowDef="let row; columns: paymentColumns;"></tr>
                 </table>
@@ -268,6 +370,16 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
       display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 16px; margin-bottom: 24px;
     }
+
+    .discount-banner {
+      display: flex; align-items: center; gap: 12px;
+      background: linear-gradient(135deg, #e8f5e9, #c8e6c9); border-left: 4px solid #2e7d32;
+      border-radius: 8px; padding: 14px 20px; margin-bottom: 16px;
+    }
+    .discount-banner mat-icon { color: #2e7d32; font-size: 28px; height: 28px; width: 28px; }
+    .discount-banner strong { color: #2e7d32; font-size: 16px; }
+    .discount-content { display: flex; flex-direction: column; font-size: 14px; color: #333; }
+    .discount-detail { font-size: 12px; color: #666; margin-top: 2px; }
     .summary-card {
       display: flex; align-items: center; gap: 16px; padding: 20px 24px;
       border-radius: 12px; border-left: 4px solid;
@@ -324,10 +436,32 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
     }
     .error-container mat-icon { font-size: 48px; height: 48px; width: 48px; }
 
+    /* Expandable bill detail */
+    .bill-row { cursor: pointer; }
+    .bill-row:hover { background: #f5f5f5; }
+    .expanded-row { background: #e8f5e9; }
+    .detail-row { height: 0; }
+    .bill-detail { overflow: hidden; }
+    .bill-breakdown { padding: 16px 24px 20px; }
+    .breakdown-section { margin-bottom: 16px; }
+    .breakdown-section h4 { font-size: 13px; color: #1565c0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .breakdown-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 14px; }
+    .breakdown-label { color: #555; }
+    .breakdown-value { font-weight: 500; color: #333; }
+    .breakdown-value.arrears { color: #e65100; }
+    .breakdown-value.paid { color: #2e7d32; }
+    .breakdown-value.balance { color: #c62828; font-weight: 600; }
+    .breakdown-row.subtotal { border-top: 1px solid #e0e0e0; padding-top: 6px; margin-top: 4px; font-weight: 500; }
+    .breakdown-row.total { border-top: 1px solid #bdbdbd; padding-top: 8px; margin-top: 4px; font-weight: 600; font-size: 15px; }
+    .breakdown-section.summary { background: #fafafa; padding: 12px; border-radius: 8px; }
+    .bill-meta { display: flex; gap: 24px; font-size: 12px; color: #888; margin-top: 8px; align-items: center; }
+    .download-btn { font-size: 12px; height: 32px; line-height: 32px; margin-left: auto; }
+
     @media (max-width: 600px) {
       .member-dashboard { padding: 12px; }
       .summary-cards { grid-template-columns: 1fr; }
       .dashboard-header { flex-direction: column; align-items: flex-start; }
+      .bill-breakdown { padding: 12px 8px; }
     }
   `]
 })
@@ -339,7 +473,8 @@ export class MemberDashboardComponent implements OnInit {
   errorMessage = '';
 
   billColumns = ['period', 'totalAmount', 'paidAmount', 'balanceAmount', 'status', 'action'];
-  paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'paymentStatus'];
+  paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'paymentStatus', 'receipt'];
+  expandedBill: any = null;
 
   constructor(
     private memberAuth: MemberAuthService,
@@ -433,6 +568,16 @@ export class MemberDashboardComponent implements OnInit {
       BANK_TRANSFER: 'Bank Transfer'
     };
     return map[mode] || mode;
+  }
+
+  downloadBill(bill: any): void {
+    if (!this.selectedUnit) return;
+    this.memberAuth.downloadBillPdf(this.selectedUnit.unitId, bill.billId);
+  }
+
+  downloadReceipt(payment: any): void {
+    if (!this.selectedUnit) return;
+    this.memberAuth.downloadReceiptPdf(this.selectedUnit.unitId, payment.paymentId);
   }
 
   logout(): void {

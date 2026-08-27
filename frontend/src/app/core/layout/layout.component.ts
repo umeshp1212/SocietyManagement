@@ -80,6 +80,20 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <span matListItemTitle>User Management</span>
           </a>
 
+          <a mat-list-item routerLink="/users/profile-requests" routerLinkActive="active"
+             *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>contact_mail</mat-icon>
+            <span matListItemTitle>Profile Requests</span>
+          </a>
+
+          <a mat-list-item routerLink="/users/registration-requests" routerLinkActive="active"
+             *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>person_add</mat-icon>
+            <span matListItemTitle>Registration Requests</span>
+          </a>
+
           <a mat-list-item routerLink="/reports" routerLinkActive="active"
              *ngIf="hasPermission('REPORT_FINANCIAL') || hasPermission('REPORT_OCCUPANCY')"
              (click)="closeSidenavOnMobile()">

@@ -12,6 +12,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MemberAuthService, PaymentOrderResponse } from '@core/services/member-auth.service';
 
 declare var Razorpay: any;
+declare var Cashfree: any;
 
 export interface PaymentDialogData {
   unitId: number;
@@ -115,7 +116,19 @@ export interface PaymentDialogData {
       <div *ngIf="step === 'success'" class="success-state">
         <mat-icon class="success-icon">check_circle</mat-icon>
         <h3>Payment Successful!</h3>
+
+        <!-- Discount Applied Info -->
+        <div class="discount-applied" *ngIf="lastOrderData?.discountApplied">
+          <mat-icon>local_offer</mat-icon>
+          <span>{{ lastOrderData.discountPercent }}% discount applied!
+            You saved {{ lastOrderData.discountAmount | currency:'INR':'symbol':'1.0-0' }}</span>
+        </div>
+
         <div class="receipt-info">
+          <div class="info-row" *ngIf="lastOrderData?.discountApplied">
+            <span class="label">Original Amount</span>
+            <span class="value strikethrough">{{ lastOrderData.originalAmount | currency:'INR':'symbol':'1.0-0' }}</span>
+          </div>
           <div class="info-row">
             <span class="label">Amount Paid</span>
             <span class="value amount">{{ successData?.amount | currency:'INR':'symbol':'1.0-0' }}</span>
@@ -124,7 +137,7 @@ export interface PaymentDialogData {
             <span class="label">Receipt Number</span>
             <span class="value">{{ successData?.receiptNumber }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" *ngIf="successData?.razorpayPaymentId">
             <span class="label">Payment ID</span>
             <span class="value small">{{ successData?.razorpayPaymentId }}</span>
           </div>
@@ -196,6 +209,13 @@ export interface PaymentDialogData {
     .processing-state .sub-text { font-size: 12px; color: #999; }
 
     .success-icon { font-size: 64px; height: 64px; width: 64px; color: #2e7d32; }
+    .discount-applied {
+      display: flex; align-items: center; gap: 8px;
+      background: #e8f5e9; border-radius: 8px; padding: 10px 16px;
+      margin-bottom: 16px; color: #2e7d32; font-size: 14px; font-weight: 500;
+    }
+    .discount-applied mat-icon { font-size: 20px; height: 20px; width: 20px; }
+    .strikethrough { text-decoration: line-through; color: #999; }
     .failed-icon { font-size: 64px; height: 64px; width: 64px; color: #c62828; }
 
     .receipt-info {
@@ -219,6 +239,7 @@ export class MemberPaymentDialogComponent {
   loading = false;
   errorMessage = '';
   successData: any = null;
+  lastOrderData: any = null;
 
   constructor(
     public dialogRef: MatDialogRef<MemberPaymentDialogComponent>,
@@ -262,7 +283,13 @@ export class MemberPaymentDialogComponent {
       next: (res) => {
         this.loading = false;
         if (res.success) {
-          this.openRazorpayCheckout(res.data);
+          const orderData = res.data;
+          this.lastOrderData = orderData;
+          if (orderData.gateway === 'CASHFREE') {
+            this.openCashfreeCheckout(orderData);
+          } else {
+            this.openRazorpayCheckout(orderData);
+          }
         } else {
           this.errorMessage = res.message || 'Failed to create payment order.';
         }
@@ -331,14 +358,21 @@ export class MemberPaymentDialogComponent {
   private onPaymentSuccess(response: any, orderData: PaymentOrderResponse): void {
     this.step = 'processing';
 
-    const verifyData = {
-      razorpayOrderId: response.razorpay_order_id,
-      razorpayPaymentId: response.razorpay_payment_id,
-      razorpaySignature: response.razorpay_signature,
+    const verifyData: any = {
+      gateway: orderData.gateway,
       unitId: this.data.unitId,
       amount: orderData.amount,
-      billId: this.data.bill?.billId || undefined
+      billId: this.data.bill?.billId || undefined,
+      discountAmount: orderData.discountApplied ? orderData.discountAmount : 0
     };
+
+    if (orderData.gateway === 'CASHFREE') {
+      verifyData.cashfreeOrderId = orderData.cashfreeOrderId;
+    } else {
+      verifyData.razorpayOrderId = response.razorpay_order_id;
+      verifyData.razorpayPaymentId = response.razorpay_payment_id;
+      verifyData.razorpaySignature = response.razorpay_signature;
+    }
 
     this.memberAuth.verifyPayment(verifyData).subscribe({
       next: (res) => {
@@ -353,9 +387,42 @@ export class MemberPaymentDialogComponent {
       error: (err) => {
         this.step = 'failed';
         this.errorMessage = err.error?.message
-          || 'Payment was received but verification failed. Contact society admin with Payment ID: '
-          + response.razorpay_payment_id;
+          || 'Payment was received but verification failed. Contact society admin.';
       }
     });
+  }
+
+  private openCashfreeCheckout(orderData: PaymentOrderResponse): void {
+    this.step = 'processing';
+
+    try {
+      const cashfree = new Cashfree({ mode: 'sandbox' }); // Change to 'production' for live
+
+      cashfree.checkout({
+        paymentSessionId: orderData.cashfreePaymentSessionId,
+        redirectTarget: '_modal',
+      }).then((result: any) => {
+        this.ngZone.run(() => {
+          if (result.error) {
+            this.step = 'failed';
+            this.errorMessage = result.error?.message || 'Payment failed. Please try again.';
+          } else if (result.paymentDetails) {
+            this.onPaymentSuccess(result.paymentDetails, orderData);
+          } else {
+            // Payment may have completed — verify with backend
+            this.onPaymentSuccess({}, orderData);
+          }
+        });
+      }).catch((err: any) => {
+        this.ngZone.run(() => {
+          this.step = 'failed';
+          this.errorMessage = 'Payment was cancelled or failed. You can try again.';
+        });
+      });
+
+    } catch (e) {
+      this.step = 'failed';
+      this.errorMessage = 'Failed to open payment gateway. Please check your internet connection.';
+    }
   }
 }

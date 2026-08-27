@@ -13,11 +13,29 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class PaymentOrderResponse {
 
+    /**
+     * Which gateway created this order: RAZORPAY or CASHFREE
+     */
+    private String gateway;
+
+    // Razorpay fields
     private String razorpayOrderId;
+    private String razorpayKeyId;
+
+    // Cashfree fields
+    private String cashfreeOrderId;
+    private String cashfreePaymentSessionId;
+
+    // Common fields
     private BigDecimal amount;
     private String currency;
-    private String razorpayKeyId;
     private String receipt;
+
+    // Discount info
+    private BigDecimal originalAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal discountPercent;
+    private Boolean discountApplied;
 
     // Prefill info
     private String ownerName;

@@ -354,7 +354,7 @@ public class MaintenanceBillService {
     public List<BillDTO> getOutstandingByUnit(Long unitId) {
         List<MaintenanceBill> bills = billRepository.findOutstandingByUnit(unitId);
         return bills.stream()
-                .map(this::mapToBillDTO)
+                .map(this::mapToBillDTOWithLineItems)
                 .collect(Collectors.toList());
     }
 
