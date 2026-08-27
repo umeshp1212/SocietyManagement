@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MemberAuthService } from '@core/services/member-auth.service';
 import { environment } from '@env/environment';
 
@@ -21,7 +22,7 @@ import { environment } from '@env/environment';
     CommonModule, ReactiveFormsModule, RouterModule,
     MatCardModule, MatFormFieldModule, MatInputModule,
     MatButtonModule, MatIconModule, MatSnackBarModule,
-    MatProgressSpinnerModule, MatSelectModule
+    MatProgressSpinnerModule, MatSelectModule, MatAutocompleteModule
   ],
   template: `
     <div class="member-login-container">
@@ -49,7 +50,7 @@ import { environment } from '@env/environment';
               <mat-error *ngIf="phoneForm.get('phone')?.hasError('pattern')">Enter a valid 10-digit number</mat-error>
             </mat-form-field>
 
-            <div class="error-message" *ngIf="errorMessage">
+            <div class="error-message" *ngIf="errorMessage && !showRegisterLink">
               <mat-icon>error</mat-icon> {{ errorMessage }}
             </div>
 
@@ -63,6 +64,7 @@ import { environment } from '@env/environment';
 
             <button mat-raised-button color="primary" type="submit"
                     class="full-width action-btn"
+                    *ngIf="!showRegisterLink"
                     [disabled]="phoneForm.invalid || loading">
               <mat-spinner *ngIf="loading" diameter="20" class="btn-spinner"></mat-spinner>
               <mat-icon *ngIf="!loading">sms</mat-icon>
@@ -116,12 +118,15 @@ import { environment } from '@env/environment';
           <form *ngIf="step === 'register'" [formGroup]="registerForm" (ngSubmit)="onRegisterSendOtp()">
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Select Your Flat/Unit</mat-label>
-              <mat-select formControlName="unitId">
-                <mat-option *ngFor="let u of units" [value]="u.unitId">
+              <input matInput formControlName="unitSearch" [matAutocomplete]="unitAuto"
+                     placeholder="Type to search (e.g., D-105)">
+              <mat-icon matPrefix>apartment</mat-icon>
+              <mat-autocomplete #unitAuto="matAutocomplete" [displayWith]="displayUnit"
+                                (optionSelected)="onUnitSelected($event)">
+                <mat-option *ngFor="let u of filteredUnits" [value]="u">
                   {{ u.unitNumber }} <span *ngIf="u.wing">({{ u.wing }} Wing)</span>
                 </mat-option>
-              </mat-select>
-              <mat-icon matPrefix>apartment</mat-icon>
+              </mat-autocomplete>
               <mat-error *ngIf="registerForm.get('unitId')?.hasError('required')">Please select your unit</mat-error>
             </mat-form-field>
 
@@ -290,6 +295,7 @@ export class MemberLoginComponent {
   regMaskedEmail = '';
   showRegisterLink = false;
   units: any[] = [];
+  filteredUnits: any[] = [];
   resendCooldown = 0;
   private cooldownInterval: any;
 
@@ -315,7 +321,19 @@ export class MemberLoginComponent {
     this.registerForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
       mobile: ['', [Validators.required, Validators.pattern(/^[6-9]\d{9}$/)]],
-      unitId: [null, Validators.required]
+      unitId: [null, Validators.required],
+      unitSearch: ['']
+    });
+
+    // Filter units as user types
+    this.registerForm.get('unitSearch')?.valueChanges.subscribe(val => {
+      if (typeof val === 'string') {
+        const search = val.toLowerCase();
+        this.filteredUnits = this.units.filter(u =>
+          u.unitNumber.toLowerCase().includes(search) ||
+          (u.wing && u.wing.toLowerCase().includes(search))
+        );
+      }
     });
   }
 
@@ -342,7 +360,7 @@ export class MemberLoginComponent {
         const msg = err.error?.message || '';
         this.errorMessage = msg || 'Failed to send OTP.';
         // Show register link if phone not found
-        if (msg.toLowerCase().includes('no member found') || msg.toLowerCase().includes('not found')) {
+        if (msg.toLowerCase().includes('no member found') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('register')) {
           this.showRegisterLink = true;
         }
       }
@@ -392,9 +410,23 @@ export class MemberLoginComponent {
     // Load units for dropdown
     if (this.units.length === 0) {
       this.http.get<any>(`${environment.apiUrl}/member/auth/register/units`).subscribe({
-        next: (res) => { if (res.success) this.units = res.data; }
+        next: (res) => {
+          if (res.success) {
+            this.units = res.data;
+            this.filteredUnits = res.data;
+          }
+        }
       });
     }
+  }
+
+  displayUnit = (unit: any): string => {
+    return unit ? `${unit.unitNumber}${unit.wing ? ' (' + unit.wing + ' Wing)' : ''}` : '';
+  };
+
+  onUnitSelected(event: any): void {
+    const unit = event.option.value;
+    this.registerForm.patchValue({ unitId: unit.unitId });
   }
 
   goBackToLogin(): void {

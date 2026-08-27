@@ -22,7 +22,7 @@ public class AdminProfileRequestController {
      * Get all pending profile update requests.
      */
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_VIEW')")
     public ResponseEntity<ApiResponse<List<ProfileUpdateRequestDTO>>> getPendingRequests() {
         List<ProfileUpdateRequestDTO> requests = profileService.getPendingRequests();
         return ResponseEntity.ok(ApiResponse.success("Pending requests", requests));
@@ -32,7 +32,7 @@ public class AdminProfileRequestController {
      * Get all profile update requests (history).
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_VIEW')")
     public ResponseEntity<ApiResponse<List<ProfileUpdateRequestDTO>>> getAllRequests() {
         List<ProfileUpdateRequestDTO> requests = profileService.getAllRequests();
         return ResponseEntity.ok(ApiResponse.success("All requests", requests));
@@ -42,7 +42,7 @@ public class AdminProfileRequestController {
      * Approve a profile update request.
      */
     @PostMapping("/{requestId}/approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_APPROVE')")
     public ResponseEntity<ApiResponse<ProfileUpdateRequestDTO>> approve(
             @PathVariable Long requestId,
             @RequestParam(defaultValue = "Admin") String adminName) {
@@ -54,7 +54,7 @@ public class AdminProfileRequestController {
      * Reject a profile update request.
      */
     @PostMapping("/{requestId}/reject")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_APPROVE')")
     public ResponseEntity<ApiResponse<ProfileUpdateRequestDTO>> reject(
             @PathVariable Long requestId,
             @RequestBody Map<String, String> body) {

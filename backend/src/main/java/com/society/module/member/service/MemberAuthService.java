@@ -116,7 +116,7 @@ public class MemberAuthService {
         List<Owner> owners = ownerRepository.findByContactNumberOrAlternateNumber(phone);
 
         if (owners.isEmpty()) {
-            throw new BusinessException("No member found with this phone number. Please contact society admin.");
+            throw new BusinessException("No member found with this phone number. Register your details to get started.");
         }
 
         // Return the first active owner found

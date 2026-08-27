@@ -19,10 +19,16 @@ export const USER_ROUTES: Routes = [
   },
   {
     path: 'profile-requests',
-    loadComponent: () => import('./profile-requests/profile-requests.component').then(m => m.ProfileRequestsComponent)
+    redirectTo: 'member-requests',
+    pathMatch: 'full'
   },
   {
     path: 'registration-requests',
-    loadComponent: () => import('./registration-requests/registration-requests.component').then(m => m.RegistrationRequestsComponent)
+    redirectTo: 'member-requests',
+    pathMatch: 'full'
+  },
+  {
+    path: 'member-requests',
+    loadComponent: () => import('./member-requests/member-requests.component').then(m => m.MemberRequestsComponent)
   }
 ];

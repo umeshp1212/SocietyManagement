@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -157,8 +158,9 @@ public class MemberRegistrationService {
         }
 
         // Check if this owner already has a phone number
-        Owner owner = ownerRepository.findById(ownerId)
-                .orElseThrow(() -> new BusinessException("Owner not found with ID: " + ownerId));
+        final Long finalOwnerId = ownerId;
+        Owner owner = ownerRepository.findById(finalOwnerId)
+                .orElseThrow(() -> new BusinessException("Owner not found with ID: " + finalOwnerId));
 
         if (owner.getContactNumber() != null && !owner.getContactNumber().isBlank()) {
             throw new BusinessException("Owner " + owner.getFullName() + " already has mobile " +

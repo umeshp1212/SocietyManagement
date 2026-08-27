@@ -27,7 +27,7 @@ public class AdminRegistrationRequestController {
      * Get all pending registration requests.
      */
     @GetMapping("/pending")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_VIEW')")
     public ResponseEntity<ApiResponse<List<MemberRegistrationRequestDTO>>> getPending() {
         return ResponseEntity.ok(ApiResponse.success("Pending requests",
                 registrationService.getPendingRequests()));
@@ -37,7 +37,7 @@ public class AdminRegistrationRequestController {
      * Get all registration requests (history).
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_VIEW')")
     public ResponseEntity<ApiResponse<List<MemberRegistrationRequestDTO>>> getAll() {
         return ResponseEntity.ok(ApiResponse.success("All requests",
                 registrationService.getAllRequests()));
@@ -47,7 +47,7 @@ public class AdminRegistrationRequestController {
      * Get list of owners (for admin to select which owner to link the request to).
      */
     @GetMapping("/owners")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_VIEW')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getOwnersList() {
         List<Map<String, Object>> owners = ownerRepository.findAll().stream()
                 .filter(o -> o.getStatus() == com.society.enums.OwnerStatus.ACTIVE)
@@ -67,7 +67,7 @@ public class AdminRegistrationRequestController {
      * Get owners of a specific unit (for admin to select owner/co-owner).
      */
     @GetMapping("/{requestId}/unit-owners")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_VIEW')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUnitOwners(@PathVariable Long requestId) {
         MemberRegistrationRequestDTO req = registrationService.getAllRequests().stream()
                 .filter(r -> r.getRequestId().equals(requestId))
@@ -81,7 +81,7 @@ public class AdminRegistrationRequestController {
      * Approve a registration request and link to an owner.
      */
     @PostMapping("/{requestId}/approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_APPROVE')")
     public ResponseEntity<ApiResponse<MemberRegistrationRequestDTO>> approve(
             @PathVariable Long requestId,
             @RequestBody Map<String, Object> body) {
@@ -95,7 +95,7 @@ public class AdminRegistrationRequestController {
      * Reject a registration request.
      */
     @PostMapping("/{requestId}/reject")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_APPROVE')")
     public ResponseEntity<ApiResponse<MemberRegistrationRequestDTO>> reject(
             @PathVariable Long requestId,
             @RequestBody Map<String, String> body) {

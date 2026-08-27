@@ -92,7 +92,14 @@ INSERT IGNORE INTO permissions (permission_id, permission_name, module, descript
 (30, 'USER_ASSIGN_ROLES', 'USER', 'Assign roles to users'),
 -- Reports
 (31, 'REPORT_FINANCIAL', 'REPORT', 'View financial reports'),
-(32, 'REPORT_OCCUPANCY', 'REPORT', 'View occupancy reports');
+(32, 'REPORT_OCCUPANCY', 'REPORT', 'View occupancy reports'),
+-- Maintenance
+(33, 'MAINTENANCE_VIEW', 'MAINTENANCE', 'View maintenance bills and payments'),
+(34, 'MAINTENANCE_CREATE', 'MAINTENANCE', 'Generate maintenance bills'),
+(35, 'MAINTENANCE_PAYMENT', 'MAINTENANCE', 'Record offline payments'),
+-- Member Requests
+(36, 'MEMBER_REQUEST_VIEW', 'MEMBER', 'View member registration and profile requests'),
+(37, 'MEMBER_REQUEST_APPROVE', 'MEMBER', 'Approve/reject member requests');
 
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
@@ -104,19 +111,22 @@ SELECT 1, permission_id FROM permissions;
 -- CHAIRMAN
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (2, 1), (2, 6), (2, 10), (2, 13), (2, 18), (2, 21), (2, 22), (2, 23),
-(2, 4), (2, 16), (2, 24), (2, 31), (2, 32);
+(2, 4), (2, 16), (2, 24), (2, 31), (2, 32),
+(2, 33), (2, 36), (2, 37);
 
 -- SECRETARY
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9),
 (3, 10), (3, 11), (3, 12), (3, 13), (3, 14), (3, 15), (3, 16), (3, 17),
 (3, 18), (3, 19), (3, 20), (3, 23), (3, 24), (3, 26), (3, 27), (3, 28),
-(3, 31), (3, 32);
+(3, 31), (3, 32),
+(3, 33), (3, 34), (3, 35), (3, 36), (3, 37);
 
 -- TREASURER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (4, 1), (4, 6), (4, 10), (4, 13), (4, 18), (4, 19), (4, 20), (4, 21),
-(4, 22), (4, 23), (4, 24), (4, 31);
+(4, 22), (4, 23), (4, 24), (4, 31),
+(4, 33), (4, 36);
 
 -- COMMITTEE_MEMBER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
