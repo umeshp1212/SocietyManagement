@@ -64,6 +64,9 @@ import { AuthService } from '@core/services/auth.service';
         </mat-card-content>
 
         <div class="login-footer">
+          <a routerLink="/member-login" class="member-link">
+            <mat-icon>people</mat-icon> Member Login (OTP)
+          </a>
           <p> Poonam Park View C & D Wing CHS Ltd.</p>
         </div>
       </mat-card>
@@ -86,6 +89,13 @@ import { AuthService } from '@core/services/auth.service';
     .error-message mat-icon { font-size: 18px; height: 18px; width: 18px; }
     .login-footer { text-align: center; margin-top: 16px; font-size: 12px; color: #999; }
     .login-footer strong { color: #1976d2; }
+    .member-link {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: #00796b; text-decoration: none; font-size: 14px;
+      font-weight: 500; margin-bottom: 8px;
+    }
+    .member-link:hover { text-decoration: underline; }
+    .member-link mat-icon { font-size: 18px; height: 18px; width: 18px; }
     .forgot-link { text-align: right; margin-top: 12px; }
     .forgot-link a { color: #1976d2; text-decoration: none; font-size: 13px; }
     .forgot-link a:hover { text-decoration: underline; }

@@ -4,6 +4,16 @@ import { authGuard, roleGuard } from './core/guards/auth.guard';
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
   {
+    path: 'member-login',
+    loadComponent: () => import('./modules/member/member-login/member-login.component')
+      .then(m => m.MemberLoginComponent)
+  },
+  {
+    path: 'member',
+    loadChildren: () => import('./modules/member/member.routes')
+      .then(m => m.MEMBER_ROUTES)
+  },
+  {
     path: 'login',
     loadComponent: () => import('./modules/auth/login/login.component')
       .then(m => m.LoginComponent)

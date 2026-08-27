@@ -45,4 +45,6 @@ public interface MaintenanceBillRepository extends JpaRepository<MaintenanceBill
     boolean existsByUnit_UnitIdAndBillMonthAndBillYear(Long unitId, Integer month, Integer year);
 
     Optional<MaintenanceBill> findByCashfreeOrderId(String cashfreeOrderId);
+
+    Optional<MaintenanceBill> findByRazorpayOrderId(String razorpayOrderId);
 }

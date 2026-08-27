@@ -29,6 +29,10 @@ public interface MaintenancePaymentRepository extends JpaRepository<MaintenanceP
 
     Optional<MaintenancePayment> findByCashfreePaymentId(String cashfreePaymentId);
 
+    Optional<MaintenancePayment> findByRazorpayPaymentId(String razorpayPaymentId);
+
+    Optional<MaintenancePayment> findByRazorpayOrderId(String razorpayOrderId);
+
     Optional<MaintenancePayment> findByTransactionId(String transactionId);
 
     @Query("SELECT p FROM MaintenancePayment p WHERE p.status = :status ORDER BY p.paymentDate DESC")

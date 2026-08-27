@@ -33,4 +33,7 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
     List<Owner> findByStatusOrderByFullNameAsc(OwnerStatus status);
 
     boolean existsByContactNumber(String contactNumber);
+
+    @Query("SELECT o FROM Owner o WHERE o.contactNumber = :phone OR o.alternateNumber = :phone")
+    List<Owner> findByContactNumberOrAlternateNumber(@Param("phone") String phone);
 }

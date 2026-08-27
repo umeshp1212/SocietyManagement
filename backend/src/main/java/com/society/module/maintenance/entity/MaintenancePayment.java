@@ -50,6 +50,15 @@ public class MaintenancePayment extends BaseEntity {
     @Column(name = "cashfree_order_id", length = 100)
     private String cashfreeOrderId;
 
+    @Column(name = "razorpay_payment_id", length = 100)
+    private String razorpayPaymentId;
+
+    @Column(name = "razorpay_order_id", length = 100)
+    private String razorpayOrderId;
+
+    @Column(name = "razorpay_signature", length = 255)
+    private String razorpaySignature;
+
     @Column(name = "payer_name", length = 150)
     private String payerName;
 
@@ -75,7 +84,7 @@ public class MaintenancePayment extends BaseEntity {
     private String verifiedBy;
 
     public enum PaymentMode {
-        CASHFREE_LINK, CASHFREE_QR, UPI, GPAY, PHONEPE, NEFT, RTGS, IMPS, CHEQUE, CASH, BANK_TRANSFER
+        CASHFREE_LINK, CASHFREE_QR, RAZORPAY, UPI, GPAY, PHONEPE, NEFT, RTGS, IMPS, CHEQUE, CASH, BANK_TRANSFER
     }
 
     public enum PaymentStatus {

@@ -90,6 +90,9 @@ public class MaintenanceBill extends BaseEntity {
     @Column(name = "cashfree_order_id", length = 100)
     private String cashfreeOrderId;
 
+    @Column(name = "razorpay_order_id", length = 100)
+    private String razorpayOrderId;
+
     /**
      * Area of unit at time of bill generation (for record keeping)
      */
