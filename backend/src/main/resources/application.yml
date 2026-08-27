@@ -1,0 +1,94 @@
+spring:
+  application:
+    name: society-management
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata&createDatabaseIfNotExist=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    defer-datasource-initialization: true
+
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/data.sql
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Mail configuration — set MAIL_USERNAME and MAIL_PASSWORD env vars
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enabled: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# Swagger UI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+# Logging
+logging:
+  level:
+    com.society: DEBUG
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# File upload directory
+app:
+  upload:
+    dir: ${APP_UPLOAD_DIR:./uploads}
+  jwt:
+    secret: MySuperSecretKeyForJwtTokenGenerationMustBeLongEnough12345678
+    expiration: 86400000
+    refresh-expiration: 604800000
+  cashfree:
+    app-id: ${CASHFREE_APP_ID:}
+    secret-key: ${CASHFREE_SECRET_KEY:}
+    api-version: 2023-08-01
+    environment: sandbox
+    return-url: http://localhost:4200/maintenance/payment-status
+    notify-url: http://localhost:8080/api/maintenance/payments/webhook
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+  otp:
+    expiry-minutes: 5
+    max-attempts: 5
+    rate-limit-per-hour: 5
+  base-url: http://localhost:8080/api
+  frontend-url: http://localhost:4200
+  password-reset:
+    token-expiry-minutes: 30
