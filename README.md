@@ -2002,3 +2002,220 @@ UPDATE society_settings SET discount_enabled = 1, discount_percent = 1.00,
 | Admin settings | `/app/settings` | Shows Payment Gateway + Discount sections |
 | Forgot password | `/app/forgot-password` | Reset email sent |
 | Voucher creation | Create voucher with dynamic category | No deserialization error |
+
+
+---
+
+## 25. Release Notes — August 27, 2026 (Session 2)
+
+Additional features and fixes built in the second session.
+
+### 25.1 Database Changes (Auto-applied by JPA ddl-auto=update)
+
+| Table | New Column | Type | Default | Purpose |
+|-------|-----------|------|---------|---------|
+| `member_registration_requests` | (new table) | - | - | Member self-registration requests |
+| `profile_update_requests` | (new table) | - | - | Member profile update requests |
+| `maintenance_payments` | `original_amount` | DECIMAL(10,2) | NULL | Original amount before discount |
+| `maintenance_payments` | `discount_percent` | DECIMAL(5,2) | NULL | Discount % applied |
+| `maintenance_payments` | `discount_amount` | DECIMAL(10,2) | NULL | Discount amount deducted |
+| `society_settings` | `discount_enabled` | TINYINT(1) | 0 | Enable online payment discount |
+| `society_settings` | `discount_percent` | DECIMAL(5,2) | 0 | Discount percentage |
+| `society_settings` | `discount_due_days` | INT | 10 | Days window for discount |
+| `society_settings` | `discount_message` | VARCHAR(500) | - | Promotional message |
+
+### 25.2 New Features
+
+#### Member Self-Registration
+- When phone not found on member portal → "Register Now" option
+- Member selects their **unit/flat** from dropdown, enters **email + mobile**
+- **OTP sent to email** for verification
+- Creates pending registration request for admin approval
+- Admin sees the request with unit number, selects owner/co-owner if multiple, approves
+- On approval → owner's email + mobile updated → member can login
+- **Duplicate prevention:** Blocks registration if mobile already exists on any owner of that unit
+- **Endpoints:** `POST /member/auth/register/send-otp`, `POST /member/auth/register/verify-otp`, `GET /member/auth/register/units`
+- **Admin:** `GET /admin/registration-requests/pending`, `POST /{id}/approve`, `POST /{id}/reject`
+
+#### Member Profile Update (Request-Approval)
+- Members can request to update their mobile/email from `/member/profile`
+- Profile shows masked data (94****42, um****@gmail.com)
+- Only one pending request allowed at a time
+- Admin reviews at `/users/profile-requests` → approve (updates owner) or reject with reason
+- Full audit trail of all requests
+- **Endpoints:** `GET /member/profile`, `POST /member/profile/update-request`
+- **Admin:** `GET /admin/profile-requests/pending`, `POST /{id}/approve`, `POST /{id}/reject`
+
+#### Online Payment Discount
+- Admin configurable: toggle, percentage, due days, promotional message
+- Green banner on member dashboard when eligible
+- Auto-applied at payment time → bill totals adjusted so discount doesn't become arrears
+- Tracked on payment record for audit (original_amount, discount_percent, discount_amount)
+- Receipt PDF shows discount breakdown
+- **Settings:** Admin → Settings → "Online Payment Discount" section
+
+#### Payment Gateway Switching (Razorpay / Cashfree)
+- Admin can switch between gateways from Settings → "Payment Gateway" dropdown
+- `PaymentGatewayRouter` reads setting and delegates to correct service
+- Frontend auto-loads correct checkout SDK based on gateway response
+- Separate webhook paths: `/member/payments/webhook/razorpay`, `/member/payments/webhook/cashfree`
+- Legacy webhook path `/member/payments/webhook` still works for backward compatibility
+
+#### Payment Allocation — Principal First
+- Payments applied in two passes: all principal (oldest bill first), then all interest
+- Unpaid interest carries forward to next billing cycle
+
+#### Maintenance Bill & Receipt PDF
+- Members can download bill PDF (line items, arrears, interest, total)
+- Members can download payment receipt PDF (with discount info if applied, partial payment labeling)
+- **Endpoints:** `GET /member/maintenance/bill-pdf/{unitId}/{billId}`, `GET /member/maintenance/receipt-pdf/{unitId}/{paymentId}`
+
+#### Member Dashboard Enhancements
+- Expandable bill rows showing full breakdown
+- Profile button in header → `/member/profile`
+- Discount banner when eligible
+- Download buttons for bills and receipts
+
+### 25.3 Security: Secrets Management
+
+**Never commit API keys or passwords to git.** Use environment variables.
+
+#### Required Environment Variables for Production
+
+```bash
+# Email (Gmail SMTP)
+export MAIL_USERNAME=your-society-email@gmail.com
+export MAIL_PASSWORD=your-16-char-app-password
+
+# Cashfree (Production keys from merchant.cashfree.com)
+export CASHFREE_APP_ID=your-production-app-id
+export CASHFREE_SECRET_KEY=your-production-secret-key
+
+# Razorpay (if using, from dashboard.razorpay.com)
+export RAZORPAY_KEY_ID=your-production-key-id
+export RAZORPAY_KEY_SECRET=your-production-key-secret
+```
+
+#### For systemd service, add env vars to the service file:
+
+```bash
+sudo nano /etc/systemd/system/society-backend.service
+```
+
+Add under `[Service]`:
+
+```ini
+Environment=MAIL_USERNAME=your-email@gmail.com
+Environment=MAIL_PASSWORD=your-app-password
+Environment=CASHFREE_APP_ID=your-production-app-id
+Environment=CASHFREE_SECRET_KEY=your-production-secret-key
+```
+
+Or use an env file:
+
+```ini
+EnvironmentFile=/opt/society-management/backend/.env
+```
+
+Create `/opt/society-management/backend/.env`:
+
+```env
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+CASHFREE_APP_ID=your-production-app-id
+CASHFREE_SECRET_KEY=your-production-secret-key
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+```
+
+```bash
+chmod 600 /opt/society-management/backend/.env
+```
+
+#### For Docker, add to `.env` in project root:
+
+```env
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+CASHFREE_APP_ID=your-production-app-id
+CASHFREE_SECRET_KEY=your-production-secret-key
+```
+
+### 25.4 Post-Deployment SQL
+
+```sql
+-- Set payment gateway
+UPDATE society_settings SET payment_gateway = 'CASHFREE' WHERE id = 1;
+
+-- Enable online payment discount (optional)
+UPDATE society_settings SET discount_enabled = 1, discount_percent = 1.00,
+  discount_due_days = 10,
+  discount_message = 'Pay online within 10 days and get 1% discount!'
+  WHERE id = 1;
+```
+
+### 25.5 Deployment Steps
+
+```bash
+# 1. SSH into EC2
+ssh -i your-key.pem ubuntu@YOUR_ELASTIC_IP
+
+# 2. Pull latest code
+cd /opt/society-management/repo
+git pull origin main
+
+# 3. Set environment variables (if not already in service file)
+sudo nano /etc/systemd/system/society-backend.service
+# Add Environment= lines as shown in 25.3
+
+# 4. Build backend
+cd backend
+mvn clean package -DskipTests
+cp target/society-management-1.0.0-SNAPSHOT.jar /opt/society-management/backend/app.jar
+
+# 5. Build frontend
+cd ../frontend
+npm install
+npx ng build --configuration production
+sudo rm -rf /var/www/society-management/app/*
+sudo cp -r dist/society-management/browser/* /var/www/society-management/app/
+
+# 6. Restart
+sudo systemctl daemon-reload
+sudo systemctl restart society-backend
+sudo systemctl reload nginx
+
+# 7. Verify
+sudo journalctl -u society-backend -f --lines=50
+# Wait for "Started SocietyManagementApplication"
+
+# 8. Run post-deployment SQL
+mysql -u society_app -p society_management < (run the SQL from 25.4)
+```
+
+### 25.6 Cashfree Production Setup
+
+1. Log into [merchant.cashfree.com](https://merchant.cashfree.com) → Switch to **Production** mode
+2. Complete KYC if not done
+3. Go to **Developers** → **API Keys** → Copy production App ID and Secret Key
+4. Update environment variables on EC2
+5. Configure webhook in Cashfree Dashboard:
+   - **URL:** `https://ppvcd.in/api/member/payments/webhook/cashfree`
+   - **Events:** ORDER_PAID, PAYMENT_SUCCESS, PAYMENT_FAILED
+6. Restart backend
+
+### 25.7 Verification Checklist
+
+| Check | How | Expected |
+|-------|-----|----------|
+| Member registration | Enter unknown phone → Register | Shows unit dropdown, email+mobile form |
+| Email OTP | Complete registration | OTP received on email |
+| Registration request | Admin → Registration Requests | Shows pending request with unit |
+| Approve with co-owner | Unit with 2 owners | Shows owner/co-owner dropdown |
+| Member login after approval | Login with registered phone | Dashboard loads |
+| Profile update | Member → profile icon | Shows masked info, update form |
+| Admin approve profile | Admin → Profile Requests | Approve/reject works |
+| Payment discount | Enable in settings, pay online | Discount applied, shown on receipt |
+| Gateway switch | Settings → change to Cashfree | Payment uses Cashfree checkout |
+| Bill PDF | Expand bill → Download | PDF with line items |
+| Receipt PDF | Payment history → download | PDF with discount info |
