@@ -26,6 +26,7 @@ public class MemberAuthService {
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
     private final JwtUtil jwtUtil;
+    private final com.society.module.member.repository.MemberRegistrationRequestRepository registrationRequestRepository;
 
     /**
      * Send OTP to the registered phone number.
