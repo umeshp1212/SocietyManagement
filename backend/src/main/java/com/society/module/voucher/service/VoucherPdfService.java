@@ -416,7 +416,7 @@ public class VoucherPdfService {
 
         // Row 3: Category + Status
         infoTable.addCell(createLabelCell("Category:", boldFont));
-        infoTable.addCell(createValueCell(voucher.getCategory().name().replace('_', ' '), regularFont));
+        infoTable.addCell(createValueCell(voucher.getCategory().replace('_', ' '), regularFont));
         infoTable.addCell(createLabelCell("Status:", boldFont));
         infoTable.addCell(createValueCell(voucher.getStatus().name(), regularFont));
 

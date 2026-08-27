@@ -276,7 +276,7 @@ public class VendorService {
                     .voucherNumber(v.getVoucherNumber())
                     .voucherDate(v.getVoucherDate())
                     .voucherType(v.getVoucherType().name())
-                    .category(v.getCategory().name())
+                    .category(v.getCategory())
                     .description(v.getDescription())
                     .amount(v.getAmount())
                     .paymentMode(v.getPaymentMode() != null ? v.getPaymentMode().name() : null)

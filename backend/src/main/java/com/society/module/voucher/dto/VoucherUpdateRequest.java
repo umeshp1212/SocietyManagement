@@ -1,6 +1,5 @@
 package com.society.module.voucher.dto;
 
-import com.society.enums.ExpenseCategory;
 import com.society.enums.PaymentMode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -19,8 +18,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class VoucherUpdateRequest {
 
-    @NotNull(message = "Category is required")
-    private ExpenseCategory category;
+    @NotBlank(message = "Category is required")
+    private String category;
 
     private Long vendorId;
 

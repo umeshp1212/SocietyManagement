@@ -1,6 +1,8 @@
 package com.society.module.voucher.dto;
 
-import com.society.enums.*;
+import com.society.enums.PaymentMode;
+import com.society.enums.VoucherStatus;
+import com.society.enums.VoucherType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,7 +22,7 @@ public class VoucherDTO {
     private String voucherNumber;
     private LocalDate voucherDate;
     private VoucherType voucherType;
-    private ExpenseCategory category;
+    private String category;
     private Long vendorId;
     private String vendorName;
     private String description;

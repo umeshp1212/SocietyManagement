@@ -1,7 +1,6 @@
 package com.society.module.voucher.entity;
 
 import com.society.common.BaseEntity;
-import com.society.enums.ExpenseCategory;
 import com.society.enums.PaymentMode;
 import com.society.enums.VoucherStatus;
 import com.society.enums.VoucherType;
@@ -39,9 +38,8 @@ public class Voucher extends BaseEntity {
     @Column(name = "voucher_type", nullable = false)
     private VoucherType voucherType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false)
-    private ExpenseCategory category;
+    @Column(name = "category", nullable = false, length = 50)
+    private String category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vendor_id")

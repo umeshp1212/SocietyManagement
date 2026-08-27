@@ -1,7 +1,8 @@
 package com.society.module.voucher.service;
 
 import com.society.common.PagedResponse;
-import com.society.enums.*;
+import com.society.enums.VoucherStatus;
+import com.society.enums.VoucherType;
 import com.society.exception.BusinessException;
 import com.society.exception.ResourceNotFoundException;
 import com.society.module.vendor.entity.Vendor;
@@ -362,7 +363,7 @@ public class VoucherService {
             voucherPage = voucherRepository.findWithFilters(
                     type != null && !type.isBlank() ? VoucherType.valueOf(type) : null,
                     status != null && !status.isBlank() ? VoucherStatus.valueOf(status) : null,
-                    category != null && !category.isBlank() ? ExpenseCategory.valueOf(category) : null,
+                    category != null && !category.isBlank() ? category : null,
                     financialYear != null && !financialYear.isBlank() ? financialYear : null,
                     startDate, endDate,
                     pageable);
@@ -538,9 +539,9 @@ public class VoucherService {
                     voucher.getDescription(), request.getDescription(),
                     request.getUpdateReason(), "SYSTEM");
         }
-        if (request.getCategory() != voucher.getCategory()) {
+        if (!Objects.equals(request.getCategory(), voucher.getCategory())) {
             createAuditEntry(voucher, "category",
-                    voucher.getCategory().name(), request.getCategory().name(),
+                    voucher.getCategory(), request.getCategory(),
                     request.getUpdateReason(), "SYSTEM");
         }
         if (!Objects.equals(request.getPaymentMode(), voucher.getPaymentMode())) {

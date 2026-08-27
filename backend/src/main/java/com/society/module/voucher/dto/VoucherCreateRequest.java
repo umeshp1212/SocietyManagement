@@ -1,6 +1,5 @@
 package com.society.module.voucher.dto;
 
-import com.society.enums.ExpenseCategory;
 import com.society.enums.PaymentMode;
 import com.society.enums.VoucherType;
 import jakarta.validation.constraints.NotBlank;
@@ -26,8 +25,8 @@ public class VoucherCreateRequest {
     @NotNull(message = "Voucher type is required")
     private VoucherType voucherType;
 
-    @NotNull(message = "Category is required")
-    private ExpenseCategory category;
+    @NotBlank(message = "Category is required")
+    private String category;
 
     private Long vendorId;
 

@@ -1,6 +1,5 @@
 package com.society.module.voucher.repository;
 
-import com.society.enums.ExpenseCategory;
 import com.society.enums.VoucherStatus;
 import com.society.enums.VoucherType;
 import com.society.module.voucher.entity.Voucher;
@@ -25,7 +24,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
 
     Page<Voucher> findByStatus(VoucherStatus status, Pageable pageable);
 
-    Page<Voucher> findByCategory(ExpenseCategory category, Pageable pageable);
+    Page<Voucher> findByCategory(String category, Pageable pageable);
 
     Page<Voucher> findByFinancialYear(String financialYear, Pageable pageable);
 
@@ -66,7 +65,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
            "ORDER BY CASE v.status WHEN 'DRAFT' THEN 0 WHEN 'PENDING_APPROVAL' THEN 1 WHEN 'FINAL' THEN 2 WHEN 'CANCELLED' THEN 3 END ASC, v.createdOn DESC")
     Page<Voucher> findWithFilters(@Param("type") VoucherType type,
                                    @Param("status") VoucherStatus status,
-                                   @Param("category") ExpenseCategory category,
+                                   @Param("category") String category,
                                    @Param("financialYear") String financialYear,
                                    @Param("startDate") LocalDate startDate,
                                    @Param("endDate") LocalDate endDate,
