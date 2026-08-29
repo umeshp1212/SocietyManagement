@@ -24,13 +24,35 @@ export class VendorService {
     return this.http.get<ApiResponse<Vendor>>(`${this.apiUrl}/${vendorId}`);
   }
 
-  getAllVendors(page = 0, size = 20, status?: string, category?: string, search?: string): Observable<ApiResponse<PagedResponse<Vendor>>> {
-    let params = new HttpParams().set('page', page).set('size', size);
-    if (status) params = params.set('status', status);
-    if (category) params = params.set('category', category);
-    if (search) params = params.set('search', search);
-    return this.http.get<ApiResponse<PagedResponse<Vendor>>>(this.apiUrl, { params });
+getAllVendors(
+  page = 0,
+  size = 20,
+  status?: string,
+  categoryId?: number,
+  search?: string
+): Observable<ApiResponse<PagedResponse<Vendor>>> {
+
+  let params = new HttpParams()
+    .set('page', page)
+    .set('size', size);
+
+  if (status) {
+    params = params.set('status', status);
   }
+
+  if (categoryId) {
+    params = params.set('categoryId', categoryId);
+  }
+
+  if (search) {
+    params = params.set('search', search);
+  }
+
+  return this.http.get<ApiResponse<PagedResponse<Vendor>>>(
+    this.apiUrl,
+    { params }
+  );
+}
 
   getActiveVendorsList(): Observable<ApiResponse<Vendor[]>> {
     return this.http.get<ApiResponse<Vendor[]>>(`${this.apiUrl}/active-list`);
