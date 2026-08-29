@@ -2,6 +2,8 @@ export interface Vendor {
   vendorId: number;
   vendorName: string;
   categoryId: number;
+  categoryCode: string;
+  categoryName: string;
   contactPerson?: string;
   phone: string;
   email?: string;
@@ -36,7 +38,7 @@ export interface VendorDocument {
 
 export interface VendorCreateRequest {
   vendorName: string;
-  category: string;
+  categoryId: number;
   contactPerson?: string;
   phone: string;
   email?: string;
