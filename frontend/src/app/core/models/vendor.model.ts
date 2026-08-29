@@ -1,7 +1,7 @@
 export interface Vendor {
   vendorId: number;
   vendorName: string;
-  category: string;
+  categoryId: number;
   contactPerson?: string;
   phone: string;
   email?: string;
