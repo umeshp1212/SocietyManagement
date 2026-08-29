@@ -75,7 +75,7 @@ public class VoucherService {
         // Auto-calculate TDS if vendor has a category with active TDS config
         if (vendor != null && vendor.getCategory() != null) {
             TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(
-                    vendor.getCategory().name(), request.getAmount());
+                    vendor.getCategory().getName(), request.getAmount());
             if (tds != null) {
                 voucher.setTdsApplicable(true);
                 voucher.setTdsSection(tds.tdsSection());
@@ -144,7 +144,7 @@ public class VoucherService {
         Vendor currentVendor = voucher.getVendor();
         if (currentVendor != null && currentVendor.getCategory() != null) {
             TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(
-                    currentVendor.getCategory().name(), voucher.getAmount());
+                    currentVendor.getCategory().getName(), voucher.getAmount());
             if (tds != null) {
                 voucher.setTdsApplicable(true);
                 voucher.setTdsSection(tds.tdsSection());
