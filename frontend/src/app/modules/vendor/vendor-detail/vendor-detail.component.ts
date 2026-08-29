@@ -52,7 +52,7 @@ import { Vendor, VendorDocument } from '@core/models/vendor.model';
           <div class="info-grid">
             <div class="info-item">
               <label>Category</label>
-              <span>{{ formatCategory(vendor.category) }}</span>
+              <span>{{ formatCategory(vendor.categoryName ) }}</span>
             </div>
             <div class="info-item">
               <label>Contact Person</label>
