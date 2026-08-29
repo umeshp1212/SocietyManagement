@@ -2,7 +2,8 @@ package com.society.module.vendor.entity;
 
 import com.society.common.BaseEntity;
 import com.society.enums.PaymentFrequency;
-import com.society.enums.VendorCategory;
+// import com.society.enums.VendorCategory;
+import com.society.module.vendorcategory.entity.VendorCategoryEntity;
 import com.society.enums.VendorStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -29,9 +30,14 @@ public class Vendor extends BaseEntity {
     @Column(name = "vendor_name", nullable = false, length = 200)
     private String vendorName;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category", nullable = false)
-    private VendorCategory category;
+    // @Enumerated(EnumType.STRING)
+    // @Column(name = "category", nullable = false)
+    // private VendorCategory category;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id", nullable = false)
+    private VendorCategoryEntity category;
+
+
 
     @Column(name = "contact_person", length = 150)
     private String contactPerson;

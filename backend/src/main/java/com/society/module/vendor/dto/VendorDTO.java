@@ -1,7 +1,7 @@
 package com.society.module.vendor.dto;
 
 import com.society.enums.PaymentFrequency;
-import com.society.enums.VendorCategory;
+// import com.society.enums.VendorCategory;
 import com.society.enums.VendorStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +20,10 @@ import java.util.List;
 public class VendorDTO {
     private Long vendorId;
     private String vendorName;
-    private VendorCategory category;
+    // private VendorCategory category;
+    private Long categoryId;
+    private String categoryCode;
+    private String CategoryName;
     private String contactPerson;
     private String phone;
     private String email;

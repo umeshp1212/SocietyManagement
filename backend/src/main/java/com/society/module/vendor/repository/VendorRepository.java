@@ -1,6 +1,7 @@
 package com.society.module.vendor.repository;
 
 import com.society.enums.VendorCategory;
+// import com.society.enums.VendorCategory;
 import com.society.enums.VendorStatus;
 import com.society.module.vendor.entity.Vendor;
 import org.springframework.data.domain.Page;
@@ -18,9 +19,13 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
 
     Page<Vendor> findByStatus(VendorStatus status, Pageable pageable);
 
-    Page<Vendor> findByCategory(VendorCategory category, Pageable pageable);
+//     Page<Vendor> findByCategory(VendorCategory category, Pageable pageable);
 
-    Page<Vendor> findByStatusAndCategory(VendorStatus status, VendorCategory category, Pageable pageable);
+//     Page<Vendor> findByStatusAndCategory(VendorStatus status, VendorCategory category, Pageable pageable);
+
+    Page<Vendor> findByCategory_CategoryId(Long categoryId, Pageable pageable);
+    
+    Page<Vendor> findByStatusAndCategory_CategoryId(VendorStatus status, Long categoryId, Pageable pageable);
 
     @Query("SELECT v FROM Vendor v WHERE " +
            "(LOWER(v.vendorName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
@@ -52,5 +57,6 @@ public interface VendorRepository extends JpaRepository<Vendor, Long> {
 
     long countByStatus(VendorStatus status);
 
-    long countByCategory(VendorCategory category);
+//     long countByCategory(VendorCategory category);
+    long countByCategory_CategoryId(Long categoryId);
 }

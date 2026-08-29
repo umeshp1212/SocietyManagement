@@ -1,7 +1,7 @@
 package com.society.module.vendor.dto;
 
 import com.society.enums.PaymentFrequency;
-import com.society.enums.VendorCategory;
+// import com.society.enums.VendorCategory;
 import com.society.enums.VendorStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,7 +25,7 @@ public class VendorUpdateRequest {
     private String vendorName;
 
     @NotNull(message = "Category is required")
-    private VendorCategory category;
+    private Long categoryId;
 
     @Size(max = 150, message = "Contact person name must not exceed 150 characters")
     private String contactPerson;
