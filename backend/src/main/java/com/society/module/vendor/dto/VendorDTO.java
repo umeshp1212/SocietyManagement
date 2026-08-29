@@ -23,7 +23,7 @@ public class VendorDTO {
     // private VendorCategory category;
     private Long categoryId;
     private String categoryCode;
-    private String CategoryName;
+    private String categoryName;
     private String contactPerson;
     private String phone;
     private String email;
