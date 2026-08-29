@@ -9,6 +9,8 @@ import com.society.module.vendor.entity.Vendor;
 import com.society.module.vendor.entity.VendorDocument;
 import com.society.module.vendor.repository.VendorDocumentRepository;
 import com.society.module.vendor.repository.VendorRepository;
+import com.society.module.vendorcategory.entity.VendorCategoryEntity;
+import com.society.module.vendorcategory.repository.VendorCategoryRepository;
 import com.society.module.voucher.entity.Voucher;
 import com.society.module.voucher.repository.VoucherRepository;
 import lombok.RequiredArgsConstructor;
@@ -33,59 +35,81 @@ public class VendorService {
     private final VendorRepository vendorRepository;
     private final VendorDocumentRepository vendorDocumentRepository;
     private final VoucherRepository voucherRepository;
+    private final VendorCategoryRepository vendorCategoryRepository;
 
     // ==================== VENDOR CRUD ====================
 
     @Transactional
-    public VendorDTO createVendor(VendorCreateRequest request) {
-        Vendor vendor = Vendor.builder()
-                .vendorName(request.getVendorName())
-                .category(request.getCategory())
-                .contactPerson(request.getContactPerson())
-                .phone(request.getPhone())
-                .email(request.getEmail())
-                .address(request.getAddress())
-                .panNumber(request.getPanNumber())
-                .gstNumber(request.getGstNumber())
-                .bankAccountNumber(request.getBankAccountNumber())
-                .bankIfsc(request.getBankIfsc())
-                .bankName(request.getBankName())
-                .agreementStartDate(request.getAgreementStartDate())
-                .agreementEndDate(request.getAgreementEndDate())
-                .contractedAmount(request.getContractedAmount())
-                .paymentFrequency(request.getPaymentFrequency())
-                .status(VendorStatus.ACTIVE)
-                .build();
+public VendorDTO createVendor(VendorCreateRequest request) {
 
-        vendor = vendorRepository.save(vendor);
-        return mapToDTO(vendor);
-    }
+    VendorCategoryEntity category = vendorCategoryRepository.findById(request.getCategoryId())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Vendor Category",
+                            "categoryId",
+                            request.getCategoryId()
+                    ));
+
+    Vendor vendor = Vendor.builder()
+            .vendorName(request.getVendorName())
+            .category(category)
+            .contactPerson(request.getContactPerson())
+            .phone(request.getPhone())
+            .email(request.getEmail())
+            .address(request.getAddress())
+            .panNumber(request.getPanNumber())
+            .gstNumber(request.getGstNumber())
+            .bankAccountNumber(request.getBankAccountNumber())
+            .bankIfsc(request.getBankIfsc())
+            .bankName(request.getBankName())
+            .agreementStartDate(request.getAgreementStartDate())
+            .agreementEndDate(request.getAgreementEndDate())
+            .contractedAmount(request.getContractedAmount())
+            .paymentFrequency(request.getPaymentFrequency())
+            .status(VendorStatus.ACTIVE)
+            .build();
+
+    vendor = vendorRepository.save(vendor);
+
+    return mapToDTO(vendor);
+}
 
     @Transactional
-    public VendorDTO updateVendor(Long vendorId, VendorUpdateRequest request) {
-        Vendor vendor = vendorRepository.findById(vendorId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vendor", "vendorId", vendorId));
+public VendorDTO updateVendor(Long vendorId, VendorUpdateRequest request) {
 
-        vendor.setVendorName(request.getVendorName());
-        vendor.setCategory(request.getCategory());
-        vendor.setContactPerson(request.getContactPerson());
-        vendor.setPhone(request.getPhone());
-        vendor.setEmail(request.getEmail());
-        vendor.setAddress(request.getAddress());
-        vendor.setPanNumber(request.getPanNumber());
-        vendor.setGstNumber(request.getGstNumber());
-        vendor.setBankAccountNumber(request.getBankAccountNumber());
-        vendor.setBankIfsc(request.getBankIfsc());
-        vendor.setBankName(request.getBankName());
-        vendor.setAgreementStartDate(request.getAgreementStartDate());
-        vendor.setAgreementEndDate(request.getAgreementEndDate());
-        vendor.setContractedAmount(request.getContractedAmount());
-        vendor.setPaymentFrequency(request.getPaymentFrequency());
-        vendor.setStatus(request.getStatus());
+    Vendor vendor = vendorRepository.findById(vendorId)
+            .orElseThrow(() ->
+                    new ResourceNotFoundException("Vendor", "vendorId", vendorId));
 
-        vendor = vendorRepository.save(vendor);
-        return mapToDTO(vendor);
-    }
+    VendorCategoryEntity category = vendorCategoryRepository.findById(request.getCategoryId())
+            .orElseThrow(() ->
+                    new ResourceNotFoundException(
+                            "Vendor Category",
+                            "categoryId",
+                            request.getCategoryId()
+                    ));
+
+    vendor.setVendorName(request.getVendorName());
+    vendor.setCategory(category);
+    vendor.setContactPerson(request.getContactPerson());
+    vendor.setPhone(request.getPhone());
+    vendor.setEmail(request.getEmail());
+    vendor.setAddress(request.getAddress());
+    vendor.setPanNumber(request.getPanNumber());
+    vendor.setGstNumber(request.getGstNumber());
+    vendor.setBankAccountNumber(request.getBankAccountNumber());
+    vendor.setBankIfsc(request.getBankIfsc());
+    vendor.setBankName(request.getBankName());
+    vendor.setAgreementStartDate(request.getAgreementStartDate());
+    vendor.setAgreementEndDate(request.getAgreementEndDate());
+    vendor.setContractedAmount(request.getContractedAmount());
+    vendor.setPaymentFrequency(request.getPaymentFrequency());
+    vendor.setStatus(request.getStatus());
+
+    vendor = vendorRepository.save(vendor);
+
+    return mapToDTO(vendor);
+}
 
     public VendorDTO getVendorById(Long vendorId) {
         Vendor vendor = vendorRepository.findById(vendorId)
@@ -93,7 +117,8 @@ public class VendorService {
         return mapToDTO(vendor);
     }
 
-    public PagedResponse<VendorDTO> getAllVendors(int page, int size, String status, String category, String search) {
+    public PagedResponse<VendorDTO> getAllVendors(
+        int page, int size, String status, Long categoryId, String search) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("vendorName").ascending());
         Page<Vendor> vendorPage;
 
@@ -104,16 +129,32 @@ public class VendorService {
             } else {
                 vendorPage = vendorRepository.searchVendors(search, pageable);
             }
-        } else if (status != null && !status.isBlank() && category != null && !category.isBlank()) {
-            vendorPage = vendorRepository.findByStatusAndCategory(
-                    VendorStatus.valueOf(status), VendorCategory.valueOf(category), pageable);
-        } else if (status != null && !status.isBlank()) {
-            vendorPage = vendorRepository.findByStatus(VendorStatus.valueOf(status), pageable);
-        } else if (category != null && !category.isBlank()) {
-            vendorPage = vendorRepository.findByCategory(VendorCategory.valueOf(category), pageable);
-        } else {
-            vendorPage = vendorRepository.findAll(pageable);
-        }
+        } else if (status != null && !status.isBlank() && categoryId != null) {
+
+    vendorPage = vendorRepository.findByStatusAndCategory_CategoryId(
+            VendorStatus.valueOf(status),
+            categoryId,
+            pageable
+    );
+
+} else if (status != null && !status.isBlank()) {
+
+    vendorPage = vendorRepository.findByStatus(
+            VendorStatus.valueOf(status),
+            pageable
+    );
+
+} else if (categoryId != null) {
+
+    vendorPage = vendorRepository.findByCategory_CategoryId(
+            categoryId,
+            pageable
+    );
+
+} else {
+
+    vendorPage = vendorRepository.findAll(pageable);
+}
 
         List<VendorDTO> content = vendorPage.getContent().stream()
                 .map(this::mapToDTO)
@@ -217,7 +258,9 @@ public class VendorService {
         return VendorDTO.builder()
                 .vendorId(vendor.getVendorId())
                 .vendorName(vendor.getVendorName())
-                .category(vendor.getCategory())
+                .categoryId(vendor.getCategory().getCategoryId())
+.categoryCode(vendor.getCategory().getCode())
+.categoryName(vendor.getCategory().getName())
                 .contactPerson(vendor.getContactPerson())
                 .phone(vendor.getPhone())
                 .email(vendor.getEmail())
