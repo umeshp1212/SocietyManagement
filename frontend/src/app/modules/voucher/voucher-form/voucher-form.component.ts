@@ -86,7 +86,7 @@ import { environment } from '@env/environment';
                 <mat-select formControlName="vendorId">
                   <mat-option [value]="null">-- None --</mat-option>
                   <mat-option *ngFor="let vendor of vendors" [value]="vendor.vendorId">
-                    {{ vendor.vendorName }} ({{ vendor.category }})
+                    {{ vendor.vendorName }} ({{ vendor.categoryName }})
                   </mat-option>
                 </mat-select>
               </mat-form-field>
