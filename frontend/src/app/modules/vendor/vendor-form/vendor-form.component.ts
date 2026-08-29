@@ -40,7 +40,7 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Category *</mat-label>
-                <mat-select formControlName="category">
+                <mat-select formControlName="categoryId">
                   <mat-option *ngFor="let cat of categories" [value]="cat.value">
                     {{ cat.label }}
                   </mat-option>
@@ -170,7 +170,7 @@ export class VendorFormComponent implements OnInit {
   isEdit = false;
   vendorId?: number;
 
-  categories: { value: string; label: string }[] = [];
+  categories: { value: number; label: string }[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -184,7 +184,7 @@ export class VendorFormComponent implements OnInit {
   ngOnInit(): void {
     this.vendorForm = this.fb.group({
       vendorName: ['', [Validators.required, Validators.maxLength(200)]],
-      category: ['', Validators.required],
+      categoryId: [null, Validators.required],
       contactPerson: [''],
       phone: ['', [Validators.required, Validators.maxLength(15)]],
       email: ['', Validators.email],
@@ -211,7 +211,7 @@ export class VendorFormComponent implements OnInit {
     // Load vendor categories from API
     this.vendorCategoryService.getActiveCategories().subscribe(res => {
       if (res.success) {
-        this.categories = res.data.map(c => ({ value: c.code, label: c.name }));
+        this.categories = res.data.map(c => ({ value: c.categoryId, label: c.name }));
       }
     });
   }
