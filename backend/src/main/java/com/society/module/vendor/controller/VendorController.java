@@ -49,15 +49,18 @@ public class VendorController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PagedResponse<VendorDTO>>> getAllVendors(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String search) {
-        PagedResponse<VendorDTO> vendors = vendorService.getAllVendors(page, size, status, category, search);
-        return ResponseEntity.ok(ApiResponse.success(vendors));
-    }
+public ResponseEntity<ApiResponse<PagedResponse<VendorDTO>>> getAllVendors(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size,
+        @RequestParam(required = false) String status,
+        @RequestParam(required = false) Long categoryId,
+        @RequestParam(required = false) String search) {
+
+    PagedResponse<VendorDTO> vendors =
+            vendorService.getAllVendors(page, size, status, categoryId, search);
+
+    return ResponseEntity.ok(ApiResponse.success(vendors));
+}
 
     @GetMapping("/active-list")
     public ResponseEntity<ApiResponse<List<VendorDTO>>> getActiveVendorsList() {
