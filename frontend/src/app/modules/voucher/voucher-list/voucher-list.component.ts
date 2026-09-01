@@ -31,6 +31,10 @@ import { environment } from '@env/environment';
              *ngIf="hasPermission('VOUCHER_CREATE')">
             <mat-icon>category</mat-icon> Categories
           </a>
+          <a mat-button routerLink="/vouchers/tds-config"
+             *ngIf="hasPermission('VOUCHER_CREATE')">
+            <mat-icon>percent</mat-icon> TDS Config
+          </a>
           <button mat-raised-button color="accent" (click)="showBulkDownload = !showBulkDownload"
                   *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>picture_as_pdf</mat-icon> Bulk PDF

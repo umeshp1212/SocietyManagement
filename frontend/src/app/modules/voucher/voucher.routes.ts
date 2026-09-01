@@ -14,6 +14,10 @@ export const VOUCHER_ROUTES: Routes = [
     loadComponent: () => import('./voucher-category/voucher-category.component').then(m => m.VoucherCategoryComponent)
   },
   {
+    path: 'tds-config',
+    loadComponent: () => import('./tds-config/tds-config.component').then(m => m.TdsConfigComponent)
+  },
+  {
     path: 'edit/:id',
     loadComponent: () => import('./voucher-form/voucher-form.component').then(m => m.VoucherFormComponent)
   },
