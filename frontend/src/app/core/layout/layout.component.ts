@@ -101,7 +101,7 @@ import { AuthService, LoginResponse } from '../services/auth.service';
           </a>
 
           <a mat-list-item routerLink="/committee" routerLinkActive="active"
-             *ngIf="hasPermission('SETTINGS_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             *ngIf="hasPermission('COMMITTEE_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
              (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>groups</mat-icon>
             <span matListItemTitle>Committee</span>

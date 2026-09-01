@@ -97,7 +97,12 @@ INSERT IGNORE INTO permissions (permission_id, permission_name, module, descript
 (35, 'MAINTENANCE_PAYMENT', 'MAINTENANCE', 'Record offline payments'),
 -- Member Requests
 (36, 'MEMBER_REQUEST_VIEW', 'MEMBER', 'View member registration and profile requests'),
-(37, 'MEMBER_REQUEST_APPROVE', 'MEMBER', 'Approve/reject member requests');
+(37, 'MEMBER_REQUEST_APPROVE', 'MEMBER', 'Approve/reject member requests'),
+-- Tenant registration approval (member-submitted tenant registrations)
+(38, 'TENANT_APPROVE_REGISTRATION', 'TENANT', 'Approve/reject owner-submitted tenant registrations'),
+-- Committee Module
+(39, 'COMMITTEE_VIEW', 'COMMITTEE', 'View management committee members'),
+(40, 'COMMITTEE_MANAGE', 'COMMITTEE', 'Add, update, or remove committee members');
 
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
@@ -110,7 +115,7 @@ SELECT 1, permission_id FROM permissions;
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (2, 1), (2, 6), (2, 10), (2, 13), (2, 18), (2, 21), (2, 22), (2, 23),
 (2, 4), (2, 16), (2, 24), (2, 31), (2, 32),
-(2, 33), (2, 36), (2, 37);
+(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40);
 
 -- SECRETARY
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -118,7 +123,7 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (3, 10), (3, 11), (3, 12), (3, 13), (3, 14), (3, 15), (3, 16), (3, 17),
 (3, 18), (3, 19), (3, 20), (3, 23), (3, 24), (3, 26), (3, 27), (3, 28),
 (3, 31), (3, 32),
-(3, 33), (3, 34), (3, 35), (3, 36), (3, 37);
+(3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40);
 
 -- TREASURER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -128,7 +133,7 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 
 -- COMMITTEE_MEMBER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
-(5, 1), (5, 6), (5, 10), (5, 13), (5, 16), (5, 18), (5, 31), (5, 32);
+(5, 1), (5, 6), (5, 10), (5, 13), (5, 16), (5, 18), (5, 31), (5, 32), (5, 39);
 
 -- OWNER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -140,7 +145,7 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 
 -- AUDITOR
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
-(8, 1), (8, 6), (8, 10), (8, 13), (8, 18), (8, 23), (8, 24), (8, 31), (8, 32);
+(8, 1), (8, 6), (8, 10), (8, 13), (8, 18), (8, 23), (8, 24), (8, 31), (8, 32), (8, 39);
 
 -- MANAGER (create/update/view vouchers, view vendors)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -259,13 +264,43 @@ INSERT IGNORE INTO vendors (vendor_id, vendor_name, category_id, contact_person,
 (3, 'GreenTouch Gardens', 3, 'Manoj Mane', '9988776657', 'greentouch@email.com', '2026-04-01', '2027-03-31', 15000.00, 'MONTHLY', 'ACTIVE');
 
 -- Backfill / repair: fix any existing vendor rows left with an invalid category_id
--- (e.g. 0 or NULL) after the migration from the old `category` ENUM column to the
--- vendor_categories foreign key. Maps from the legacy enum value when present,
--- otherwise defaults to OTHER (14). Runs every startup and is idempotent.
+-- (e.g. 0, NULL, or pointing at a non-existent category) after the migration from
+-- the old `category` ENUM column to the vendor_categories foreign key.
+-- Sets such rows to OTHER (14). Runs every startup and is idempotent.
+-- NOTE: intentionally does NOT reference the legacy `category` column, because on
+-- environments where the vendors table was created fresh by Hibernate that column
+-- does not exist, and referencing it would abort startup (Unknown column).
 UPDATE vendors v
-LEFT JOIN vendor_categories legacy
-  ON legacy.code = v.category
 LEFT JOIN vendor_categories current
   ON current.category_id = v.category_id
-SET v.category_id = COALESCE(legacy.category_id, 14)
+SET v.category_id = 14
 WHERE current.category_id IS NULL;
+
+
+-- ============================================================
+-- SCHEMA MIGRATION: widen tenants.status ENUM
+-- ============================================================
+-- The Java TenantStatus enum added PENDING_APPROVAL and REJECTED (for the
+-- member-portal tenant registration + admin approval flow). The tenants.status
+-- column was originally created as ENUM('ACTIVE','NOTICE_PERIOD','VACATED'), and
+-- Hibernate's ddl-auto=update does NOT alter existing ENUM definitions, so inserts
+-- of the new values fail with "Data truncated for column 'status'".
+-- This MODIFY is idempotent (re-applying the same definition is a no-op) and only
+-- widens the ENUM, so existing rows are preserved.
+ALTER TABLE tenants
+    MODIFY COLUMN status ENUM('PENDING_APPROVAL','ACTIVE','NOTICE_PERIOD','VACATED','REJECTED')
+    NOT NULL DEFAULT 'ACTIVE';
+
+
+-- ============================================================
+-- SCHEMA MIGRATION: normalize charset/collation for vendor tables
+-- ============================================================
+-- The `vendors` table is created by schema.sql while `vendor_categories` is
+-- created by Hibernate (ddl-auto=update). On MySQL 8 these can end up with
+-- different collations (e.g. utf8mb4_unicode_ci vs utf8mb4_0900_ai_ci), which
+-- causes "Illegal mix of collations" when their string columns are compared /
+-- joined. Force both tables to the same charset/collation as the database.
+-- CONVERT TO CHARACTER SET is idempotent (no-op when already correct) and
+-- preserves existing data.
+ALTER TABLE vendor_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE vendors CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

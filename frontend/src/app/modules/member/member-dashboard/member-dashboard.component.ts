@@ -62,6 +62,9 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
               </mat-option>
             </mat-select>
           </mat-form-field>
+          <button mat-icon-button routerLink="/member/register-tenant" matTooltip="Register a Tenant" color="primary">
+            <mat-icon>person_add</mat-icon>
+          </button>
           <button mat-icon-button routerLink="/member/profile" matTooltip="My Profile" color="primary">
             <mat-icon>account_circle</mat-icon>
           </button>

@@ -5,6 +5,7 @@ import com.society.enums.*;
 import com.society.exception.BusinessException;
 import com.society.exception.ResourceNotFoundException;
 import com.society.module.owner.entity.Unit;
+import com.society.module.owner.repository.UnitOwnerRepository;
 import com.society.module.owner.repository.UnitRepository;
 import com.society.module.tenant.dto.*;
 import com.society.module.tenant.entity.*;
@@ -31,6 +32,102 @@ public class TenantService {
     private final TenantRepository tenantRepository;
     private final TenantDocumentRepository tenantDocumentRepository;
     private final UnitRepository unitRepository;
+    private final UnitOwnerRepository unitOwnerRepository;
+
+    // ==================== MEMBER-PORTAL SUBMISSION (requires admin approval) ====================
+
+    /**
+     * Owner (member portal) submits a tenant registration for one of their own units.
+     * The tenant is created in PENDING_APPROVAL status; the unit is NOT marked RENTED
+     * and no maintenance/NOC charge applies until a SUPER_ADMIN approves the request.
+     *
+     * @param request  tenant details
+     * @param ownerId  the authenticated owner's id (from member JWT)
+     */
+    @Transactional
+    public TenantDTO submitTenantRegistration(TenantCreateRequest request, Long ownerId) {
+        Unit unit = unitRepository.findById(request.getUnitId())
+                .orElseThrow(() -> new ResourceNotFoundException("Unit", "unitId", request.getUnitId()));
+
+        // Authorization: the submitting owner must actually own this unit
+        boolean ownsUnit = unitOwnerRepository.findByUnit_UnitId(request.getUnitId()).stream()
+                .anyMatch(uo -> uo.getOwner() != null
+                        && uo.getOwner().getOwnerId() != null
+                        && uo.getOwner().getOwnerId().equals(ownerId));
+        if (!ownsUnit) {
+            throw new BusinessException("You can only register a tenant for a unit you own.");
+        }
+
+        // Block if there is already an active tenant or a pending submission for this unit
+        Optional<Tenant> activeTenant = tenantRepository.findActiveByUnitId(
+                request.getUnitId(), TenantStatus.ACTIVE);
+        if (activeTenant.isPresent()) {
+            throw new BusinessException("Unit " + unit.getUnitNumber() +
+                    " already has an active tenant. Please vacate the current tenant first.");
+        }
+        Optional<Tenant> pendingTenant = tenantRepository.findActiveByUnitId(
+                request.getUnitId(), TenantStatus.PENDING_APPROVAL);
+        if (pendingTenant.isPresent()) {
+            throw new BusinessException("A tenant registration for unit " + unit.getUnitNumber() +
+                    " is already pending admin approval.");
+        }
+
+        Tenant tenant = buildTenantFromRequest(request, unit);
+        tenant.setStatus(TenantStatus.PENDING_APPROVAL);
+        tenant.setNocStatus(NocStatus.PENDING);
+
+        tenant = tenantRepository.save(tenant);
+        // NOTE: unit occupancy is intentionally left unchanged until approval.
+        return mapToDTO(tenant);
+    }
+
+    /**
+     * Shared builder for a Tenant entity (scalar fields + family members + vehicles).
+     */
+    private Tenant buildTenantFromRequest(TenantCreateRequest request, Unit unit) {
+        Tenant tenant = Tenant.builder()
+                .unit(unit)
+                .tenantName(request.getTenantName())
+                .contactNumber(request.getContactNumber())
+                .email(request.getEmail())
+                .aadharNumber(request.getAadharNumber())
+                .panNumber(request.getPanNumber())
+                .permanentAddress(request.getPermanentAddress())
+                .rentStartDate(request.getRentStartDate())
+                .rentEndDate(request.getRentEndDate())
+                .monthlyRentAmount(request.getMonthlyRentAmount())
+                .securityDeposit(request.getSecurityDeposit())
+                .policeVerificationStatus(PoliceVerificationStatus.NOT_INITIATED)
+                .nocStatus(NocStatus.PENDING)
+                .status(TenantStatus.ACTIVE)
+                .build();
+
+        if (request.getFamilyMembers() != null) {
+            for (FamilyMemberDTO fm : request.getFamilyMembers()) {
+                tenant.getFamilyMembers().add(TenantFamilyMember.builder()
+                        .tenant(tenant)
+                        .memberName(fm.getMemberName())
+                        .age(fm.getAge())
+                        .relation(fm.getRelation())
+                        .aadharNumber(fm.getAadharNumber())
+                        .contactNumber(fm.getContactNumber())
+                        .build());
+            }
+        }
+
+        if (request.getVehicles() != null) {
+            for (VehicleDTO v : request.getVehicles()) {
+                tenant.getVehicles().add(TenantVehicle.builder()
+                        .tenant(tenant)
+                        .vehicleType(v.getVehicleType())
+                        .vehicleNumber(v.getVehicleNumber())
+                        .parkingSlot(v.getParkingSlot())
+                        .build());
+            }
+        }
+
+        return tenant;
+    }
 
     // ==================== TENANT REGISTRATION ====================
 
@@ -342,6 +439,11 @@ public class TenantService {
     }
 
     // ==================== MAPPERS ====================
+
+    /** Public accessor so related services (e.g. approval) can map to DTO consistently. */
+    public TenantDTO toDTO(Tenant tenant) {
+        return mapToDTO(tenant);
+    }
 
     private TenantDTO mapToDTO(Tenant tenant) {
         Long daysUntilExpiry = null;

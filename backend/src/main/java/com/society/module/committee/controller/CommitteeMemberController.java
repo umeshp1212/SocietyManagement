@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,18 +33,21 @@ public class CommitteeMemberController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('COMMITTEE_VIEW')")
     public ResponseEntity<ApiResponse<List<CommitteeMemberDTO>>> getAllMembers() {
         List<CommitteeMemberDTO> members = service.getAllMembers();
         return ResponseEntity.ok(ApiResponse.success(members));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('COMMITTEE_VIEW')")
     public ResponseEntity<ApiResponse<CommitteeMemberDTO>> getMemberById(@PathVariable Long id) {
         CommitteeMemberDTO member = service.getMemberById(id);
         return ResponseEntity.ok(ApiResponse.success(member));
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('COMMITTEE_MANAGE')")
     public ResponseEntity<ApiResponse<CommitteeMemberDTO>> createMember(
             @Valid @RequestBody CommitteeMemberCreateRequest request) {
         CommitteeMemberDTO member = service.createMember(request);
@@ -52,6 +56,7 @@ public class CommitteeMemberController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('COMMITTEE_MANAGE')")
     public ResponseEntity<ApiResponse<CommitteeMemberDTO>> updateMember(
             @PathVariable Long id,
             @Valid @RequestBody CommitteeMemberUpdateRequest request) {
@@ -60,6 +65,7 @@ public class CommitteeMemberController {
     }
 
     @PostMapping(value = "/{id}/photo", consumes = "multipart/form-data")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('COMMITTEE_MANAGE')")
     public ResponseEntity<ApiResponse<CommitteeMemberDTO>> uploadPhoto(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) {
@@ -68,6 +74,7 @@ public class CommitteeMemberController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('COMMITTEE_MANAGE')")
     public ResponseEntity<ApiResponse<Void>> deleteMember(@PathVariable Long id) {
         service.deleteMember(id);
         return ResponseEntity.ok(ApiResponse.success("Committee member deleted successfully", null));

@@ -4,11 +4,14 @@ import com.society.common.ApiResponse;
 import com.society.common.PagedResponse;
 import com.society.enums.PoliceVerificationStatus;
 import com.society.module.tenant.dto.*;
+import com.society.module.tenant.service.TenantApprovalService;
 import com.society.module.tenant.service.TenantService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +23,49 @@ import java.util.Map;
 public class TenantController {
 
     private final TenantService tenantService;
+    private final TenantApprovalService tenantApprovalService;
+
+    // ==================== MEMBER-SUBMITTED REGISTRATION APPROVAL (SUPER_ADMIN) ====================
+
+    /**
+     * List tenant registrations awaiting admin approval.
+     */
+    @GetMapping("/pending-approvals")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TENANT_APPROVE_REGISTRATION')")
+    public ResponseEntity<ApiResponse<List<TenantDTO>>> getPendingApprovals() {
+        List<TenantDTO> pending = tenantApprovalService.getPendingApprovals();
+        return ResponseEntity.ok(ApiResponse.success(pending));
+    }
+
+    /**
+     * Approve a pending tenant registration: records the tenant, marks the unit RENTED
+     * (non-occupancy charge applies), and emails the No Objection Certificate to the owner.
+     */
+    @PostMapping("/{tenantId}/approve")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TENANT_APPROVE_REGISTRATION')")
+    public ResponseEntity<ApiResponse<TenantDTO>> approveTenant(
+            @PathVariable Long tenantId,
+            Authentication authentication) {
+        String approver = authentication != null ? authentication.getName() : "ADMIN";
+        TenantDTO tenant = tenantApprovalService.approve(tenantId, approver);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Tenant registration approved. Unit marked as rented and NOC emailed to owner.", tenant));
+    }
+
+    /**
+     * Reject a pending tenant registration.
+     */
+    @PostMapping("/{tenantId}/reject")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TENANT_APPROVE_REGISTRATION')")
+    public ResponseEntity<ApiResponse<TenantDTO>> rejectTenant(
+            @PathVariable Long tenantId,
+            @RequestBody(required = false) TenantRejectRequest request,
+            Authentication authentication) {
+        String approver = authentication != null ? authentication.getName() : "ADMIN";
+        String reason = request != null ? request.getReason() : null;
+        TenantDTO tenant = tenantApprovalService.reject(tenantId, approver, reason);
+        return ResponseEntity.ok(ApiResponse.success("Tenant registration rejected.", tenant));
+    }
 
     // ==================== REGISTRATION & UPDATE ====================
 

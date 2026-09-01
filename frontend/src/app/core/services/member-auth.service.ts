@@ -163,6 +163,12 @@ export class MemberAuthService {
     return this.http.post<any>(`${this.apiUrl}/profile/update-request`, data);
   }
 
+  // ===== Tenant Registration (member submits, admin approves) =====
+
+  submitTenantRegistration(data: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/tenants`, data);
+  }
+
   // ===== Token Management =====
 
   getToken(): string | null {

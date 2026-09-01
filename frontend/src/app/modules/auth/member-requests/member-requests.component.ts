@@ -12,6 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { environment } from '@env/environment';
+import { TenantService } from '@core/services/tenant.service';
 
 @Component({
   selector: 'app-member-requests',
@@ -169,6 +170,67 @@ import { environment } from '@env/environment';
             </div>
           </div>
         </mat-tab>
+
+        <!-- ==================== TENANT REGISTRATION REQUESTS ==================== -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>how_to_reg</mat-icon>&nbsp;Tenant
+            <span class="badge" *ngIf="tenantPending.length">{{ tenantPending.length }}</span>
+          </ng-template>
+          <div class="tab-content">
+            <p class="hint">Owners registering a tenant for their flat from the member portal.
+              Approving marks the unit as rented and emails the NOC to the owner.</p>
+
+            <div *ngIf="tenantPending.length === 0" class="empty">
+              <mat-icon>check_circle_outline</mat-icon>
+              <p>No pending tenant registrations.</p>
+            </div>
+
+            <div *ngFor="let req of tenantPending" class="request-card">
+              <mat-card>
+                <mat-card-content>
+                  <div class="row-between">
+                    <div>
+                      <div class="detail"><strong>{{ req.tenantName }}</strong></div>
+                      <div class="detail"><mat-icon>apartment</mat-icon> {{ req.unitNumber }}
+                        <span *ngIf="req.ownerName">&nbsp;|&nbsp;Owner: {{ req.ownerName }}</span></div>
+                      <div class="detail"><mat-icon>phone</mat-icon> {{ req.contactNumber }}</div>
+                      <div class="detail" *ngIf="req.email"><mat-icon>email</mat-icon> {{ req.email }}</div>
+                      <div class="detail meta">
+                        <mat-icon>event</mat-icon> Agreement from {{ req.rentStartDate | date:'dd MMM yyyy' }}
+                        <span *ngIf="req.rentEndDate"> to {{ req.rentEndDate | date:'dd MMM yyyy' }}</span>
+                      </div>
+                    </div>
+                    <span class="chip pending">PENDING</span>
+                  </div>
+
+                  <div class="actions" *ngIf="!req.showReject">
+                    <button mat-raised-button color="primary" [disabled]="req.processing"
+                            (click)="approveTenant(req)">
+                      <mat-icon>check</mat-icon> Approve
+                    </button>
+                    <button mat-raised-button color="warn" [disabled]="req.processing"
+                            (click)="req.showReject = true">
+                      <mat-icon>close</mat-icon> Reject
+                    </button>
+                  </div>
+
+                  <div class="reject-box" *ngIf="req.showReject">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Rejection Reason (optional)</mat-label>
+                      <input matInput [(ngModel)]="req.rejectionReason">
+                    </mat-form-field>
+                    <div class="actions">
+                      <button mat-button (click)="req.showReject = false">Cancel</button>
+                      <button mat-raised-button color="warn" [disabled]="req.processing"
+                              (click)="rejectTenant(req)">Reject</button>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -211,12 +273,18 @@ import { environment } from '@env/environment';
 export class MemberRequestsComponent implements OnInit {
   regPending: any[] = [];
   profilePending: any[] = [];
+  tenantPending: any[] = [];
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private http: HttpClient,
+    private snackBar: MatSnackBar,
+    private tenantService: TenantService
+  ) {}
 
   ngOnInit(): void {
     this.loadRegPending();
     this.loadProfilePending();
+    this.loadTenantPending();
   }
 
   // ===== Registration =====
@@ -300,6 +368,43 @@ export class MemberRequestsComponent implements OnInit {
         if (res.success) {
           this.snackBar.open('Rejected.', 'Close', { duration: 3000 });
           this.profilePending = this.profilePending.filter(r => r.requestId !== req.requestId);
+        }
+      },
+      error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }
+    });
+  }
+
+  // ===== Tenant Registration Approvals =====
+
+  loadTenantPending(): void {
+    this.tenantService.getPendingApprovals().subscribe({
+      next: (res) => { if (res.success) this.tenantPending = res.data || []; },
+      error: () => { /* user may lack permission; leave list empty */ }
+    });
+  }
+
+  approveTenant(req: any): void {
+    req.processing = true;
+    this.tenantService.approveTenant(req.tenantId).subscribe({
+      next: (res) => {
+        req.processing = false;
+        if (res.success) {
+          this.snackBar.open(res.message || 'Tenant approved. Unit marked rented, NOC emailed.', 'Close', { duration: 4000 });
+          this.tenantPending = this.tenantPending.filter(r => r.tenantId !== req.tenantId);
+        }
+      },
+      error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }
+    });
+  }
+
+  rejectTenant(req: any): void {
+    req.processing = true;
+    this.tenantService.rejectTenant(req.tenantId, req.rejectionReason).subscribe({
+      next: (res) => {
+        req.processing = false;
+        if (res.success) {
+          this.snackBar.open('Tenant registration rejected.', 'Close', { duration: 3000 });
+          this.tenantPending = this.tenantPending.filter(r => r.tenantId !== req.tenantId);
         }
       },
       error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }

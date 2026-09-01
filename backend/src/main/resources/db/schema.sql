@@ -132,7 +132,7 @@ CREATE TABLE vendors (
     INDEX idx_vendor_category (category),
     INDEX idx_vendor_status (status),
     INDEX idx_vendor_agreement_end (agreement_end_date)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Vendor Documents
 CREATE TABLE vendor_documents (
@@ -175,7 +175,7 @@ CREATE TABLE tenants (
     noc_document_path VARCHAR(500),
     noc_approved_by VARCHAR(100),
     noc_approved_on DATETIME,
-    status ENUM('ACTIVE','NOTICE_PERIOD','VACATED') NOT NULL DEFAULT 'ACTIVE',
+    status ENUM('PENDING_APPROVAL','ACTIVE','NOTICE_PERIOD','VACATED','REJECTED') NOT NULL DEFAULT 'ACTIVE',
     move_out_date DATE,
     move_out_reason VARCHAR(500),
     created_by VARCHAR(100),

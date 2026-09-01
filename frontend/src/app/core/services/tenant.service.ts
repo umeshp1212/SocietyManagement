@@ -73,4 +73,18 @@ export class TenantService {
   getTenantSummary(): Observable<ApiResponse<any>> {
     return this.http.get<ApiResponse<any>>(`${this.apiUrl}/summary`);
   }
+
+  // ===== Member-submitted registration approval (SUPER_ADMIN) =====
+
+  getPendingApprovals(): Observable<ApiResponse<Tenant[]>> {
+    return this.http.get<ApiResponse<Tenant[]>>(`${this.apiUrl}/pending-approvals`);
+  }
+
+  approveTenant(tenantId: number): Observable<ApiResponse<Tenant>> {
+    return this.http.post<ApiResponse<Tenant>>(`${this.apiUrl}/${tenantId}/approve`, {});
+  }
+
+  rejectTenant(tenantId: number, reason?: string): Observable<ApiResponse<Tenant>> {
+    return this.http.post<ApiResponse<Tenant>>(`${this.apiUrl}/${tenantId}/reject`, { reason });
+  }
 }

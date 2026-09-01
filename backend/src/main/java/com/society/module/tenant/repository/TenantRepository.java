@@ -20,6 +20,9 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
 
     Page<Tenant> findByStatus(TenantStatus status, Pageable pageable);
 
+    @Query("SELECT t FROM Tenant t JOIN FETCH t.unit WHERE t.status = :status ORDER BY t.createdOn DESC")
+    List<Tenant> findByStatusOrderByCreatedOnDesc(@Param("status") TenantStatus status);
+
     Page<Tenant> findByNocStatus(NocStatus nocStatus, Pageable pageable);
 
     @Query("SELECT t FROM Tenant t JOIN FETCH t.unit WHERE t.unit.unitId = :unitId AND t.status = :status")

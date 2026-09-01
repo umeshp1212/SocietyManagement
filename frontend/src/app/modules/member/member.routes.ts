@@ -13,5 +13,11 @@ export const MEMBER_ROUTES: Routes = [
     canActivate: [memberAuthGuard],
     loadComponent: () => import('./member-profile/member-profile.component')
       .then(m => m.MemberProfileComponent)
+  },
+  {
+    path: 'register-tenant',
+    canActivate: [memberAuthGuard],
+    loadComponent: () => import('./member-tenant-register/member-tenant-register.component')
+      .then(m => m.MemberTenantRegisterComponent)
   }
 ];

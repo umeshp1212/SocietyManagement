@@ -12,6 +12,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '@env/environment';
+import { AuthService } from '@core/services/auth.service';
 
 interface CommitteeMember {
   memberId: number;
@@ -37,7 +38,7 @@ interface CommitteeMember {
     <div class="container">
       <div class="page-header">
         <h2>Management Committee</h2>
-        <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm">
+        <button mat-raised-button color="primary" *ngIf="canManage" (click)="showAddForm = !showAddForm">
           <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
           {{ showAddForm ? 'Cancel' : 'Add Member' }}
         </button>
@@ -145,20 +146,21 @@ interface CommitteeMember {
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef>Actions</th>
                 <td mat-cell *matCellDef="let m">
-                  <button mat-icon-button *ngIf="!m.editing" (click)="startEdit(m)" matTooltip="Edit" color="primary">
+                  <span *ngIf="!canManage" class="view-only">View only</span>
+                  <button mat-icon-button *ngIf="canManage && !m.editing" (click)="startEdit(m)" matTooltip="Edit" color="primary">
                     <mat-icon>edit</mat-icon>
                   </button>
-                  <button mat-icon-button *ngIf="m.editing" (click)="saveMember(m)" matTooltip="Save" color="primary">
+                  <button mat-icon-button *ngIf="canManage && m.editing" (click)="saveMember(m)" matTooltip="Save" color="primary">
                     <mat-icon>save</mat-icon>
                   </button>
-                  <button mat-icon-button *ngIf="m.editing" (click)="cancelEdit(m)" matTooltip="Cancel">
+                  <button mat-icon-button *ngIf="canManage && m.editing" (click)="cancelEdit(m)" matTooltip="Cancel">
                     <mat-icon>close</mat-icon>
                   </button>
-                  <button mat-icon-button *ngIf="!m.editing" (click)="uploadPhotoInput.click(); selectedMember = m"
+                  <button mat-icon-button *ngIf="canManage && !m.editing" (click)="uploadPhotoInput.click(); selectedMember = m"
                           matTooltip="Upload Photo" color="accent">
                     <mat-icon>photo_camera</mat-icon>
                   </button>
-                  <button mat-icon-button *ngIf="!m.editing" (click)="deleteMember(m)" matTooltip="Delete" color="warn">
+                  <button mat-icon-button *ngIf="canManage && !m.editing" (click)="deleteMember(m)" matTooltip="Delete" color="warn">
                     <mat-icon>delete</mat-icon>
                   </button>
                 </td>
@@ -214,12 +216,20 @@ export class CommitteeListComponent implements OnInit {
   showAddForm = false;
   addForm!: FormGroup;
   selectedMember: CommitteeMember | null = null;
+  canManage = false;
 
   private apiUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar, private fb: FormBuilder) {}
+  constructor(
+    private http: HttpClient,
+    private snackBar: MatSnackBar,
+    private fb: FormBuilder,
+    private authService: AuthService
+  ) {}
 
   ngOnInit(): void {
+    this.canManage = this.authService.hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])
+      || this.authService.hasPermission('COMMITTEE_MANAGE');
     this.initAddForm();
     this.loadMembers();
   }

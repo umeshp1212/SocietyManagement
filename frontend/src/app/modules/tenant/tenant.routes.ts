@@ -13,6 +13,7 @@ export const TENANT_ROUTES: Routes = [
     path: 'bulk-upload',
     loadComponent: () => import('./tenant-bulk-upload/tenant-bulk-upload.component').then(m => m.TenantBulkUploadComponent)
   },
+
   {
     path: 'edit/:id',
     loadComponent: () => import('./tenant-form/tenant-form.component').then(m => m.TenantFormComponent)
