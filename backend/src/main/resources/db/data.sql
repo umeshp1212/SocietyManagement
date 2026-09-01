@@ -22,10 +22,8 @@ INSERT IGNORE INTO voucher_sequences (sequence_id, voucher_type, financial_year,
 -- ============================================================
 -- Sample Vendors
 -- ============================================================
-INSERT IGNORE INTO vendors (vendor_id, vendor_name, category, contact_person, phone, email, agreement_start_date, agreement_end_date, contracted_amount, payment_frequency, status) VALUES
-(1, 'SecureGuard Services', 'SECURITY', 'Ramesh Patil', '9988776655', 'secureguard@email.com', '2026-04-01', '2027-03-31', 85000.00, 'MONTHLY', 'ACTIVE'),
-(2, 'CleanSweep Housekeeping', 'HOUSEKEEPING', 'Sunil Jadhav', '9988776656', 'cleansweep@email.com', '2026-04-01', '2027-03-31', 45000.00, 'MONTHLY', 'ACTIVE'),
-(3, 'GreenTouch Gardens', 'GARDENING', 'Manoj Mane', '9988776657', 'greentouch@email.com', '2026-04-01', '2027-03-31', 15000.00, 'MONTHLY', 'ACTIVE');
+-- Seeded further below, AFTER vendor_categories, because vendors.category_id
+-- is a NOT NULL foreign key referencing vendor_categories(category_id).
 
 
 -- ============================================================
@@ -247,3 +245,27 @@ INSERT IGNORE INTO vendor_categories (category_id, code, name, description, disp
 (12, 'LEGAL_AUDIT', 'Legal / Audit', 'Legal and audit professional services', 12, 1),
 (13, 'SOFTWARE_IT', 'Software / IT', 'Software and IT services', 13, 1),
 (14, 'OTHER', 'Other', 'Other services', 14, 1);
+
+
+-- ============================================================
+-- Sample Vendors
+-- Seeded here (after vendor_categories) because vendors.category_id is a
+-- NOT NULL foreign key referencing vendor_categories(category_id).
+--   category_id: 1 = SECURITY, 2 = HOUSEKEEPING, 3 = GARDENING
+-- ============================================================
+INSERT IGNORE INTO vendors (vendor_id, vendor_name, category_id, contact_person, phone, email, agreement_start_date, agreement_end_date, contracted_amount, payment_frequency, status) VALUES
+(1, 'SecureGuard Services', 1, 'Ramesh Patil', '9988776655', 'secureguard@email.com', '2026-04-01', '2027-03-31', 85000.00, 'MONTHLY', 'ACTIVE'),
+(2, 'CleanSweep Housekeeping', 2, 'Sunil Jadhav', '9988776656', 'cleansweep@email.com', '2026-04-01', '2027-03-31', 45000.00, 'MONTHLY', 'ACTIVE'),
+(3, 'GreenTouch Gardens', 3, 'Manoj Mane', '9988776657', 'greentouch@email.com', '2026-04-01', '2027-03-31', 15000.00, 'MONTHLY', 'ACTIVE');
+
+-- Backfill / repair: fix any existing vendor rows left with an invalid category_id
+-- (e.g. 0 or NULL) after the migration from the old `category` ENUM column to the
+-- vendor_categories foreign key. Maps from the legacy enum value when present,
+-- otherwise defaults to OTHER (14). Runs every startup and is idempotent.
+UPDATE vendors v
+LEFT JOIN vendor_categories legacy
+  ON legacy.code = v.category
+LEFT JOIN vendor_categories current
+  ON current.category_id = v.category_id
+SET v.category_id = COALESCE(legacy.category_id, 14)
+WHERE current.category_id IS NULL;
