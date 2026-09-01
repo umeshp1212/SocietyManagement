@@ -169,6 +169,21 @@ export class MemberAuthService {
     return this.http.post<any>(`${this.apiUrl}/tenants`, data);
   }
 
+  // ===== Owner NOC Requests (member applies, admin approves) =====
+
+  getNocTypes(): Observable<any> {
+    // Member-path endpoint so the member Bearer token is attached by the interceptor.
+    return this.http.get<any>(`${this.apiUrl}/noc-requests/types`);
+  }
+
+  submitNocRequest(data: { nocTypeId: number; unitId?: number; addressee?: string; details?: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/noc-requests`, data);
+  }
+
+  getMyNocRequests(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/noc-requests`);
+  }
+
   // ===== Token Management =====
 
   getToken(): string | null {

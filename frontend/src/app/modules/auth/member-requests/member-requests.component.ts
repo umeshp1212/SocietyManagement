@@ -231,6 +231,71 @@ import { TenantService } from '@core/services/tenant.service';
             </div>
           </div>
         </mat-tab>
+
+        <!-- ==================== OWNER NOC REQUESTS ==================== -->
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>description</mat-icon>&nbsp;NOC Requests
+            <span class="badge" *ngIf="nocPending.length">{{ nocPending.length }}</span>
+          </ng-template>
+          <div class="tab-content">
+            <p class="hint">Owners requesting a No Objection Certificate (loan transfer, tax / bill name change,
+              passport / residence, etc.). Approving generates the certificate and emails it to the owner.</p>
+
+            <div *ngIf="nocPending.length === 0" class="empty">
+              <mat-icon>check_circle_outline</mat-icon>
+              <p>No pending NOC requests.</p>
+            </div>
+
+            <div *ngFor="let req of nocPending" class="request-card">
+              <mat-card>
+                <mat-card-content>
+                  <div class="row-between">
+                    <div>
+                      <div class="detail"><strong>{{ req.nocTypeName }}</strong></div>
+                      <div class="detail"><mat-icon>person</mat-icon> {{ req.ownerName }}
+                        <span *ngIf="req.unitNumber">&nbsp;|&nbsp;{{ req.unitNumber }}</span></div>
+                      <div class="detail" *ngIf="req.addressee"><mat-icon>business</mat-icon> To: {{ req.addressee }}</div>
+                      <div class="detail" *ngIf="req.details"><mat-icon>notes</mat-icon> {{ req.details }}</div>
+                      <div class="detail meta"><mat-icon>schedule</mat-icon> {{ req.createdOn | date:'dd MMM yyyy, HH:mm' }}</div>
+                    </div>
+                    <span class="chip pending">PENDING</span>
+                  </div>
+
+                  <div class="action-box" *ngIf="!req.showReject">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Certificate Body (optional - leave blank to use default template)</mat-label>
+                      <textarea matInput [(ngModel)]="req.finalContent" rows="5"
+                                placeholder="Edit the certificate wording for this request (e.g. bank-specific text). Placeholders: {ownerName} {unitNumber} {societyName} {addressee} {details} {date}"></textarea>
+                    </mat-form-field>
+                    <div class="actions">
+                      <button mat-raised-button color="primary" [disabled]="req.processing"
+                              (click)="approveNoc(req)">
+                        <mat-icon>check</mat-icon> Approve &amp; Issue
+                      </button>
+                      <button mat-raised-button color="warn" [disabled]="req.processing"
+                              (click)="req.showReject = true">
+                        <mat-icon>close</mat-icon> Reject
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="reject-box" *ngIf="req.showReject">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Rejection Reason</mat-label>
+                      <input matInput [(ngModel)]="req.rejectionReason">
+                    </mat-form-field>
+                    <div class="actions">
+                      <button mat-button (click)="req.showReject = false">Cancel</button>
+                      <button mat-raised-button color="warn" [disabled]="!req.rejectionReason || req.processing"
+                              (click)="rejectNoc(req)">Reject</button>
+                    </div>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            </div>
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -274,6 +339,7 @@ export class MemberRequestsComponent implements OnInit {
   regPending: any[] = [];
   profilePending: any[] = [];
   tenantPending: any[] = [];
+  nocPending: any[] = [];
 
   constructor(
     private http: HttpClient,
@@ -285,6 +351,7 @@ export class MemberRequestsComponent implements OnInit {
     this.loadRegPending();
     this.loadProfilePending();
     this.loadTenantPending();
+    this.loadNocPending();
   }
 
   // ===== Registration =====
@@ -405,6 +472,47 @@ export class MemberRequestsComponent implements OnInit {
         if (res.success) {
           this.snackBar.open('Tenant registration rejected.', 'Close', { duration: 3000 });
           this.tenantPending = this.tenantPending.filter(r => r.tenantId !== req.tenantId);
+        }
+      },
+      error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }
+    });
+  }
+
+  // ===== Owner NOC Requests =====
+
+  loadNocPending(): void {
+    this.http.get<any>(`${environment.apiUrl}/owner-noc-requests/pending`).subscribe({
+      next: (res) => { if (res.success) this.nocPending = res.data || []; },
+      error: () => { /* user may lack permission; leave list empty */ }
+    });
+  }
+
+  approveNoc(req: any): void {
+    req.processing = true;
+    this.http.post<any>(`${environment.apiUrl}/owner-noc-requests/${req.requestId}/approve`, {
+      finalContent: req.finalContent || undefined
+    }).subscribe({
+      next: (res) => {
+        req.processing = false;
+        if (res.success) {
+          this.snackBar.open(res.message || 'NOC approved. Certificate emailed to owner.', 'Close', { duration: 4000 });
+          this.nocPending = this.nocPending.filter(r => r.requestId !== req.requestId);
+        }
+      },
+      error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }
+    });
+  }
+
+  rejectNoc(req: any): void {
+    req.processing = true;
+    this.http.post<any>(`${environment.apiUrl}/owner-noc-requests/${req.requestId}/reject`, {
+      reason: req.rejectionReason
+    }).subscribe({
+      next: (res) => {
+        req.processing = false;
+        if (res.success) {
+          this.snackBar.open('NOC request rejected.', 'Close', { duration: 3000 });
+          this.nocPending = this.nocPending.filter(r => r.requestId !== req.requestId);
         }
       },
       error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }

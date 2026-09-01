@@ -19,5 +19,11 @@ export const MEMBER_ROUTES: Routes = [
     canActivate: [memberAuthGuard],
     loadComponent: () => import('./member-tenant-register/member-tenant-register.component')
       .then(m => m.MemberTenantRegisterComponent)
+  },
+  {
+    path: 'apply-noc',
+    canActivate: [memberAuthGuard],
+    loadComponent: () => import('./member-apply-noc/member-apply-noc.component')
+      .then(m => m.MemberApplyNocComponent)
   }
 ];

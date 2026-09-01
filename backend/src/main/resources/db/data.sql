@@ -102,7 +102,10 @@ INSERT IGNORE INTO permissions (permission_id, permission_name, module, descript
 (38, 'TENANT_APPROVE_REGISTRATION', 'TENANT', 'Approve/reject owner-submitted tenant registrations'),
 -- Committee Module
 (39, 'COMMITTEE_VIEW', 'COMMITTEE', 'View management committee members'),
-(40, 'COMMITTEE_MANAGE', 'COMMITTEE', 'Add, update, or remove committee members');
+(40, 'COMMITTEE_MANAGE', 'COMMITTEE', 'Add, update, or remove committee members'),
+-- Owner NOC Module (general-purpose NOC requests: loan transfer, tax/bill name change, etc.)
+(41, 'OWNER_NOC_APPROVE', 'NOC', 'Approve/reject owner NOC requests and issue certificates'),
+(42, 'NOC_TYPE_MANAGE', 'NOC', 'Manage configurable NOC types and templates');
 
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
@@ -115,7 +118,7 @@ SELECT 1, permission_id FROM permissions;
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (2, 1), (2, 6), (2, 10), (2, 13), (2, 18), (2, 21), (2, 22), (2, 23),
 (2, 4), (2, 16), (2, 24), (2, 31), (2, 32),
-(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40);
+(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41), (2, 42);
 
 -- SECRETARY
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -123,7 +126,7 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (3, 10), (3, 11), (3, 12), (3, 13), (3, 14), (3, 15), (3, 16), (3, 17),
 (3, 18), (3, 19), (3, 20), (3, 23), (3, 24), (3, 26), (3, 27), (3, 28),
 (3, 31), (3, 32),
-(3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40);
+(3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40), (3, 41), (3, 42);
 
 -- TREASURER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -275,6 +278,24 @@ LEFT JOIN vendor_categories current
   ON current.category_id = v.category_id
 SET v.category_id = 14
 WHERE current.category_id IS NULL;
+
+
+-- ============================================================
+-- NOC TYPES (configurable owner NOC certificate types + default templates)
+-- Placeholders supported in default_template:
+--   {ownerName} {unitNumber} {societyName} {addressee} {details} {date}
+-- ============================================================
+INSERT IGNORE INTO noc_types (noc_type_id, code, name, description, default_template, display_order, is_active) VALUES
+(1, 'LOAN_TRANSFER', 'Loan / Loan Transfer', 'NOC for bank loan or loan transfer against the flat',
+ 'This is to certify that the Managing Committee of {societyName} has NO OBJECTION to {ownerName}, owner of Unit No. {unitNumber}, availing / transferring a loan against the said flat.\nDetails: {details}\nThis certificate is issued on {date} for the above stated purpose.', 1, 1),
+(2, 'PROPERTY_TAX_NAME_CHANGE', 'Property Tax Name Change', 'NOC for change of name in property tax records',
+ 'This is to certify that the Managing Committee of {societyName} has NO OBJECTION to the change of name in the property tax records for Unit No. {unitNumber}, owned by {ownerName}.\nDetails: {details}\nIssued on {date}.', 2, 1),
+(3, 'ELECTRICITY_NAME_CHANGE', 'Electricity Bill Name Change', 'NOC for change of name on the electricity connection',
+ 'This is to certify that the Managing Committee of {societyName} has NO OBJECTION to the change of name on the electricity connection for Unit No. {unitNumber}, owned by {ownerName}.\nDetails: {details}\nIssued on {date}.', 3, 1),
+(4, 'PASSPORT_RESIDENCE', 'Passport / Residence Certificate', 'NOC / residence certificate for passport or address proof',
+ 'This is to certify that {ownerName} is a resident of Unit No. {unitNumber} in {societyName}. The Managing Committee has NO OBJECTION to this certificate being used as residence proof.\nDetails: {details}\nIssued on {date}.', 4, 1),
+(5, 'GENERAL', 'General / Other', 'General-purpose NOC for other purposes',
+ 'This is to certify that the Managing Committee of {societyName} has NO OBJECTION to {ownerName}, owner of Unit No. {unitNumber}, for the purpose stated below.\nDetails: {details}\nIssued on {date}.', 5, 1);
 
 
 -- ============================================================

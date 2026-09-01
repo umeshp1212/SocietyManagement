@@ -30,5 +30,9 @@ export const USER_ROUTES: Routes = [
   {
     path: 'member-requests',
     loadComponent: () => import('./member-requests/member-requests.component').then(m => m.MemberRequestsComponent)
+  },
+  {
+    path: 'noc-types',
+    loadComponent: () => import('./noc-types/noc-types.component').then(m => m.NocTypesComponent)
   }
 ];
