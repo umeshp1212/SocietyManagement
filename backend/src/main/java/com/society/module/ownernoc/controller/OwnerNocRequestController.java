@@ -6,6 +6,8 @@ import com.society.module.ownernoc.dto.OwnerNocRejectRequest;
 import com.society.module.ownernoc.dto.OwnerNocRequestDTO;
 import com.society.module.ownernoc.service.OwnerNocRequestService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -53,5 +55,19 @@ public class OwnerNocRequestController {
         String reason = body != null ? body.getReason() : null;
         OwnerNocRequestDTO dto = service.reject(requestId, approver, reason);
         return ResponseEntity.ok(ApiResponse.success("NOC request rejected.", dto));
+    }
+
+    /**
+     * Download the generated certificate PDF for an approved request. Fallback for
+     * when email is not configured or the owner needs another copy.
+     */
+    @GetMapping("/{requestId}/certificate")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('OWNER_NOC_APPROVE')")
+    public ResponseEntity<byte[]> downloadCertificate(@PathVariable Long requestId) {
+        byte[] pdf = service.generateCertificatePdf(requestId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"NOC-" + requestId + ".pdf\"")
+                .body(pdf);
     }
 }

@@ -38,6 +38,7 @@ public class OwnerNocRequestService {
     private final UnitRepository unitRepository;
     private final UnitOwnerRepository unitOwnerRepository;
     private final OwnerNocNotificationService notificationService;
+    private final OwnerNocPdfService ownerNocPdfService;
 
     // ==================== MEMBER SUBMISSION ====================
 
@@ -137,6 +138,25 @@ public class OwnerNocRequestService {
         notificationService.sendRejected(req);
         log.info("Owner NOC request {} rejected by {}: {}", requestId, approver, reason);
         return toDTO(req);
+    }
+
+    // ==================== CERTIFICATE DOWNLOAD ====================
+
+    /**
+     * Generate the certificate PDF bytes for an approved request (download fallback,
+     * usable when email is not configured or the owner needs another copy).
+     */
+    public byte[] generateCertificatePdf(Long requestId) {
+        OwnerNocRequest req = requestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("NOC Request", "requestId", requestId));
+        if (req.getStatus() != OwnerNocStatus.APPROVED) {
+            throw new BusinessException("Certificate is available only for approved NOC requests.");
+        }
+        try {
+            return ownerNocPdfService.generate(req);
+        } catch (java.io.IOException e) {
+            throw new BusinessException("Failed to generate certificate PDF: " + e.getMessage());
+        }
     }
 
     // ==================== MAPPER ====================

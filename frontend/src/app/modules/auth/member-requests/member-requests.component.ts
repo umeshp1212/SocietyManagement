@@ -262,7 +262,7 @@ import { TenantService } from '@core/services/tenant.service';
                     <span class="chip pending">PENDING</span>
                   </div>
 
-                  <div class="action-box" *ngIf="!req.showReject">
+                  <div class="action-box" *ngIf="!req.showReject && req.status !== 'APPROVED'">
                     <mat-form-field appearance="outline" class="full-width">
                       <mat-label>Certificate Body (optional - leave blank to use default template)</mat-label>
                       <textarea matInput [(ngModel)]="req.finalContent" rows="5"
@@ -276,6 +276,18 @@ import { TenantService } from '@core/services/tenant.service';
                       <button mat-raised-button color="warn" [disabled]="req.processing"
                               (click)="req.showReject = true">
                         <mat-icon>close</mat-icon> Reject
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="action-box" *ngIf="req.status === 'APPROVED'">
+                    <div class="approved-note">
+                      <mat-icon>verified</mat-icon>
+                      <span>Approved. Certificate emailed to the owner.</span>
+                    </div>
+                    <div class="actions">
+                      <button mat-raised-button color="primary" (click)="downloadNoc(req)">
+                        <mat-icon>download</mat-icon> Download Certificate
                       </button>
                     </div>
                   </div>
@@ -319,6 +331,8 @@ import { TenantService } from '@core/services/tenant.service';
     .chip { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 12px; }
     .pending { background: #fff3e0; color: #e65100; }
 
+    .approved-note { display: flex; align-items: center; gap: 8px; color: #2e7d32; font-size: 14px; margin-bottom: 8px; }
+    .approved-note mat-icon { color: #2e7d32; }
     .action-box, .reject-box { background: #f5f5f5; border-radius: 8px; padding: 16px; }
     .reject-box { background: #fff3e0; }
     .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
@@ -496,10 +510,27 @@ export class MemberRequestsComponent implements OnInit {
         req.processing = false;
         if (res.success) {
           this.snackBar.open(res.message || 'NOC approved. Certificate emailed to owner.', 'Close', { duration: 4000 });
-          this.nocPending = this.nocPending.filter(r => r.requestId !== req.requestId);
+          // Keep the row so the admin can download the certificate as a fallback.
+          req.status = 'APPROVED';
         }
       },
       error: (err) => { req.processing = false; this.snackBar.open(err.error?.message || 'Failed', 'Close', { duration: 3000 }); }
+    });
+  }
+
+  downloadNoc(req: any): void {
+    this.http.get(`${environment.apiUrl}/owner-noc-requests/${req.requestId}/certificate`, {
+      responseType: 'blob'
+    }).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `NOC-${req.requestId}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.snackBar.open('Failed to download certificate', 'Close', { duration: 3000 })
     });
   }
 
