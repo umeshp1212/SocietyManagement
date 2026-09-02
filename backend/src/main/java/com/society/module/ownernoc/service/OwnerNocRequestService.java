@@ -149,6 +149,24 @@ public class OwnerNocRequestService {
     public byte[] generateCertificatePdf(Long requestId) {
         OwnerNocRequest req = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("NOC Request", "requestId", requestId));
+        return renderApproved(req);
+    }
+
+    /**
+     * Certificate download for the member portal: only the owner who submitted the
+     * request may download it, and only when it is approved.
+     */
+    public byte[] generateCertificatePdfForOwner(Long requestId, Long ownerId) {
+        OwnerNocRequest req = requestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("NOC Request", "requestId", requestId));
+        if (req.getOwner() == null || req.getOwner().getOwnerId() == null
+                || !req.getOwner().getOwnerId().equals(ownerId)) {
+            throw new BusinessException("You can only download your own NOC certificate.");
+        }
+        return renderApproved(req);
+    }
+
+    private byte[] renderApproved(OwnerNocRequest req) {
         if (req.getStatus() != OwnerNocStatus.APPROVED) {
             throw new BusinessException("Certificate is available only for approved NOC requests.");
         }

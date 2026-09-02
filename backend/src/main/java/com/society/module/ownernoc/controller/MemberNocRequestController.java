@@ -9,7 +9,9 @@ import com.society.module.ownernoc.service.NocTypeService;
 import com.society.module.ownernoc.service.OwnerNocRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,6 +52,19 @@ public class MemberNocRequestController {
     @GetMapping("/types")
     public ResponseEntity<ApiResponse<List<NocTypeDTO>>> activeTypes() {
         return ResponseEntity.ok(ApiResponse.success(nocTypeService.getActiveTypes()));
+    }
+
+    /** Owner downloads their own approved NOC certificate PDF. */
+    @GetMapping("/{requestId}/certificate")
+    public ResponseEntity<byte[]> downloadMyCertificate(
+            @PathVariable Long requestId,
+            @RequestHeader("Authorization") String authHeader) {
+        Long ownerId = extractOwnerId(authHeader);
+        byte[] pdf = service.generateCertificatePdfForOwner(requestId, ownerId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"NOC-" + requestId + ".pdf\"")
+                .body(pdf);
     }
 
     private Long extractOwnerId(String authHeader) {

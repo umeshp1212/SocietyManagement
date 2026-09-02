@@ -141,17 +141,14 @@ public class NocCertificatePdfService {
                 .setFontColor(ColorConstants.GRAY)
                 .setMarginBottom(24));
 
-        // ===== SIGNATURE =====
+        // ===== DIGITAL SIGNATURE (no manual signature line; designation only) =====
         Table sign = new Table(UnitValue.createPercentArray(new float[]{1, 1}))
                 .setWidth(UnitValue.createPercentValue(100));
         sign.addCell(borderlessCell("", regularFont, 10, TextAlignment.LEFT));
         Cell signCell = new Cell().setBorder(Border.NO_BORDER).setTextAlignment(TextAlignment.CENTER);
-        signCell.add(new Paragraph("\n\n_____________________").setFont(regularFont).setFontSize(10));
-        signCell.add(new Paragraph("Authorised Signatory").setFont(boldFont).setFontSize(10));
-        String secretary = settings.getSecretaryName();
-        if (secretary != null && !secretary.isBlank()) {
-            signCell.add(new Paragraph(secretary + " (Secretary)").setFont(regularFont).setFontSize(9));
-        }
+        signCell.add(buildDigitalSignatureStamp(societyName, boldFont, regularFont, italicFont));
+        signCell.add(new Paragraph("Secretary / Authorised Signatory")
+                .setFont(boldFont).setFontSize(10).setMarginTop(4));
         signCell.add(new Paragraph("For " + societyName).setFont(regularFont).setFontSize(9));
         sign.addCell(signCell);
         document.add(sign);
@@ -218,5 +215,30 @@ public class NocCertificatePdfService {
     private Cell borderlessCell(String text, PdfFont font, int fontSize, TextAlignment alignment) {
         return new Cell().add(new Paragraph(text).setFont(font).setFontSize(fontSize)
                 .setTextAlignment(alignment)).setBorder(Border.NO_BORDER);
+    }
+
+    /**
+     * Builds a text-based digital-signature stamp (no manual signature line).
+     * Renders a bordered box indicating the certificate was digitally signed by
+     * the society, with a timestamp.
+     */
+    private Table buildDigitalSignatureStamp(String societyName, PdfFont boldFont,
+                                             PdfFont regularFont, PdfFont italicFont) {
+        DeviceRgb green = new DeviceRgb(46, 125, 50);
+        String stamp = "Digitally signed by " + societyName + "\n"
+                + "Date: " + java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"));
+        Table box = new Table(UnitValue.createPercentArray(new float[]{1}))
+                .setWidth(UnitValue.createPercentValue(90))
+                .setHorizontalAlignment(com.itextpdf.layout.properties.HorizontalAlignment.CENTER)
+                .setMarginTop(6);
+        Cell c = new Cell()
+                .add(new Paragraph("DIGITALLY SIGNED").setFont(boldFont).setFontSize(9).setFontColor(green))
+                .add(new Paragraph(stamp).setFont(italicFont).setFontSize(8).setFontColor(green))
+                .setBorder(new SolidBorder(green, 1))
+                .setPadding(6)
+                .setTextAlignment(TextAlignment.CENTER);
+        box.addCell(c);
+        return box;
     }
 }

@@ -184,6 +184,10 @@ export class MemberAuthService {
     return this.http.get<any>(`${this.apiUrl}/noc-requests`);
   }
 
+  downloadMyNocCertificate(requestId: number): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/noc-requests/${requestId}/certificate`, { responseType: 'blob' });
+  }
+
   // ===== Token Management =====
 
   getToken(): string | null {

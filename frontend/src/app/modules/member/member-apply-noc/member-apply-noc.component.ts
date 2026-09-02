@@ -94,6 +94,11 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
               {{ r.createdOn | date:'dd MMM yyyy, HH:mm' }}
               <span *ngIf="r.rejectionReason"> | Reason: {{ r.rejectionReason }}</span>
             </div>
+            <div class="req-actions" *ngIf="r.status === 'APPROVED'">
+              <button mat-stroked-button color="primary" (click)="downloadCertificate(r)">
+                <mat-icon>download</mat-icon> Download Certificate
+              </button>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>
@@ -114,6 +119,7 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
     .req-head { display: flex; justify-content: space-between; align-items: center; }
     .req-type { font-weight: 500; }
     .req-meta { font-size: 12px; color: #999; margin-top: 2px; }
+    .req-actions { margin-top: 8px; }
     .chip { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 12px; }
     .status-pending { background: #fff3e0; color: #e65100; }
     .status-approved { background: #e8f5e9; color: #2e7d32; }
@@ -188,6 +194,20 @@ export class MemberApplyNocComponent implements OnInit {
         this.submitting = false;
         this.snackBar.open(err.error?.message || 'Failed to submit NOC request.', 'Close', { duration: 5000 });
       }
+    });
+  }
+
+  downloadCertificate(r: any): void {
+    this.memberAuth.downloadMyNocCertificate(r.requestId).subscribe({
+      next: (blob: Blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `NOC-${r.requestId}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => this.snackBar.open('Failed to download certificate', 'Close', { duration: 3000 })
     });
   }
 
