@@ -146,7 +146,7 @@ import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse
       </div>
 
       <!-- Record Offline Payment -->
-      <mat-card class="payment-form-card" *ngIf="bill.status !== 'PAID' && hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
+      <mat-card class="payment-form-card" *ngIf="bill.status !== 'PAID' && canRecordPayment()">
         <mat-card-header><mat-card-title>Record Offline Payment</mat-card-title></mat-card-header>
         <mat-card-content>
           <form class="payment-form" (ngSubmit)="recordPayment()">
@@ -224,7 +224,7 @@ import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let p">
                 <button mat-button color="warn" type="button"
-                        *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])"
+                        *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && canReverse()"
                         (click)="reversePayment(p)">
                   <mat-icon>undo</mat-icon> Reverse
                 </button>
@@ -242,7 +242,7 @@ import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse
       </mat-card>
 
       <!-- Audit Ledger: full money-mutation history for this bill -->
-      <mat-card class="history-card" *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
+      <mat-card class="history-card" *ngIf="canViewLedger()">
         <mat-card-header><mat-card-title>Audit Ledger</mat-card-title></mat-card-header>
         <mat-card-content>
           <table mat-table [dataSource]="ledger" class="mat-elevation-z1" *ngIf="ledger.length > 0">
@@ -366,7 +366,7 @@ export class BillDetailComponent implements OnInit {
   }
 
   loadLedger(): void {
-    if (!this.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])) { return; }
+    if (!this.canViewLedger()) { return; }
     this.maintenanceService.getLedgerByBill(this.billId).subscribe(res => {
       if (res.success) {
         this.ledger = res.data || [];
@@ -467,5 +467,7 @@ export class BillDetailComponent implements OnInit {
     this.maintenanceService.downloadBillPdf(this.billId);
   }
 
-  hasAnyRole(roles: string[]): boolean { return this.authService.hasAnyRole(roles); }
+  canRecordPayment(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT'); }
+  canReverse(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT_REVERSE'); }
+  canViewLedger(): boolean { return this.authService.hasPermission('MAINTENANCE_VIEW'); }
 }

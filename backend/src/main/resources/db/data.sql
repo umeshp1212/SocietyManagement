@@ -191,7 +191,13 @@ INSERT IGNORE INTO permissions (permission_id, permission_name, module, descript
 (40, 'COMMITTEE_MANAGE', 'COMMITTEE', 'Add, update, or remove committee members'),
 -- Owner NOC Module (general-purpose NOC requests: loan transfer, tax/bill name change, etc.)
 (41, 'OWNER_NOC_APPROVE', 'NOC', 'Approve/reject owner NOC requests and issue certificates'),
-(42, 'NOC_TYPE_MANAGE', 'NOC', 'Manage configurable NOC types and templates');
+(42, 'NOC_TYPE_MANAGE', 'NOC', 'Manage configurable NOC types and templates'),
+-- Maintenance Module (fine-grained actions; replaces hardcoded role checks)
+(43, 'MAINTENANCE_PAYMENT_REVERSE', 'MAINTENANCE', 'Reverse/void a recorded maintenance payment'),
+(44, 'MAINTENANCE_CONFIG', 'MAINTENANCE', 'Manage charge and water-charge configuration'),
+(45, 'MAINTENANCE_PENALTY', 'MAINTENANCE', 'Impose or cancel penalties'),
+(46, 'MAINTENANCE_SUSPENSE', 'MAINTENANCE', 'Manage suspense account entries (create/assign/reverse)'),
+(47, 'MAINTENANCE_OPENING_BALANCE', 'MAINTENANCE', 'Manage opening balances (legacy arrears)');
 
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
@@ -206,19 +212,21 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (2, 4), (2, 16), (2, 24), (2, 31), (2, 32),
 (2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41), (2, 42);
 
--- SECRETARY
+-- SECRETARY (full maintenance management)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (3, 8), (3, 9),
 (3, 10), (3, 11), (3, 12), (3, 13), (3, 14), (3, 15), (3, 16), (3, 17),
 (3, 18), (3, 19), (3, 20), (3, 23), (3, 24), (3, 26), (3, 27), (3, 28),
 (3, 31), (3, 32),
-(3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40), (3, 41), (3, 42);
+(3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40), (3, 41), (3, 42),
+(3, 43), (3, 44), (3, 45), (3, 46), (3, 47);
 
--- TREASURER
+-- TREASURER (finance-focused: bills, payments, reversals, opening balance, suspense)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (4, 1), (4, 6), (4, 10), (4, 13), (4, 18), (4, 19), (4, 20), (4, 21),
 (4, 22), (4, 23), (4, 24), (4, 31),
-(4, 33), (4, 36);
+(4, 33), (4, 36),
+(4, 34), (4, 35), (4, 43), (4, 46), (4, 47);
 
 -- COMMITTEE_MEMBER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES

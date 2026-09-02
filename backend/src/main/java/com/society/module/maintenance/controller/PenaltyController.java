@@ -19,7 +19,7 @@ public class PenaltyController {
     private final PenaltyService penaltyService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_PENALTY')")
     public ResponseEntity<ApiResponse<PenaltyDTO>> addPenalty(@RequestBody PenaltyDTO request) {
         PenaltyDTO penalty = penaltyService.addPenalty(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -46,7 +46,7 @@ public class PenaltyController {
     }
 
     @PutMapping("/{penaltyId}/cancel")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_PENALTY')")
     public ResponseEntity<ApiResponse<PenaltyDTO>> cancelPenalty(@PathVariable Long penaltyId) {
         PenaltyDTO penalty = penaltyService.cancelPenalty(penaltyId);
         return ResponseEntity.ok(ApiResponse.success("Penalty cancelled", penalty));

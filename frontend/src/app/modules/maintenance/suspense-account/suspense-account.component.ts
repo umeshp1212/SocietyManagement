@@ -386,7 +386,7 @@ export class SuspenseAccountComponent implements OnInit {
   constructor(private http: HttpClient, private snackBar: MatSnackBar, private authService: AuthService) {}
 
   canManage(): boolean {
-    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+    return this.authService.hasPermission('MAINTENANCE_SUSPENSE');
   }
 
   ngOnInit(): void {

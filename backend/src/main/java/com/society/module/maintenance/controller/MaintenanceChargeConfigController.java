@@ -37,7 +37,7 @@ public class MaintenanceChargeConfigController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CONFIG')")
     public ResponseEntity<ApiResponse<ChargeConfigDTO>> createChargeConfig(
             @Valid @RequestBody ChargeConfigDTO dto) {
         ChargeConfigDTO config = chargeConfigService.createChargeConfig(dto);
@@ -45,7 +45,7 @@ public class MaintenanceChargeConfigController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CONFIG')")
     public ResponseEntity<ApiResponse<ChargeConfigDTO>> updateChargeConfig(
             @PathVariable Long id, @Valid @RequestBody ChargeConfigDTO dto) {
         ChargeConfigDTO config = chargeConfigService.updateChargeConfig(id, dto);
@@ -53,7 +53,7 @@ public class MaintenanceChargeConfigController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CONFIG')")
     public ResponseEntity<ApiResponse<Void>> deleteChargeConfig(@PathVariable Long id) {
         chargeConfigService.deleteChargeConfig(id);
         return ResponseEntity.ok(ApiResponse.success("Charge configuration deactivated", null));

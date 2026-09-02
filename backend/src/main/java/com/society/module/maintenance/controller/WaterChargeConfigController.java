@@ -25,7 +25,7 @@ public class WaterChargeConfigController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CONFIG')")
     public ResponseEntity<ApiResponse<WaterChargeConfigDTO>> saveConfig(@RequestBody WaterChargeConfigDTO dto) {
         WaterChargeConfigDTO saved = waterChargeConfigService.saveConfig(dto);
         return ResponseEntity.ok(ApiResponse.success("Water charge configuration saved successfully", saved));

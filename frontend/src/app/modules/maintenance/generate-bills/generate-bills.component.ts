@@ -111,7 +111,7 @@ export class GenerateBillsComponent {
   }
 
   canManage(): boolean {
-    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+    return this.authService.hasPermission('MAINTENANCE_CREATE');
   }
 
   generate(): void {

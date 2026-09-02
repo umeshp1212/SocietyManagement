@@ -58,7 +58,7 @@ public class SuspenseController {
     // ==================== CREATE ====================
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_SUSPENSE')")
     public ResponseEntity<ApiResponse<SuspenseEntryDTO>> createEntry(
             @RequestBody Map<String, Object> body, Authentication authentication) {
         BigDecimal amount = new BigDecimal(body.get("amount").toString());
@@ -77,7 +77,7 @@ public class SuspenseController {
     // ==================== ASSIGN ====================
 
     @PatchMapping("/{suspenseId}/assign")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_SUSPENSE')")
     public ResponseEntity<ApiResponse<SuspenseEntryDTO>> assignToUnit(
             @PathVariable Long suspenseId,
             @RequestBody Map<String, Object> body,
@@ -95,7 +95,7 @@ public class SuspenseController {
     // ==================== REVERSE ====================
 
     @PatchMapping("/{suspenseId}/reverse")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_SUSPENSE')")
     public ResponseEntity<ApiResponse<SuspenseEntryDTO>> reverseAssignment(
             @PathVariable Long suspenseId,
             @RequestBody Map<String, Object> body,
@@ -110,7 +110,7 @@ public class SuspenseController {
     // ==================== REASSIGN ====================
 
     @PatchMapping("/{suspenseId}/reassign")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_SUSPENSE')")
     public ResponseEntity<ApiResponse<SuspenseEntryDTO>> reassign(
             @PathVariable Long suspenseId,
             @RequestBody Map<String, Object> body,

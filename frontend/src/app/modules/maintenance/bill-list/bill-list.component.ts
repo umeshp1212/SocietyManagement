@@ -34,14 +34,14 @@ import { AuthService } from '@core/services/auth.service';
             <mat-icon>help_outline</mat-icon> Suspense
           </a>
           <a mat-button routerLink="/maintenance/charge-config"
-             *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
+             *ngIf="hasPermission('MAINTENANCE_CONFIG')">
             <mat-icon>settings</mat-icon> Charge Config
           </a>
           <button mat-raised-button color="accent" (click)="downloadAllPdf()">
             <mat-icon>download</mat-icon> Download All Bills PDF
           </button>
           <a mat-raised-button color="primary" routerLink="/maintenance/generate"
-             *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
+             *ngIf="hasPermission('MAINTENANCE_CREATE')">
             <mat-icon>add</mat-icon> Generate Bills
           </a>
         </div>
@@ -250,6 +250,5 @@ export class BillListComponent implements OnInit {
     this.maintenanceService.downloadBulkBillsPdf(this.selectedMonth, this.selectedYear);
   }
 
-  hasAnyRole(roles: string[]): boolean { return this.authService.hasAnyRole(roles); }
   hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
 }

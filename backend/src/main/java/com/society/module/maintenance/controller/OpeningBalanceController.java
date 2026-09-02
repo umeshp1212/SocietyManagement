@@ -42,7 +42,7 @@ public class OpeningBalanceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_OPENING_BALANCE')")
     public ResponseEntity<ApiResponse<OpeningBalanceDTO>> createOrUpdate(
             @RequestBody Map<String, Object> body, Authentication authentication) {
         Long unitId = Long.valueOf(body.get("unitId").toString());

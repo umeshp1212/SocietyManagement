@@ -191,7 +191,7 @@ export class PenaltyManagementComponent implements OnInit {
   ) {}
 
   canManage(): boolean {
-    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+    return this.authService.hasPermission('MAINTENANCE_PENALTY');
   }
 
   ngOnInit(): void {

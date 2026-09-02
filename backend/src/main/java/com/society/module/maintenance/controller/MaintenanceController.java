@@ -38,7 +38,7 @@ public class MaintenanceController {
     // ======================== BILL MANAGEMENT ========================
 
     @PostMapping("/bills/generate")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CREATE')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateBills(
             @Valid @RequestBody GenerateBillsRequest request) {
         Map<String, Object> result = billService.generateMonthlyBills(request);
@@ -101,7 +101,7 @@ public class MaintenanceController {
     // ======================== PAYMENT ========================
 
     @PostMapping("/payments/offline")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_PAYMENT')")
     public ResponseEntity<ApiResponse<PaymentDTO>> recordOfflinePayment(
             @Valid @RequestBody RecordOfflinePaymentRequest request) {
         PaymentDTO payment = billService.recordOfflinePayment(request);
@@ -127,7 +127,7 @@ public class MaintenanceController {
      * Reverse (void) a recorded payment. Admin-only, mandatory reason, fully audited.
      */
     @PostMapping("/payments/{paymentId}/reverse")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_PAYMENT_REVERSE')")
     public ResponseEntity<ApiResponse<PaymentDTO>> reversePayment(
             @PathVariable Long paymentId,
             @Valid @RequestBody com.society.module.maintenance.dto.ReversePaymentRequest request) {
