@@ -19,13 +19,19 @@ import com.society.module.owner.entity.UnitOwner;
 import com.society.module.owner.repository.OwnerRepository;
 import com.society.module.owner.repository.UnitOwnerRepository;
 import com.society.module.settings.service.SocietySettingsService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.security.MessageDigest;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -49,6 +55,8 @@ public class CashfreeService {
     private final SocietySettingsService settingsService;
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
+    private final Environment environment;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.cashfree.app-id:}")
     private String cashfreeAppId;
@@ -60,7 +68,7 @@ public class CashfreeService {
     private String apiVersion;
 
     @Value("${app.cashfree.environment:sandbox}")
-    private String environment;
+    private String cashfreeEnv;
 
     @Value("${app.cashfree.return-url:http://localhost:4200/maintenance/payment-status}")
     private String returnUrl;
@@ -72,14 +80,32 @@ public class CashfreeService {
     private String baseUrl;
 
     private String getBaseApiUrl() {
-        if ("sandbox".equalsIgnoreCase(environment)) {
+        if ("sandbox".equalsIgnoreCase(cashfreeEnv)) {
             return "https://sandbox.cashfree.com/pg";
         }
         return "https://api.cashfree.com/pg";
     }
 
+    /**
+     * True when the application is running under the "prod" Spring profile.
+     * Mock/fallback behaviour (fake payment links, fake "PAID" statuses) is only
+     * permitted outside prod so a misconfigured production deployment can never
+     * fabricate a successful payment.
+     */
+    private boolean isProdProfile() {
+        for (String profile : environment.getActiveProfiles()) {
+            if ("prod".equalsIgnoreCase(profile)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public Map<String, Object> createPaymentLink(MaintenanceBill bill) {
         if (cashfreeAppId == null || cashfreeAppId.isBlank()) {
+            if (isProdProfile()) {
+                throw new BusinessException("Cashfree payment gateway is not configured. Contact society admin.");
+            }
             log.warn("Cashfree is not configured. Generating mock payment link for bill: {}", bill.getBillId());
             return createMockPaymentLink(bill);
         }
@@ -146,11 +172,19 @@ public class CashfreeService {
                 return result;
             } else {
                 log.error("Cashfree API returned non-success status: {}", response.getStatusCode());
+                if (isProdProfile()) {
+                    throw new BusinessException("Failed to generate payment link. Please try again.");
+                }
                 return createMockPaymentLink(bill);
             }
 
+        } catch (BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error creating Cashfree payment link for bill: {}. Error: {}", bill.getBillId(), e.getMessage(), e);
+            if (isProdProfile()) {
+                throw new BusinessException("Failed to generate payment link. Please try again.");
+            }
             return createMockPaymentLink(bill);
         }
     }
@@ -193,14 +227,33 @@ public class CashfreeService {
         }
     }
 
+    /**
+     * Handle a Cashfree payment webhook.
+     *
+     * @param rawBody   the exact raw JSON body Cashfree POSTed (needed for signature check)
+     * @param signature the value of the x-webhook-signature header
+     * @param timestamp the value of the x-webhook-timestamp header
+     * @return true if the webhook was authenticated and processed (or safely ignored as a
+     *         duplicate/non-success); false if the signature is invalid and the caller
+     *         should respond with 401 so the sender is not told it succeeded.
+     */
     @Transactional
     @SuppressWarnings("unchecked")
-    public void handlePaymentWebhook(Map<String, Object> webhookData) {
+    public boolean handlePaymentWebhook(String rawBody, String signature, String timestamp) {
+        // ---- 1. Authenticate the payload BEFORE trusting anything in it ----
+        if (!isWebhookSignatureValid(rawBody, signature, timestamp)) {
+            log.warn("Rejected Cashfree webhook: invalid or missing signature");
+            return false;
+        }
+
         try {
+            Map<String, Object> webhookData =
+                    objectMapper.readValue(rawBody, Map.class);
+
             Map<String, Object> data = (Map<String, Object>) webhookData.get("data");
             if (data == null) {
                 log.warn("Webhook data is null or missing 'data' field");
-                return;
+                return true; // authenticated but nothing to do
             }
 
             Map<String, Object> orderData = (Map<String, Object>) data.get("order");
@@ -208,7 +261,7 @@ public class CashfreeService {
 
             if (orderData == null || paymentData == null) {
                 log.warn("Webhook missing order or payment data");
-                return;
+                return true;
             }
 
             String orderId = (String) orderData.get("order_id");
@@ -221,52 +274,126 @@ public class CashfreeService {
 
             log.info("Processing webhook - orderId: {}, status: {}, paymentId: {}", orderId, paymentStatus, paymentId);
 
+            if (!"SUCCESS".equalsIgnoreCase(paymentStatus)) {
+                if ("FAILED".equalsIgnoreCase(paymentStatus)) {
+                    log.warn("Payment failed for orderId: {}", orderId);
+                }
+                return true; // authenticated; only SUCCESS credits a bill
+            }
+
+            // ---- 2. Idempotency: never credit the same Cashfree payment twice ----
+            // Cashfree retries webhooks and may deliver duplicates. Dedup on the gateway's
+            // unique payment id (cf_payment_id) so a replayed/duplicate event is a no-op.
+            if (paymentId != null && paymentRepository.findByCashfreePaymentId(paymentId).isPresent()) {
+                log.info("Duplicate webhook ignored - cashfree paymentId {} already recorded", paymentId);
+                return true;
+            }
+
             Optional<MaintenanceBill> billOptional = billRepository.findByCashfreeOrderId(orderId);
             if (billOptional.isEmpty()) {
                 log.warn("No bill found for cashfree orderId: {}", orderId);
-                return;
+                return true;
             }
 
             MaintenanceBill bill = billOptional.get();
 
-            if ("SUCCESS".equalsIgnoreCase(paymentStatus)) {
-                MaintenancePayment payment = new MaintenancePayment();
-                payment.setBill(bill);
-                payment.setUnit(bill.getUnit());
-                payment.setPaymentMode(MaintenancePayment.PaymentMode.CASHFREE_LINK);
-                payment.setStatus(MaintenancePayment.PaymentStatus.SUCCESS);
-                payment.setCashfreePaymentId(paymentId);
-                payment.setCashfreeOrderId(orderId);
-                payment.setAmount(paymentAmount);
-                payment.setPaymentDate(LocalDate.now());
-                payment.setReceiptNumber("RCP-" + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd")) + "-" + new Random().nextInt(9000) + 1000);
-                paymentRepository.save(payment);
+            MaintenancePayment payment = new MaintenancePayment();
+            payment.setBill(bill);
+            payment.setUnit(bill.getUnit());
+            payment.setPaymentMode(MaintenancePayment.PaymentMode.CASHFREE_LINK);
+            payment.setStatus(MaintenancePayment.PaymentStatus.SUCCESS);
+            payment.setCashfreePaymentId(paymentId);
+            payment.setCashfreeOrderId(orderId);
+            payment.setAmount(paymentAmount);
+            payment.setPaymentDate(LocalDate.now());
+            payment.setReceiptNumber(generateWebhookReceiptNumber());
+            paymentRepository.save(payment);
 
-                BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
-                BigDecimal newPaidAmount = paidSoFar.add(paymentAmount);
-                bill.setPaidAmount(newPaidAmount);
-                bill.setBalanceAmount(bill.getTotalAmount().subtract(newPaidAmount));
+            // ---- 3. Update bill totals, clamping balance so overpay can't go negative ----
+            BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
+            BigDecimal newPaidAmount = paidSoFar.add(paymentAmount);
+            bill.setPaidAmount(newPaidAmount);
+            BigDecimal newBalance = bill.getTotalAmount().subtract(newPaidAmount).max(BigDecimal.ZERO);
+            bill.setBalanceAmount(newBalance);
 
-                if (bill.getBalanceAmount().compareTo(BigDecimal.ZERO) <= 0) {
-                    bill.setStatus(MaintenanceBill.BillStatus.PAID);
-                } else {
-                    bill.setStatus(MaintenanceBill.BillStatus.PARTIALLY_PAID);
-                }
-
-                billRepository.save(bill);
-                log.info("Payment successful for bill: {}, amount: {}", bill.getBillId(), paymentAmount);
-
-            } else if ("FAILED".equalsIgnoreCase(paymentStatus)) {
-                log.warn("Payment failed for orderId: {}, bill: {}", orderId, bill.getBillId());
+            if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+                bill.setStatus(MaintenanceBill.BillStatus.PAID);
+            } else {
+                bill.setStatus(MaintenanceBill.BillStatus.PARTIALLY_PAID);
             }
 
+            billRepository.save(bill);
+            log.info("Payment successful for bill: {}, amount: {}", bill.getBillId(), paymentAmount);
+            return true;
+
         } catch (Exception e) {
+            // Re-throw so the surrounding @Transactional rolls back and the controller does
+            // NOT return 200. Cashfree then retries, rather than us silently losing a payment.
             log.error("Error processing payment webhook: {}", e.getMessage(), e);
+            throw new BusinessException("Failed to process payment webhook");
         }
+    }
+
+    /**
+     * Verify the Cashfree webhook signature.
+     *
+     * Cashfree computes: base64( HMAC-SHA256( timestamp + rawBody, clientSecret ) )
+     * and sends it in the x-webhook-signature header (x-webhook-timestamp holds the timestamp).
+     *
+     * Non-prod behaviour: if Cashfree is not configured (blank secret) OUTSIDE the prod
+     * profile, verification is skipped so sandbox/local testing still works. In prod a
+     * blank secret or missing signature always fails closed.
+     */
+    private boolean isWebhookSignatureValid(String rawBody, String signature, String timestamp) {
+        boolean secretConfigured = cashfreeSecretKey != null && !cashfreeSecretKey.isBlank();
+
+        if (!secretConfigured) {
+            if (isProdProfile()) {
+                log.error("Cashfree secret is not configured in prod - refusing to trust webhook");
+                return false;
+            }
+            log.warn("Cashfree secret not configured (non-prod) - skipping webhook signature check");
+            return true;
+        }
+
+        if (signature == null || signature.isBlank() || timestamp == null || timestamp.isBlank()) {
+            log.warn("Webhook missing signature or timestamp header");
+            return false;
+        }
+
+        try {
+            String payload = timestamp + rawBody;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(cashfreeSecretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hash = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+            String computed = Base64.getEncoder().encodeToString(hash);
+            // Constant-time comparison to avoid timing side-channels.
+            boolean matches = MessageDigest.isEqual(
+                    computed.getBytes(StandardCharsets.UTF_8),
+                    signature.getBytes(StandardCharsets.UTF_8));
+            if (!matches) {
+                log.warn("Webhook signature mismatch");
+            }
+            return matches;
+        } catch (Exception e) {
+            log.error("Error verifying webhook signature: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    private String generateWebhookReceiptNumber() {
+        return "RCP-"
+                + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
+                + "-" + (new Random().nextInt(9000) + 1000);
     }
 
     public Map<String, Object> getPaymentStatus(String orderId) {
         if (cashfreeAppId == null || cashfreeAppId.isBlank()) {
+            if (isProdProfile()) {
+                // Never fabricate a PAID status in production. Failing closed means a
+                // misconfigured gateway blocks payment confirmation instead of auto-confirming.
+                throw new BusinessException("Cashfree payment gateway is not configured. Contact society admin.");
+            }
             log.warn("Cashfree is not configured. Returning mock payment status for orderId: {}", orderId);
             Map<String, Object> mockStatus = new LinkedHashMap<>();
             mockStatus.put("order_id", orderId);

@@ -26,7 +26,7 @@ import { AuthService, LoginResponse } from '../services/auth.service';
                    [fixedInViewport]="isMobile" fixedTopGap="56">
         <div class="sidenav-header">
           <mat-icon class="society-icon">apartment</mat-icon>
-          <h3>Society Mgmt</h3>
+          // <h3>Society Mgmt</h3>
         </div>
         <mat-nav-list>
           <a mat-list-item routerLink="/dashboard" routerLinkActive="active"

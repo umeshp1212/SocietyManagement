@@ -164,12 +164,23 @@ public class MaintenanceController {
 
     /**
      * Cashfree payment webhook callback.
-     * This endpoint should be PUBLIC (no authentication required).
-     * Always returns 200 OK as per Cashfree documentation to acknowledge receipt.
+     * This endpoint is PUBLIC (no auth), so the payload MUST be authenticated via the
+     * Cashfree webhook signature before it is trusted. We take the RAW request body
+     * (not a parsed Map) because the signature is computed over the exact bytes Cashfree
+     * sent; re-serializing a Map would change the string and break verification.
+     *
+     * Returns 200 only when the webhook was accepted (valid signature). On an invalid
+     * signature we return 401 so a forged/replayed call is never silently acknowledged.
      */
     @PostMapping("/payments/webhook")
-    public ResponseEntity<String> handleWebhook(@RequestBody Map<String, Object> webhookData) {
-        cashfreeService.handlePaymentWebhook(webhookData);
+    public ResponseEntity<String> handleWebhook(
+            @RequestBody String rawBody,
+            @RequestHeader(value = "x-webhook-signature", required = false) String signature,
+            @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp) {
+        boolean accepted = cashfreeService.handlePaymentWebhook(rawBody, signature, timestamp);
+        if (!accepted) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body("INVALID_SIGNATURE");
+        }
         return ResponseEntity.ok("OK");
     }
 
