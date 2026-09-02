@@ -32,6 +32,15 @@ public class PasswordResetService {
     @Value("${app.frontend-url:http://localhost:4200}")
     private String frontendUrl;
 
+    /**
+     * Base path the Angular app is served under (its build baseHref), e.g. "/app" in
+     * production. Kept SEPARATE from frontend-url because frontend-url is also used as the
+     * CORS allowed origin, which must be scheme+host only (no path). Defaults to empty for
+     * local dev where the app is served at the root.
+     */
+    @Value("${app.frontend-base-path:}")
+    private String frontendBasePath;
+
     @Value("${app.password-reset.token-expiry-minutes:30}")
     private int tokenExpiryMinutes;
 
@@ -119,8 +128,25 @@ public class PasswordResetService {
         log.info("Password reset successful for user: {}", user.getUsername());
     }
 
+    /**
+     * Build a user-facing frontend URL: frontend host + optional app base path + relative
+     * path. Tolerates trailing/leading slashes and an empty base path.
+     * e.g. host="https://ppvcd.in", basePath="/app", rel="/reset-password?token=x"
+     *      -> "https://ppvcd.in/app/reset-password?token=x"
+     */
+    private String buildFrontendUrl(String relativePath) {
+        String host = frontendUrl != null ? frontendUrl.replaceAll("/+$", "") : "";
+        String base = frontendBasePath != null ? frontendBasePath.trim() : "";
+        if (!base.isEmpty()) {
+            if (!base.startsWith("/")) base = "/" + base;
+            base = base.replaceAll("/+$", "");
+        }
+        String rel = relativePath.startsWith("/") ? relativePath : "/" + relativePath;
+        return host + base + rel;
+    }
+
     private void sendResetEmail(User user, String token) {
-        String resetLink = frontendUrl + "/reset-password?token=" + token;
+        String resetLink = buildFrontendUrl("/reset-password?token=" + token);
 
         if (mailSender == null) {
             log.warn("Mail sender not configured. Reset link for user {}: {}", user.getUsername(), resetLink);

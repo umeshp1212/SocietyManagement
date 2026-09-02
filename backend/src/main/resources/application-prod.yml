@@ -136,6 +136,10 @@ app:
 
   base-url: ${APP_BASE_URL:http://YOUR_ELASTIC_IP/api}
   frontend-url: ${FRONTEND_URL:http://YOUR_ELASTIC_IP}
+  # The Angular production build sets baseHref "/app/", so the SPA is served under /app.
+  # This is appended when building user-facing links (e.g. the password reset link) so they
+  # point at https://<host>/app/... . Keep frontend-url itself path-free (it is the CORS origin).
+  frontend-base-path: ${FRONTEND_BASE_PATH:/app}
 
   password-reset:
     token-expiry-minutes: 30

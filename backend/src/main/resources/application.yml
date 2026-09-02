@@ -92,6 +92,10 @@ app:
     rate-limit-per-hour: 5
   base-url: http://localhost:8080/api
   frontend-url: http://localhost:4200
+  # Base path the Angular app is served under (its build baseHref). Empty for local dev
+  # (served at root). Used to build user-facing links; kept separate from frontend-url
+  # because frontend-url doubles as the CORS origin (must be scheme+host only, no path).
+  frontend-base-path: ${FRONTEND_BASE_PATH:}
   password-reset:
     token-expiry-minutes: 30
   maintenance:
