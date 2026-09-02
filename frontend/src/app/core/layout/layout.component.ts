@@ -87,13 +87,6 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <span matListItemTitle>Member Requests</span>
           </a>
 
-          <a mat-list-item routerLink="/users/noc-types" routerLinkActive="active"
-             *ngIf="hasPermission('NOC_TYPE_MANAGE') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
-             (click)="closeSidenavOnMobile()">
-            <mat-icon matListItemIcon>description</mat-icon>
-            <span matListItemTitle>NOC Types</span>
-          </a>
-
           <a mat-list-item routerLink="/reports" routerLinkActive="active"
              *ngIf="hasPermission('REPORT_FINANCIAL') || hasPermission('REPORT_OCCUPANCY')"
              (click)="closeSidenavOnMobile()">

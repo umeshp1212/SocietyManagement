@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormGroup, FormBuilder, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -18,6 +18,7 @@ import { environment } from '@env/environment';
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     MatCardModule,
     MatFormFieldModule,
     MatInputModule,
@@ -210,6 +211,83 @@ import { environment } from '@env/environment';
           </button>
         </div>
       </form>
+
+      <!-- NOC Types -->
+      <mat-card class="noc-card">
+        <mat-card-header>
+          <mat-card-title>NOC Types</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="noc-header">
+            <p class="gateway-hint">
+              Configure the types of No Objection Certificate owners can request. The default template
+              pre-fills the certificate body at approval (admin can still edit per request).
+              Placeholders: <code>{{ '{' }}ownerName{{ '}' }} {{ '{' }}unitNumber{{ '}' }} {{ '{' }}societyName{{ '}' }} {{ '{' }}registrationNumber{{ '}' }} {{ '{' }}addressee{{ '}' }} {{ '{' }}details{{ '}' }} {{ '{' }}date{{ '}' }}</code>
+            </p>
+            <button mat-raised-button color="primary" type="button" (click)="showAddForm = !showAddForm">
+              <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
+              {{ showAddForm ? 'Cancel' : 'Add NOC Type' }}
+            </button>
+          </div>
+
+          <!-- Add Form -->
+          <mat-card *ngIf="showAddForm" class="noc-add-card" appearance="outlined">
+            <mat-card-content>
+              <div class="form-row">
+                <mat-form-field>
+                  <mat-label>Code</mat-label>
+                  <input matInput [(ngModel)]="newType.code" placeholder="LOAN_TRANSFER">
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Name</mat-label>
+                  <input matInput [(ngModel)]="newType.name" placeholder="Loan / Loan Transfer">
+                </mat-form-field>
+                <mat-form-field class="narrow">
+                  <mat-label>Order</mat-label>
+                  <input matInput type="number" [(ngModel)]="newType.displayOrder">
+                </mat-form-field>
+              </div>
+              <mat-form-field class="full-width">
+                <mat-label>Description</mat-label>
+                <input matInput [(ngModel)]="newType.description">
+              </mat-form-field>
+              <mat-form-field class="full-width">
+                <mat-label>Default Template</mat-label>
+                <textarea matInput [(ngModel)]="newType.defaultTemplate" rows="4"></textarea>
+              </mat-form-field>
+              <div class="form-actions">
+                <button mat-raised-button color="primary" type="button" (click)="addType()"
+                        [disabled]="!newType.code || !newType.name">
+                  <mat-icon>save</mat-icon> Save
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <!-- List -->
+          <mat-card *ngFor="let t of types" class="noc-type-card" appearance="outlined">
+            <mat-card-content>
+              <div class="type-head">
+                <div>
+                  <strong>{{ t.name }}</strong> <span class="code">({{ t.code }})</span>
+                  <span class="chip" [class.inactive]="!t.isActive">{{ t.isActive ? 'Active' : 'Inactive' }}</span>
+                </div>
+                <mat-slide-toggle [(ngModel)]="t.isActive" (change)="saveType(t)" color="primary"></mat-slide-toggle>
+              </div>
+              <p class="desc" *ngIf="t.description">{{ t.description }}</p>
+              <mat-form-field class="full-width">
+                <mat-label>Default Template</mat-label>
+                <textarea matInput [(ngModel)]="t.defaultTemplate" rows="3"></textarea>
+              </mat-form-field>
+              <div class="form-actions">
+                <button mat-button color="primary" type="button" (click)="saveType(t)"><mat-icon>save</mat-icon> Save</button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+
+          <div *ngIf="types.length === 0" class="empty">No NOC types configured yet.</div>
+        </mat-card-content>
+      </mat-card>
     </div>
   `,
   styles: [`
@@ -245,10 +323,27 @@ import { environment } from '@env/environment';
     .gateway-hint { color: #666; font-size: 13px; margin-bottom: 12px; }
     .gateway-note { color: #888; font-size: 12px; font-style: italic; margin-top: -8px; }
     .discount-fields { margin-top: 16px; }
+
+    .noc-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .noc-header .gateway-hint { flex: 1; }
+    .noc-header code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-size: 12px; }
+    .noc-add-card, .noc-type-card { margin: 12px 0; }
+    .narrow { flex: 0.4 !important; }
+    .type-head { display: flex; justify-content: space-between; align-items: center; }
+    .code { color: #888; font-size: 13px; }
+    .chip { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: #e8f5e9; color: #2e7d32; margin-left: 8px; }
+    .chip.inactive { background: #ffebee; color: #c62828; }
+    .desc { color: #666; font-size: 13px; margin: 6px 0; }
+    .empty { text-align: center; color: #999; padding: 40px; }
   `]
 })
 export class SettingsComponent implements OnInit {
   settingsForm: FormGroup;
+
+  // NOC Types management
+  types: any[] = [];
+  showAddForm = false;
+  newType: any = { code: '', name: '', description: '', defaultTemplate: '', displayOrder: 0, isActive: true };
 
   constructor(
     private fb: FormBuilder,
@@ -287,6 +382,39 @@ export class SettingsComponent implements OnInit {
       error: (err) => {
         this.snackBar.open('Failed to load settings', 'Close', { duration: 3000 });
       }
+    });
+
+    this.loadNocTypes();
+  }
+
+  loadNocTypes(): void {
+    this.http.get<any>(`${environment.apiUrl}/noc-types`).subscribe({
+      next: (res) => { if (res.success) this.types = res.data || []; },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed to load NOC types', 'Close', { duration: 4000 })
+    });
+  }
+
+  addType(): void {
+    this.http.post<any>(`${environment.apiUrl}/noc-types`, this.newType).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.snackBar.open('NOC type created', 'Close', { duration: 3000 });
+          this.newType = { code: '', name: '', description: '', defaultTemplate: '', displayOrder: 0, isActive: true };
+          this.showAddForm = false;
+          this.loadNocTypes();
+        }
+      },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed to create', 'Close', { duration: 4000 })
+    });
+  }
+
+  saveType(t: any): void {
+    this.http.put<any>(`${environment.apiUrl}/noc-types/${t.nocTypeId}`, {
+      name: t.name, description: t.description, defaultTemplate: t.defaultTemplate,
+      displayOrder: t.displayOrder, isActive: t.isActive
+    }).subscribe({
+      next: (res) => { if (res.success) this.snackBar.open('Saved', 'Close', { duration: 2000 }); },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed to save', 'Close', { duration: 4000 })
     });
   }
 

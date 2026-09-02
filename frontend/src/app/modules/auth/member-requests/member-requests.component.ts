@@ -266,7 +266,7 @@ import { TenantService } from '@core/services/tenant.service';
                     <mat-form-field appearance="outline" class="full-width">
                       <mat-label>Certificate Body (optional - leave blank to use default template)</mat-label>
                       <textarea matInput [(ngModel)]="req.finalContent" rows="5"
-                                placeholder="Edit the certificate wording for this request (e.g. bank-specific text). Placeholders: {ownerName} {unitNumber} {societyName} {addressee} {details} {date}"></textarea>
+                                placeholder="Edit the certificate wording for this request (e.g. bank-specific text). Placeholders: {ownerName} {unitNumber} {societyName} {registrationNumber} {addressee} {details} {date}"></textarea>
                     </mat-form-field>
                     <div class="actions">
                       <button mat-raised-button color="primary" [disabled]="req.processing"

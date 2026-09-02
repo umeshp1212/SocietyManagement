@@ -33,6 +33,7 @@ export const USER_ROUTES: Routes = [
   },
   {
     path: 'noc-types',
-    loadComponent: () => import('./noc-types/noc-types.component').then(m => m.NocTypesComponent)
+    redirectTo: '/settings',
+    pathMatch: 'full'
   }
 ];

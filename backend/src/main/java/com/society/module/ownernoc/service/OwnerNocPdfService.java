@@ -171,6 +171,7 @@ public class OwnerNocPdfService {
                 .replace("{ownerName}", ownerName != null ? ownerName : "")
                 .replace("{unitNumber}", unitLabel != null ? unitLabel : "")
                 .replace("{societyName}", settings.getSocietyName() != null ? settings.getSocietyName() : "")
+                .replace("{registrationNumber}", settings.getRegistrationNumber() != null ? settings.getRegistrationNumber() : "")
                 .replace("{addressee}", request.getAddressee() != null ? request.getAddressee() : "")
                 .replace("{details}", request.getDetails() != null ? request.getDetails() : "")
                 .replace("{date}", LocalDate.now().format(DATE_FORMAT));

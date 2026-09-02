@@ -36,7 +36,7 @@ public class NocType extends BaseEntity {
     /**
      * Default certificate body template. Supports simple placeholders that are
      * substituted when generating the certificate:
-     *   {ownerName}, {unitNumber}, {societyName}, {addressee}, {details}, {date}
+     *   {ownerName}, {unitNumber}, {societyName}, {registrationNumber}, {addressee}, {details}, {date}
      */
     @Column(name = "default_template", columnDefinition = "TEXT")
     private String defaultTemplate;

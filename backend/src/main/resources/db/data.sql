@@ -283,7 +283,7 @@ WHERE current.category_id IS NULL;
 -- ============================================================
 -- NOC TYPES (configurable owner NOC certificate types + default templates)
 -- Placeholders supported in default_template:
---   {ownerName} {unitNumber} {societyName} {addressee} {details} {date}
+--   {ownerName} {unitNumber} {societyName} {registrationNumber} {addressee} {details} {date}
 -- ============================================================
 INSERT IGNORE INTO noc_types (noc_type_id, code, name, description, default_template, display_order, is_active) VALUES
 (1, 'LOAN_TRANSFER', 'Loan / Loan Transfer', 'NOC for bank loan or loan transfer against the flat',
