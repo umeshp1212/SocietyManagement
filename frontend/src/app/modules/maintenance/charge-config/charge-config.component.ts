@@ -12,6 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MaintenanceService } from '@core/services/maintenance.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-charge-config',
@@ -27,7 +28,7 @@ import { MaintenanceService } from '@core/services/maintenance.service';
           <a mat-raised-button color="accent" routerLink="/maintenance/water-charge-config">
             <mat-icon>water_drop</mat-icon> Water Charges
           </a>
-          <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm">
+          <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm" *ngIf="canManage()">
             <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
             {{ showAddForm ? 'Cancel' : 'Add Charge Type' }}
           </button>
@@ -137,13 +138,14 @@ import { MaintenanceService } from '@core/services/maintenance.service';
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let c">
-                <button mat-icon-button color="primary" (click)="editChargeConfig(c)">
+                <button mat-icon-button color="primary" (click)="editChargeConfig(c)" *ngIf="canManage()">
                   <mat-icon>edit</mat-icon>
                 </button>
                 <button mat-icon-button color="warn" (click)="deleteChargeConfig(c.chargeConfigId)"
-                        *ngIf="c.isActive">
+                        *ngIf="c.isActive && canManage()">
                   <mat-icon>toggle_off</mat-icon>
                 </button>
+                <span *ngIf="!canManage()" class="view-only">—</span>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
@@ -184,7 +186,11 @@ export class ChargeConfigComponent implements OnInit {
     isActive: true
   };
 
-  constructor(private maintenanceService: MaintenanceService) {}
+  constructor(private maintenanceService: MaintenanceService, private authService: AuthService) {}
+
+  canManage(): boolean {
+    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+  }
 
   ngOnInit(): void {
     this.loadConfigs();

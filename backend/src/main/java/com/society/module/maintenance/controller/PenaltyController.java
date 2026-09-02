@@ -6,6 +6,7 @@ import com.society.module.maintenance.service.PenaltyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class PenaltyController {
     private final PenaltyService penaltyService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<PenaltyDTO>> addPenalty(@RequestBody PenaltyDTO request) {
         PenaltyDTO penalty = penaltyService.addPenalty(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -44,6 +46,7 @@ public class PenaltyController {
     }
 
     @PutMapping("/{penaltyId}/cancel")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<PenaltyDTO>> cancelPenalty(@PathVariable Long penaltyId) {
         PenaltyDTO penalty = penaltyService.cancelPenalty(penaltyId);
         return ResponseEntity.ok(ApiResponse.success("Penalty cancelled", penalty));

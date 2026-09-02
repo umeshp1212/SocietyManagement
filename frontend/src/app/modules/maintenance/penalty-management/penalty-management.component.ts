@@ -10,9 +10,11 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { OwnerService } from '@core/services/owner.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-penalty-management',
@@ -20,7 +22,7 @@ import { OwnerService } from '@core/services/owner.service';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatIconModule, MatTableModule, MatChipsModule, MatSnackBarModule
+    MatIconModule, MatTableModule, MatChipsModule, MatSnackBarModule, MatTooltipModule
   ],
   template: `
     <div class="container">
@@ -31,8 +33,8 @@ import { OwnerService } from '@core/services/owner.service';
         </a>
       </div>
 
-      <!-- Add Penalty Form -->
-      <mat-card class="form-card">
+      <!-- Add Penalty Form (only for roles that can manage penalties) -->
+      <mat-card class="form-card" *ngIf="canManage()">
         <mat-card-header>
           <mat-card-title>Add Penalty</mat-card-title>
         </mat-card-header>
@@ -133,7 +135,8 @@ import { OwnerService } from '@core/services/owner.service';
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let p">
                 <button mat-icon-button color="warn" (click)="cancelPenalty(p.penaltyId)"
-                        *ngIf="p.status === 'PENDING'">
+                        matTooltip="Cancel penalty"
+                        *ngIf="p.status === 'PENDING' && canManage()">
                   <mat-icon>cancel</mat-icon>
                 </button>
               </td>
@@ -183,8 +186,13 @@ export class PenaltyManagementComponent implements OnInit {
     private fb: FormBuilder,
     private maintenanceService: MaintenanceService,
     private ownerService: OwnerService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private authService: AuthService
   ) {}
+
+  canManage(): boolean {
+    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+  }
 
   ngOnInit(): void {
     const now = new Date();

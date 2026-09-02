@@ -14,6 +14,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '@env/environment';
+import { AuthService } from '@core/services/auth.service';
 
 interface OpeningBalance {
   openingBalanceId: number;
@@ -47,7 +48,7 @@ interface UnitOption {
     <div class="container">
       <div class="page-header">
         <h2>Opening Balances (Legacy Arrears)</h2>
-        <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm">
+        <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm" *ngIf="canManage()">
           <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
           {{ showAddForm ? 'Cancel' : 'Add Opening Balance' }}
         </button>
@@ -160,7 +161,7 @@ interface UnitOption {
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let b">
-                <button mat-icon-button (click)="editBalance(b)" matTooltip="Edit">
+                <button mat-icon-button (click)="editBalance(b)" matTooltip="Edit" *ngIf="canManage()">
                   <mat-icon>edit</mat-icon>
                 </button>
               </td>
@@ -209,7 +210,11 @@ export class OpeningBalanceComponent implements OnInit {
 
   private apiUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private http: HttpClient, private snackBar: MatSnackBar, private authService: AuthService) {}
+
+  canManage(): boolean {
+    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+  }
 
   ngOnInit(): void {
     this.loadBalances();

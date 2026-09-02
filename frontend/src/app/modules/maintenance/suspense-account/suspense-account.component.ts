@@ -16,6 +16,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '@env/environment';
+import { AuthService } from '@core/services/auth.service';
 
 interface SuspenseEntry {
   suspenseId: number;
@@ -56,7 +57,7 @@ interface UnitOption {
     <div class="container">
       <div class="page-header">
         <h2>Suspense Account</h2>
-        <button mat-raised-button color="primary" (click)="showCreateForm = !showCreateForm">
+        <button mat-raised-button color="primary" (click)="showCreateForm = !showCreateForm" *ngIf="canManage()">
           <mat-icon>{{ showCreateForm ? 'close' : 'add' }}</mat-icon>
           {{ showCreateForm ? 'Cancel' : 'Add Suspense Entry' }}
         </button>
@@ -195,12 +196,12 @@ interface UnitOption {
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let e">
                 <button mat-icon-button (click)="openAssignDialog(e)"
-                        *ngIf="e.status === 'UNASSIGNED' || e.status === 'REVERSED'"
+                        *ngIf="(e.status === 'UNASSIGNED' || e.status === 'REVERSED') && canManage()"
                         matTooltip="Assign to Unit" color="primary">
                   <mat-icon>person_add</mat-icon>
                 </button>
                 <button mat-icon-button (click)="openReverseDialog(e)"
-                        *ngIf="e.status === 'ASSIGNED'"
+                        *ngIf="e.status === 'ASSIGNED' && canManage()"
                         matTooltip="Reverse Assignment" color="warn">
                   <mat-icon>undo</mat-icon>
                 </button>
@@ -382,7 +383,11 @@ export class SuspenseAccountComponent implements OnInit {
 
   private apiUrl = environment.apiUrl;
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private http: HttpClient, private snackBar: MatSnackBar, private authService: AuthService) {}
+
+  canManage(): boolean {
+    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+  }
 
   ngOnInit(): void {
     this.loadEntries();

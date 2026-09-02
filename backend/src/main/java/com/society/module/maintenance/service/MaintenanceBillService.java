@@ -9,6 +9,7 @@ import com.society.module.maintenance.entity.BillLineItem;
 import com.society.module.maintenance.entity.MaintenanceBill;
 import com.society.module.maintenance.entity.MaintenanceBill.BillStatus;
 import com.society.module.maintenance.entity.MaintenanceChargeConfig;
+import com.society.module.maintenance.entity.MaintenanceLedger;
 import com.society.module.maintenance.entity.MaintenanceChargeConfig.ApplicableTo;
 import com.society.module.maintenance.entity.MaintenanceChargeConfig.CalculationType;
 import com.society.module.maintenance.entity.MaintenancePayment;
@@ -22,14 +23,17 @@ import com.society.module.maintenance.repository.MaintenanceChargeConfigReposito
 import com.society.module.maintenance.repository.MaintenancePaymentRepository;
 import com.society.module.maintenance.repository.OpeningBalanceRepository;
 import com.society.module.maintenance.repository.PenaltyRepository;
+import com.society.common.OptimisticRetry;
 import com.society.module.owner.entity.Unit;
 import com.society.module.owner.repository.UnitRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,11 +59,42 @@ public class MaintenanceBillService {
     private final WaterChargeConfigService waterChargeConfigService;
     private final PenaltyRepository penaltyRepository;
     private final OpeningBalanceRepository openingBalanceRepository;
+    private final OptimisticRetry optimisticRetry;
+    private final ReceiptNumberService receiptNumberService;
+    private final MaintenanceLedgerService ledgerService;
+    private final com.society.module.maintenance.repository.MaintenanceLedgerRepository ledgerRepository;
+
+    /**
+     * Flat late fee applied once to a bill when the unit is carrying arrears. Default 0
+     * (disabled). Configure via app.maintenance.late-fee to enable for a society.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.maintenance.late-fee:0}")
+    private BigDecimal lateFeeAmount;
+
+    /**
+     * Self-reference (through the Spring proxy) so retry can re-invoke the @Transactional
+     * core method in a FRESH transaction. A plain this.method() call would bypass the proxy
+     * and reuse the same (already-failed) transaction. @Lazy breaks the self-injection cycle.
+     */
+    @Autowired
+    @Lazy
+    private MaintenanceBillService self;
 
     /**
      * Interest rate: 1% per month on unpaid arrears
      */
     private static final BigDecimal MONTHLY_INTEREST_RATE = new BigDecimal("0.01");
+
+    /**
+     * Single money rounding policy for the whole module: 2 decimal places (paise),
+     * HALF_UP. Every computed money value passes through {@link #money(BigDecimal)} so line
+     * items, interest, and totals reconcile exactly and there is no scale-0-vs-scale-2 drift.
+     */
+    private static final int MONEY_SCALE = 2;
+
+    private static BigDecimal money(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value.setScale(MONEY_SCALE, RoundingMode.HALF_UP);
+    }
 
     // ======================== BILL GENERATION ========================
 
@@ -90,12 +125,31 @@ public class MaintenanceBillService {
                     MaintenanceBill existingBill = existingBillOpt.get();
                     // Only regenerate UNPAID bills - don't touch paid/partially paid
                     if (existingBill.getStatus() == BillStatus.UNPAID) {
+                        // Revert any penalties that were consumed (marked BILLED) when this bill
+                        // was first generated back to PENDING, so generateBillForUnit re-attaches
+                        // them to the regenerated bill instead of silently dropping them.
+                        List<Penalty> billedPenalties = penaltyRepository
+                                .findByUnit_UnitIdAndBillMonthAndBillYearAndStatus(
+                                        unit.getUnitId(), request.getMonth(), request.getYear(),
+                                        PenaltyStatus.BILLED);
+                        for (Penalty p : billedPenalties) {
+                            p.setStatus(PenaltyStatus.PENDING);
+                        }
+                        if (!billedPenalties.isEmpty()) {
+                            penaltyRepository.saveAll(billedPenalties);
+                            penaltyRepository.flush();
+                        }
+
                         billRepository.delete(existingBill);
                         billRepository.flush();
                         // Generate fresh bill
                         MaintenanceBill newBill = generateBillForUnit(unit, activeCharges, request);
                         if (newBill != null) {
                             billRepository.save(newBill);
+                            ledgerService.record(newBill, null,
+                                    MaintenanceLedger.EntryType.BILL_GENERATED, newBill.getTotalAmount(),
+                                    BigDecimal.ZERO, newBill.getBalanceAmount(),
+                                    MaintenanceLedger.Source.SYSTEM, null, "Bill regenerated");
                             billsRegenerated++;
                         }
                     }
@@ -108,6 +162,10 @@ public class MaintenanceBillService {
             MaintenanceBill bill = generateBillForUnit(unit, activeCharges, request);
             if (bill != null) {
                 billRepository.save(bill);
+                ledgerService.record(bill, null,
+                        MaintenanceLedger.EntryType.BILL_GENERATED, bill.getTotalAmount(),
+                        BigDecimal.ZERO, bill.getBalanceAmount(),
+                        MaintenanceLedger.Source.SYSTEM, null, "Bill generated");
                 billsGenerated++;
             }
         }
@@ -203,17 +261,26 @@ public class MaintenanceBillService {
 
         // Calculate arrears and interest from previous month's unpaid balance
         BigDecimal previousArrears = calculatePreviousArrears(unit.getUnitId(), request.getMonth(), request.getYear());
-        BigDecimal interestOnArrears = previousArrears.multiply(MONTHLY_INTEREST_RATE)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal interestOnArrears = money(previousArrears.multiply(MONTHLY_INTEREST_RATE));
+
+        // Late fee: a flat, configurable charge applied ONCE when a unit is carrying arrears
+        // (i.e. it defaulted on a previous bill). Distinct from interest-on-arrears, which is
+        // the time-value cost of the outstanding amount. Defaults to 0 (disabled) so existing
+        // societies see no change unless they explicitly configure app.maintenance.late-fee.
+        BigDecimal lateFee = BigDecimal.ZERO;
+        if (lateFeeAmount != null && lateFeeAmount.compareTo(BigDecimal.ZERO) > 0
+                && previousArrears.compareTo(BigDecimal.ZERO) > 0) {
+            lateFee = money(lateFeeAmount);
+        }
 
         // Set bill amounts
         bill.setAmount(currentChargesTotal);
         bill.setPreviousArrears(previousArrears);
         bill.setInterestOnArrears(interestOnArrears);
-        bill.setLateFee(BigDecimal.ZERO);
+        bill.setLateFee(lateFee);
 
-        // Total = current charges + previous arrears + interest
-        BigDecimal totalAmount = currentChargesTotal.add(previousArrears).add(interestOnArrears);
+        // Total = current charges + previous arrears + interest + late fee
+        BigDecimal totalAmount = money(currentChargesTotal.add(previousArrears).add(interestOnArrears).add(lateFee));
         bill.setTotalAmount(totalAmount);
         bill.setBalanceAmount(totalAmount);
         bill.setPaidAmount(BigDecimal.ZERO);
@@ -261,32 +328,33 @@ public class MaintenanceBillService {
         if ("WATER_CHARGES".equals(charge.getChargeCode())) {
             BigDecimal waterCharge = waterChargeConfigService.computeWaterChargeForUnit(unit);
             if (waterCharge.compareTo(BigDecimal.ZERO) > 0) {
-                return waterCharge;
+                return money(waterCharge);
             }
             // Fall back to flat amount from config if no water charge config and no unit-specific amount
-            return charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO;
+            return money(charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO);
         }
 
         // Special handling: Parking charges multiply by vehicle count
         if (charge.getApplicableTo() == ApplicableTo.TWO_WHEELER) {
             int count = unit.getTwoWheelerCount() != null ? unit.getTwoWheelerCount() : 0;
             BigDecimal rate = charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO;
-            return rate.multiply(BigDecimal.valueOf(count));
+            return money(rate.multiply(BigDecimal.valueOf(count)));
         }
         if (charge.getApplicableTo() == ApplicableTo.FOUR_WHEELER) {
             int count = unit.getFourWheelerCount() != null ? unit.getFourWheelerCount() : 0;
             BigDecimal rate = charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO;
-            return rate.multiply(BigDecimal.valueOf(count));
+            return money(rate.multiply(BigDecimal.valueOf(count)));
         }
 
         if (charge.getCalculationType() == CalculationType.AREA_BASED) {
             if (charge.getRatePerSqft() == null || areaSqft == null || areaSqft.compareTo(BigDecimal.ZERO) <= 0) {
                 return BigDecimal.ZERO;
             }
-            return charge.getRatePerSqft().multiply(areaSqft).setScale(0, RoundingMode.HALF_UP);
+            // Consistent scale-2 rounding (was scale 0 / whole rupees, which broke reconciliation).
+            return money(charge.getRatePerSqft().multiply(areaSqft));
         } else {
             // FLAT amount
-            return charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO;
+            return money(charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO);
         }
     }
 
@@ -375,8 +443,17 @@ public class MaintenanceBillService {
 
     // ======================== PAYMENT ========================
 
-    @Transactional
+    /**
+     * Public entry point: retries the transactional core on optimistic-lock conflicts so a
+     * concurrent payment on the same bill cannot cause a lost update.
+     */
     public PaymentDTO recordOfflinePayment(RecordOfflinePaymentRequest request) {
+        return optimisticRetry.execute("record offline payment",
+                () -> self.recordOfflinePaymentTransactional(request));
+    }
+
+    @Transactional
+    public PaymentDTO recordOfflinePaymentTransactional(RecordOfflinePaymentRequest request) {
         MaintenanceBill bill = billRepository.findById(request.getBillId())
                 .orElseThrow(() -> new ResourceNotFoundException("Bill not found with id: " + request.getBillId()));
 
@@ -406,6 +483,7 @@ public class MaintenanceBillService {
         paymentRepository.save(payment);
 
         // Update bill amounts
+        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
         BigDecimal paidAmount = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         paidAmount = paidAmount.add(request.getAmount());
         bill.setPaidAmount(paidAmount);
@@ -420,7 +498,120 @@ public class MaintenanceBillService {
 
         billRepository.save(bill);
 
+        // Audit: record the money mutation
+        ledgerService.record(bill, payment.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_APPLIED, request.getAmount(),
+                balanceBefore, bill.getBalanceAmount(),
+                MaintenanceLedger.Source.OFFLINE, payment.getReceiptNumber(),
+                request.getRemarks());
+
         return mapToPaymentDTO(payment);
+    }
+
+    // ======================== PAYMENT REVERSAL ========================
+
+    /**
+     * Reverse (void) a payment. Restores the payment amount to the bill's outstanding
+     * balance, recomputes status, marks the payment REVERSED, and writes an audit entry.
+     * Retried on optimistic-lock conflict so a concurrent update can't corrupt the balance.
+     */
+    public PaymentDTO reversePayment(Long paymentId, String reason) {
+        return optimisticRetry.execute("reverse payment",
+                () -> self.reversePaymentTransactional(paymentId, reason));
+    }
+
+    @Transactional
+    public PaymentDTO reversePaymentTransactional(Long paymentId, String reason) {
+        MaintenancePayment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
+
+        if (payment.getStatus() == PaymentStatus.REVERSED) {
+            throw new BusinessException("Payment has already been reversed");
+        }
+        if (payment.getStatus() == PaymentStatus.FAILED) {
+            throw new BusinessException("A failed payment cannot be reversed");
+        }
+
+        MaintenanceBill bill = payment.getBill();
+        if (bill == null) {
+            throw new BusinessException("Payment is not linked to a bill and cannot be reversed here");
+        }
+
+        BigDecimal amount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
+
+        // Restore the amount to the bill: reduce paidAmount, recompute balance (clamped to total).
+        BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal newPaid = paidSoFar.subtract(amount).max(BigDecimal.ZERO);
+        bill.setPaidAmount(newPaid);
+        BigDecimal newBalance = bill.getTotalAmount().subtract(newPaid).max(BigDecimal.ZERO);
+        bill.setBalanceAmount(newBalance);
+
+        if (newPaid.compareTo(BigDecimal.ZERO) <= 0) {
+            bill.setStatus(BillStatus.UNPAID);
+        } else if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            bill.setStatus(BillStatus.PAID);
+        } else {
+            bill.setStatus(BillStatus.PARTIALLY_PAID);
+        }
+        billRepository.save(bill);
+
+        // Mark the payment reversed (kept for audit; never deleted).
+        payment.setStatus(PaymentStatus.REVERSED);
+        payment.setReversedOn(LocalDateTime.now());
+        payment.setReversedBy(currentUsername());
+        payment.setReversalReason(reason);
+        paymentRepository.save(payment);
+
+        // Audit: negative amount reflects that this removes previously-credited money.
+        ledgerService.record(bill, payment.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_REVERSED, amount.negate(),
+                balanceBefore, newBalance,
+                MaintenanceLedger.Source.ADMIN, payment.getReceiptNumber(), reason);
+
+        log.info("Payment {} reversed (amount {}), bill {} balance {} -> {}",
+                paymentId, amount, bill.getBillId(), balanceBefore, newBalance);
+
+        return mapToPaymentDTO(payment);
+    }
+
+    private String currentUsername() {
+        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getName() != null
+                && !"anonymousUser".equalsIgnoreCase(auth.getName())) {
+            return auth.getName();
+        }
+        return "ADMIN";
+    }
+
+    // ======================== LEDGER QUERIES ========================
+
+    public List<LedgerEntryDTO> getLedgerByBill(Long billId) {
+        return ledgerRepository.findByBillIdOrderByPerformedOnAscLedgerIdAsc(billId)
+                .stream().map(this::mapToLedgerDTO).collect(Collectors.toList());
+    }
+
+    public List<LedgerEntryDTO> getLedgerByUnit(Long unitId) {
+        return ledgerRepository.findByUnitIdOrderByPerformedOnDescLedgerIdDesc(unitId)
+                .stream().map(this::mapToLedgerDTO).collect(Collectors.toList());
+    }
+
+    private LedgerEntryDTO mapToLedgerDTO(MaintenanceLedger e) {
+        return LedgerEntryDTO.builder()
+                .ledgerId(e.getLedgerId())
+                .billId(e.getBillId())
+                .unitId(e.getUnitId())
+                .paymentId(e.getPaymentId())
+                .entryType(e.getEntryType() != null ? e.getEntryType().name() : null)
+                .amount(e.getAmount())
+                .balanceBefore(e.getBalanceBefore())
+                .balanceAfter(e.getBalanceAfter())
+                .source(e.getSource() != null ? e.getSource().name() : null)
+                .reference(e.getReference())
+                .performedBy(e.getPerformedBy())
+                .performedOn(e.getPerformedOn())
+                .reason(e.getReason())
+                .build();
     }
 
     public PagedResponse<PaymentDTO> getPaymentsByUnit(Long unitId, int page, int size) {
@@ -478,9 +669,7 @@ public class MaintenanceBillService {
     // ======================== HELPERS ========================
 
     private String generateReceiptNumber() {
-        String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        int randomPart = new Random().nextInt(9000) + 1000;
-        return "RCP-" + datePart + "-" + randomPart;
+        return receiptNumberService.next();
     }
 
     private BillDTO mapToBillDTO(MaintenanceBill bill) {
@@ -551,6 +740,9 @@ public class MaintenanceBillService {
                 .remarks(payment.getRemarks())
                 .verifiedOn(payment.getVerifiedOn())
                 .verifiedBy(payment.getVerifiedBy())
+                .reversedOn(payment.getReversedOn())
+                .reversedBy(payment.getReversedBy())
+                .reversalReason(payment.getReversalReason())
                 .build();
     }
 }

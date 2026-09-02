@@ -128,8 +128,18 @@ app:
     return-url: ${CASHFREE_RETURN_URL:http://YOUR_ELASTIC_IP/maintenance/payment-status}
     notify-url: ${CASHFREE_NOTIFY_URL:http://YOUR_ELASTIC_IP/api/maintenance/payments/webhook}
 
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:}
+    key-secret: ${RAZORPAY_KEY_SECRET:}
+    # Dashboard-configured webhook secret; REQUIRED in prod to verify X-Razorpay-Signature.
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+
   base-url: ${APP_BASE_URL:http://YOUR_ELASTIC_IP/api}
   frontend-url: ${FRONTEND_URL:http://YOUR_ELASTIC_IP}
 
   password-reset:
     token-expiry-minutes: 30
+
+  maintenance:
+    # Flat late fee applied once to a bill when the unit is carrying arrears. 0 = disabled.
+    late-fee: ${MAINTENANCE_LATE_FEE:0}

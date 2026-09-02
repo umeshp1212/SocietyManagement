@@ -10,6 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MaintenanceService } from '@core/services/maintenance.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-generate-bills',
@@ -25,7 +26,14 @@ import { MaintenanceService } from '@core/services/maintenance.service';
         </a>
       </div>
 
-      <mat-card>
+      <mat-card *ngIf="!canManage()" class="no-access-card">
+        <mat-card-content>
+          <mat-icon color="warn">lock</mat-icon>
+          <p>You don't have permission to generate maintenance bills.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card *ngIf="canManage()">
         <mat-card-content>
           <form class="generate-form" (ngSubmit)="generate()">
             <mat-form-field appearance="outline">
@@ -96,13 +104,18 @@ export class GenerateBillsComponent {
   months = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
-  constructor(private maintenanceService: MaintenanceService) {
+  constructor(private maintenanceService: MaintenanceService, private authService: AuthService) {
     const now = new Date();
     this.selectedMonth = now.getMonth() + 1;
     this.selectedYear = now.getFullYear();
   }
 
+  canManage(): boolean {
+    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+  }
+
   generate(): void {
+    if (!this.canManage()) { return; }
     this.loading = true;
     this.result = null;
     this.maintenanceService.generateBills(this.selectedMonth, this.selectedYear, this.dueDay, this.regenerate)

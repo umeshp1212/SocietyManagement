@@ -38,6 +38,7 @@ public class MaintenanceController {
     // ======================== BILL MANAGEMENT ========================
 
     @PostMapping("/bills/generate")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> generateBills(
             @Valid @RequestBody GenerateBillsRequest request) {
         Map<String, Object> result = billService.generateMonthlyBills(request);
@@ -100,6 +101,7 @@ public class MaintenanceController {
     // ======================== PAYMENT ========================
 
     @PostMapping("/payments/offline")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<PaymentDTO>> recordOfflinePayment(
             @Valid @RequestBody RecordOfflinePaymentRequest request) {
         PaymentDTO payment = billService.recordOfflinePayment(request);
@@ -119,6 +121,32 @@ public class MaintenanceController {
     public ResponseEntity<ApiResponse<List<PaymentDTO>>> getPaymentsByBill(@PathVariable Long billId) {
         List<PaymentDTO> payments = billService.getPaymentsByBill(billId);
         return ResponseEntity.ok(ApiResponse.success("Payments fetched", payments));
+    }
+
+    /**
+     * Reverse (void) a recorded payment. Admin-only, mandatory reason, fully audited.
+     */
+    @PostMapping("/payments/{paymentId}/reverse")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    public ResponseEntity<ApiResponse<PaymentDTO>> reversePayment(
+            @PathVariable Long paymentId,
+            @Valid @RequestBody com.society.module.maintenance.dto.ReversePaymentRequest request) {
+        PaymentDTO reversed = billService.reversePayment(paymentId, request.getReason());
+        return ResponseEntity.ok(ApiResponse.success("Payment reversed", reversed));
+    }
+
+    // ======================== LEDGER / AUDIT ========================
+
+    @GetMapping("/ledger/bill/{billId}")
+    public ResponseEntity<ApiResponse<List<com.society.module.maintenance.dto.LedgerEntryDTO>>> getLedgerByBill(
+            @PathVariable Long billId) {
+        return ResponseEntity.ok(ApiResponse.success("Ledger fetched", billService.getLedgerByBill(billId)));
+    }
+
+    @GetMapping("/ledger/unit/{unitId}")
+    public ResponseEntity<ApiResponse<List<com.society.module.maintenance.dto.LedgerEntryDTO>>> getLedgerByUnit(
+            @PathVariable Long unitId) {
+        return ResponseEntity.ok(ApiResponse.success("Ledger fetched", billService.getLedgerByUnit(unitId)));
     }
 
     // ======================== CASHFREE / PAYMENT LINK ========================

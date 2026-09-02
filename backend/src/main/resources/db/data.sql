@@ -34,6 +34,63 @@ ALTER TABLE voucher_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_
 
 
 -- ============================================================
+-- SCHEMA MIGRATION: optimistic-locking version columns
+-- ============================================================
+-- MaintenanceBill and MaintenancePayment now carry a JPA @Version column for optimistic
+-- locking (prevents lost updates / double credits when concurrent payments hit the same
+-- bill). Hibernate (ddl-auto=update) ADDS the `version` column but leaves existing rows
+-- NULL; a NULL @Version breaks the first update of a pre-existing row. This backfill sets
+-- any NULL version to 0. It is idempotent (rows already at a value are untouched) and runs
+-- AFTER Hibernate DDL because spring.jpa.defer-datasource-initialization=true.
+UPDATE maintenance_bills    SET version = 0 WHERE version IS NULL;
+UPDATE maintenance_payments SET version = 0 WHERE version IS NULL;
+
+
+-- ============================================================
+-- SCHEMA MIGRATION: unique, sequence-based receipt numbers
+-- ============================================================
+-- Receipt numbers were previously RCP-yyyyMMdd-<random 4 digits>, which could collide and
+-- had no uniqueness guarantee. They are now generated from the receipt_sequences table
+-- (RCP-YYYYMM-NNNNN). Two things are made safe here for EXISTING databases:
+--
+-- 1) De-duplicate any legacy receipt numbers so the unique index below can be created.
+--    Duplicates (and NULLs) get a unique deterministic suffix based on payment_id. This is
+--    idempotent: once every receipt_number is unique, the UPDATE matches no rows.
+UPDATE maintenance_payments mp
+JOIN (
+    SELECT payment_id
+    FROM (
+        SELECT payment_id,
+               ROW_NUMBER() OVER (PARTITION BY receipt_number ORDER BY payment_id) AS rn
+        FROM maintenance_payments
+        WHERE receipt_number IS NOT NULL
+    ) ranked
+    WHERE ranked.rn > 1
+) dups ON dups.payment_id = mp.payment_id
+SET mp.receipt_number = CONCAT(COALESCE(mp.receipt_number, 'RCP'), '-DUP-', mp.payment_id);
+
+UPDATE maintenance_payments
+SET receipt_number = CONCAT('RCP-LEGACY-', payment_id)
+WHERE receipt_number IS NULL;
+
+-- 2) Add the unique index if it does not already exist (Hibernate may or may not have
+--    created uk_payment_receipt_number depending on data state). Guarded so re-running is a
+--    no-op and never errors on "duplicate key name".
+SET @idx_exists := (
+    SELECT COUNT(*) FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = 'maintenance_payments'
+      AND index_name = 'uk_payment_receipt_number'
+);
+SET @ddl := IF(@idx_exists = 0,
+    'ALTER TABLE maintenance_payments ADD CONSTRAINT uk_payment_receipt_number UNIQUE (receipt_number)',
+    'SELECT 1');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+
+-- ============================================================
 -- Initialize Voucher Sequences for FY 2026-27
 -- ============================================================
 INSERT IGNORE INTO voucher_sequences (sequence_id, voucher_type, financial_year, last_number) VALUES

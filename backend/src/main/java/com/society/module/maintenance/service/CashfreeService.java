@@ -7,6 +7,7 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.society.exception.BusinessException;
 import com.society.module.maintenance.entity.MaintenanceBill;
+import com.society.module.maintenance.entity.MaintenanceLedger;
 import com.society.module.maintenance.entity.MaintenancePayment;
 import com.society.module.maintenance.repository.MaintenanceBillRepository;
 import com.society.module.maintenance.repository.MaintenancePaymentRepository;
@@ -19,10 +20,13 @@ import com.society.module.owner.entity.UnitOwner;
 import com.society.module.owner.repository.OwnerRepository;
 import com.society.module.owner.repository.UnitOwnerRepository;
 import com.society.module.settings.service.SocietySettingsService;
+import com.society.common.OptimisticRetry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -56,7 +60,16 @@ public class CashfreeService {
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
     private final Environment environment;
+    private final OptimisticRetry optimisticRetry;
+    private final ReceiptNumberService receiptNumberService;
+    private final MaintenanceLedgerService ledgerService;
+    private final SuspenseService suspenseService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /** Self-proxy so retry re-invokes @Transactional cores in a fresh transaction. */
+    @Autowired
+    @Lazy
+    private CashfreeService self;
 
     @Value("${app.cashfree.app-id:}")
     private String cashfreeAppId;
@@ -237,7 +250,6 @@ public class CashfreeService {
      *         duplicate/non-success); false if the signature is invalid and the caller
      *         should respond with 401 so the sender is not told it succeeded.
      */
-    @Transactional
     @SuppressWarnings("unchecked")
     public boolean handlePaymentWebhook(String rawBody, String signature, String timestamp) {
         // ---- 1. Authenticate the payload BEFORE trusting anything in it ----
@@ -289,49 +301,77 @@ public class CashfreeService {
                 return true;
             }
 
-            Optional<MaintenanceBill> billOptional = billRepository.findByCashfreeOrderId(orderId);
-            if (billOptional.isEmpty()) {
-                log.warn("No bill found for cashfree orderId: {}", orderId);
-                return true;
-            }
-
-            MaintenanceBill bill = billOptional.get();
-
-            MaintenancePayment payment = new MaintenancePayment();
-            payment.setBill(bill);
-            payment.setUnit(bill.getUnit());
-            payment.setPaymentMode(MaintenancePayment.PaymentMode.CASHFREE_LINK);
-            payment.setStatus(MaintenancePayment.PaymentStatus.SUCCESS);
-            payment.setCashfreePaymentId(paymentId);
-            payment.setCashfreeOrderId(orderId);
-            payment.setAmount(paymentAmount);
-            payment.setPaymentDate(LocalDate.now());
-            payment.setReceiptNumber(generateWebhookReceiptNumber());
-            paymentRepository.save(payment);
-
-            // ---- 3. Update bill totals, clamping balance so overpay can't go negative ----
-            BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
-            BigDecimal newPaidAmount = paidSoFar.add(paymentAmount);
-            bill.setPaidAmount(newPaidAmount);
-            BigDecimal newBalance = bill.getTotalAmount().subtract(newPaidAmount).max(BigDecimal.ZERO);
-            bill.setBalanceAmount(newBalance);
-
-            if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
-                bill.setStatus(MaintenanceBill.BillStatus.PAID);
-            } else {
-                bill.setStatus(MaintenanceBill.BillStatus.PARTIALLY_PAID);
-            }
-
-            billRepository.save(bill);
-            log.info("Payment successful for bill: {}, amount: {}", bill.getBillId(), paymentAmount);
+            // ---- 3. Apply the credit in a retried transaction (guards against concurrent
+            //          updates on the same bill via optimistic locking). ----
+            final String fOrderId = orderId;
+            final String fPaymentId = paymentId;
+            final BigDecimal fAmount = paymentAmount;
+            optimisticRetry.executeVoid("apply cashfree webhook payment",
+                    () -> self.applyWebhookPayment(fOrderId, fPaymentId, fAmount));
             return true;
 
         } catch (Exception e) {
-            // Re-throw so the surrounding @Transactional rolls back and the controller does
-            // NOT return 200. Cashfree then retries, rather than us silently losing a payment.
+            // Re-throw so the controller does NOT return 200. Cashfree then retries,
+            // rather than us silently losing a payment.
             log.error("Error processing payment webhook: {}", e.getMessage(), e);
             throw new BusinessException("Failed to process payment webhook");
         }
+    }
+
+    /**
+     * Transactional core of the webhook credit. Re-reads the bill (fresh @Version) and
+     * applies the payment; runs inside its own transaction so {@link OptimisticRetry} can
+     * safely re-run it on a concurrent-update conflict. Re-checks dedup inside the
+     * transaction to close the race between the outer pre-check and the commit.
+     */
+    @Transactional
+    public void applyWebhookPayment(String orderId, String paymentId, BigDecimal paymentAmount) {
+        if (paymentId != null && paymentRepository.findByCashfreePaymentId(paymentId).isPresent()) {
+            log.info("Duplicate webhook ignored (in-tx) - cashfree paymentId {} already recorded", paymentId);
+            return;
+        }
+
+        Optional<MaintenanceBill> billOptional = billRepository.findByCashfreeOrderId(orderId);
+        if (billOptional.isEmpty()) {
+            log.warn("No bill found for cashfree orderId: {}", orderId);
+            return;
+        }
+
+        MaintenanceBill bill = billOptional.get();
+        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
+
+        MaintenancePayment payment = new MaintenancePayment();
+        payment.setBill(bill);
+        payment.setUnit(bill.getUnit());
+        payment.setPaymentMode(MaintenancePayment.PaymentMode.CASHFREE_LINK);
+        payment.setStatus(MaintenancePayment.PaymentStatus.SUCCESS);
+        payment.setCashfreePaymentId(paymentId);
+        payment.setCashfreeOrderId(orderId);
+        payment.setAmount(paymentAmount);
+        payment.setPaymentDate(LocalDate.now());
+        payment.setReceiptNumber(generateWebhookReceiptNumber());
+        paymentRepository.save(payment);
+
+        // Update bill totals, clamping balance so overpay can't go negative.
+        BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal newPaidAmount = paidSoFar.add(paymentAmount);
+        bill.setPaidAmount(newPaidAmount);
+        BigDecimal newBalance = bill.getTotalAmount().subtract(newPaidAmount).max(BigDecimal.ZERO);
+        bill.setBalanceAmount(newBalance);
+
+        if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            bill.setStatus(MaintenanceBill.BillStatus.PAID);
+        } else {
+            bill.setStatus(MaintenanceBill.BillStatus.PARTIALLY_PAID);
+        }
+
+        billRepository.save(bill);
+
+        ledgerService.record(bill, payment.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_APPLIED, paymentAmount,
+                balanceBefore, newBalance,
+                MaintenanceLedger.Source.CASHFREE_WEBHOOK, paymentId, "Cashfree webhook payment");
+        log.info("Payment successful for bill: {}, amount: {}", bill.getBillId(), paymentAmount);
     }
 
     /**
@@ -382,9 +422,7 @@ public class CashfreeService {
     }
 
     private String generateWebhookReceiptNumber() {
-        return "RCP-"
-                + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + "-" + (new Random().nextInt(9000) + 1000);
+        return receiptNumberService.next();
     }
 
     public Map<String, Object> getPaymentStatus(String orderId) {
@@ -601,14 +639,18 @@ public class CashfreeService {
     /**
      * Verify Cashfree payment by checking order status and record the payment.
      */
-    @Transactional
+    /**
+     * Public entry: verifies payment status with Cashfree (external call, NOT retried),
+     * then applies the allocation in a retried transaction so concurrent updates to the
+     * same bills can't cause a lost update.
+     */
     public MaintenancePayment verifyAndRecordMemberPayment(Long ownerId, VerifyPaymentRequest request) {
         boolean owns = unitOwnerRepository.existsByUnit_UnitIdAndOwner_OwnerId(request.getUnitId(), ownerId);
         if (!owns) {
             throw new BusinessException("You don't have access to this unit");
         }
 
-        // Check order status with Cashfree API
+        // Check order status with Cashfree API (external, outside any transaction/retry)
         Map<String, Object> orderStatus = getPaymentStatus(request.getCashfreeOrderId());
         String status = (String) orderStatus.get("order_status");
 
@@ -616,7 +658,13 @@ public class CashfreeService {
             throw new BusinessException("Payment not confirmed. Current status: " + status);
         }
 
-        // Check for duplicate
+        return optimisticRetry.execute("record cashfree member payment",
+                () -> self.applyMemberPayment(ownerId, request));
+    }
+
+    @Transactional
+    public MaintenancePayment applyMemberPayment(Long ownerId, VerifyPaymentRequest request) {
+        // Check for duplicate (inside the transaction to close the race with the commit)
         if (paymentRepository.findByCashfreeOrderId(request.getCashfreeOrderId()).isPresent()) {
             throw new BusinessException("This payment has already been recorded.");
         }
@@ -659,6 +707,18 @@ public class CashfreeService {
             throw new BusinessException("No outstanding bills found to apply payment.");
         }
 
+        // Overpayment: park any leftover in an UNASSIGNED suspense entry instead of dropping it.
+        if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
+            suspenseService.createSuspenseEntry(
+                    remainingAmount, LocalDate.now(),
+                    com.society.enums.PaymentMode.ONLINE.name(), request.getCashfreeOrderId(),
+                    "Overpayment from Cashfree order " + request.getCashfreeOrderId()
+                            + " (unit " + request.getUnitId() + ")",
+                    owner.getFullName());
+            log.info("Overpayment of ₹{} parked in suspense for cashfree order {}",
+                    remainingAmount, request.getCashfreeOrderId());
+        }
+
         log.info("Cashfree payment verified and recorded - orderId: {}, amount: ₹{}, unit: {}",
                 request.getCashfreeOrderId(), request.getAmount(), request.getUnitId());
 
@@ -667,8 +727,8 @@ public class CashfreeService {
 
     private MaintenancePayment recordCashfreePayment(MaintenanceBill bill, BigDecimal payAmount,
                                                       VerifyPaymentRequest request, Owner owner) {
-        String receiptNumber = "RCP-" + LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"))
-                + "-" + (new Random().nextInt(9000) + 1000);
+        String receiptNumber = receiptNumberService.next();
+        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
 
         MaintenancePayment payment = MaintenancePayment.builder()
                 .bill(bill)
@@ -705,13 +765,21 @@ public class CashfreeService {
         }
         billRepository.save(bill);
 
+        ledgerService.record(bill, payment.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_APPLIED, payAmount,
+                balanceBefore, bill.getBalanceAmount(),
+                MaintenanceLedger.Source.CASHFREE_MEMBER, request.getCashfreeOrderId(),
+                "Cashfree member payment");
+
         return payment;
     }
 
     private BigDecimal getPrincipalOutstanding(MaintenanceBill bill) {
         BigDecimal currentCharges = bill.getAmount() != null ? bill.getAmount() : BigDecimal.ZERO;
         BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
-        BigDecimal totalPrincipal = currentCharges.add(arrears);
+        BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
+        // Late fee is a fixed charge, settled with principal (before interest).
+        BigDecimal totalPrincipal = currentCharges.add(arrears).add(lateFee);
         BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         return totalPrincipal.subtract(paidSoFar).max(BigDecimal.ZERO);
     }
@@ -722,7 +790,8 @@ public class CashfreeService {
 
         BigDecimal currentCharges = bill.getAmount() != null ? bill.getAmount() : BigDecimal.ZERO;
         BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
-        BigDecimal totalPrincipal = currentCharges.add(arrears);
+        BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
+        BigDecimal totalPrincipal = currentCharges.add(arrears).add(lateFee);
         BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal paidTowardsInterest = paidSoFar.subtract(totalPrincipal).max(BigDecimal.ZERO);
         return interest.subtract(paidTowardsInterest).max(BigDecimal.ZERO);

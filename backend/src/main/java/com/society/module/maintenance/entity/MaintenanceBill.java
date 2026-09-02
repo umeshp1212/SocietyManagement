@@ -26,6 +26,17 @@ public class MaintenanceBill extends BaseEntity {
     @Column(name = "bill_id")
     private Long billId;
 
+    /**
+     * Optimistic-locking version. Every update to a bill (applying a payment, changing
+     * status/balance) bumps this. Two concurrent payment transactions on the same bill
+     * will collide here — the second commit fails with an optimistic-lock exception and
+     * is retried on a fresh read, preventing lost updates / double credits.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;

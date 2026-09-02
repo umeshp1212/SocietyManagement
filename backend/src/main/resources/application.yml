@@ -84,6 +84,8 @@ app:
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
+    # Dashboard-configured webhook secret; used to verify X-Razorpay-Signature.
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
   otp:
     expiry-minutes: 5
     max-attempts: 5
@@ -92,3 +94,6 @@ app:
   frontend-url: http://localhost:4200
   password-reset:
     token-expiry-minutes: 30
+  maintenance:
+    # Flat late fee applied once to a bill when the unit is carrying arrears. 0 = disabled.
+    late-fee: ${MAINTENANCE_LATE_FEE:0}

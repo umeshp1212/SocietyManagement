@@ -11,15 +11,19 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { AuthService } from '@core/services/auth.service';
+import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse-payment-dialog.component';
 
 @Component({
   selector: 'app-bill-detail',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, MatCardModule, MatButtonModule,
     MatIconModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatTableModule,
-    MatChipsModule, MatDividerModule],
+    MatChipsModule, MatDividerModule, MatTooltipModule, MatDialogModule, MatSnackBarModule],
   template: `
     <div class="container" *ngIf="bill">
       <div class="page-header">
@@ -92,6 +96,10 @@ import { AuthService } from '@core/services/auth.service';
               <tr *ngIf="bill.interestOnArrears > 0" class="arrears-row">
                 <td colspan="3" class="text-right">Interest on Arrears (1% per month)</td>
                 <td class="amt-col">{{ bill.interestOnArrears | number:'1.2-2' }}</td>
+              </tr>
+              <tr *ngIf="bill.lateFee > 0" class="arrears-row">
+                <td colspan="3" class="text-right">Late Fee</td>
+                <td class="amt-col">{{ bill.lateFee | number:'1.2-2' }}</td>
               </tr>
               <tr class="total-row">
                 <td colspan="3" class="text-right"><strong>Grand Total</strong></td>
@@ -212,10 +220,64 @@ import { AuthService } from '@core/services/auth.service';
                 <span class="status-badge" [ngClass]="p.status?.toLowerCase()">{{ p.status }}</span>
               </td>
             </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let p">
+                <button mat-button color="warn" type="button"
+                        *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])"
+                        (click)="reversePayment(p)">
+                  <mat-icon>undo</mat-icon> Reverse
+                </button>
+                <span *ngIf="p.status === 'REVERSED'" class="reversed-note"
+                      [matTooltip]="(p.reversalReason || '') + ' — by ' + (p.reversedBy || '')">
+                  Reversed
+                </span>
+              </td>
+            </ng-container>
             <tr mat-header-row *matHeaderRowDef="paymentColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: paymentColumns;"></tr>
           </table>
           <p *ngIf="payments.length === 0" class="no-data">No payments recorded yet.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Audit Ledger: full money-mutation history for this bill -->
+      <mat-card class="history-card" *ngIf="hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])">
+        <mat-card-header><mat-card-title>Audit Ledger</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="ledger" class="mat-elevation-z1" *ngIf="ledger.length > 0">
+            <ng-container matColumnDef="performedOn">
+              <th mat-header-cell *matHeaderCellDef>When</th>
+              <td mat-cell *matCellDef="let e">{{ e.performedOn | date:'medium' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="entryType">
+              <th mat-header-cell *matHeaderCellDef>Event</th>
+              <td mat-cell *matCellDef="let e">{{ formatEntryType(e.entryType) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Amount</th>
+              <td mat-cell *matCellDef="let e" [class.negative]="e.amount < 0">{{ e.amount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="balanceAfter">
+              <th mat-header-cell *matHeaderCellDef>Balance After</th>
+              <td mat-cell *matCellDef="let e">{{ e.balanceAfter | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="source">
+              <th mat-header-cell *matHeaderCellDef>Source</th>
+              <td mat-cell *matCellDef="let e">{{ e.source }}</td>
+            </ng-container>
+            <ng-container matColumnDef="performedBy">
+              <th mat-header-cell *matHeaderCellDef>By</th>
+              <td mat-cell *matCellDef="let e">{{ e.performedBy }}</td>
+            </ng-container>
+            <ng-container matColumnDef="reason">
+              <th mat-header-cell *matHeaderCellDef>Reason</th>
+              <td mat-cell *matCellDef="let e">{{ e.reason || '-' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="ledgerColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: ledgerColumns;"></tr>
+          </table>
+          <p *ngIf="ledger.length === 0" class="no-data">No ledger entries yet.</p>
         </mat-card-content>
       </mat-card>
     </div>
@@ -268,6 +330,9 @@ import { AuthService } from '@core/services/auth.service';
     .status-badge.success, .status-badge.verified { background: #e8f5e9; color: #2e7d32; }
     .status-badge.pending { background: #fff3e0; color: #e65100; }
     .status-badge.failed { background: #ffebee; color: #b71c1c; }
+    .status-badge.reversed { background: #eceff1; color: #455a64; }
+    .negative { color: #c62828; }
+    .reversed-note { font-size: 12px; color: #b71c1c; font-style: italic; cursor: help; }
   `]
 })
 export class BillDetailComponent implements OnInit {
@@ -275,7 +340,9 @@ export class BillDetailComponent implements OnInit {
   qrCodeBase64: string | null = null;
   paymentLink: string | null = null;
   payments: any[] = [];
-  paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'transactionId', 'status'];
+  paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'transactionId', 'status', 'actions'];
+  ledger: any[] = [];
+  ledgerColumns = ['performedOn', 'entryType', 'amount', 'balanceAfter', 'source', 'performedBy', 'reason'];
   billId!: number;
 
   paymentForm = {
@@ -287,13 +354,56 @@ export class BillDetailComponent implements OnInit {
     remarks: ''
   };
 
-  constructor(private maintenanceService: MaintenanceService, private route: ActivatedRoute, private authService: AuthService) {}
+  constructor(private maintenanceService: MaintenanceService, private route: ActivatedRoute,
+              private authService: AuthService, private dialog: MatDialog, private snackBar: MatSnackBar) {}
 
   ngOnInit(): void {
     this.billId = +this.route.snapshot.paramMap.get('id')!;
     this.loadBill();
     this.loadQrCode();
     this.loadPayments();
+    this.loadLedger();
+  }
+
+  loadLedger(): void {
+    if (!this.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER'])) { return; }
+    this.maintenanceService.getLedgerByBill(this.billId).subscribe(res => {
+      if (res.success) {
+        this.ledger = res.data || [];
+      }
+    });
+  }
+
+  formatEntryType(t: string): string {
+    switch (t) {
+      case 'BILL_GENERATED': return 'Bill Generated';
+      case 'PAYMENT_APPLIED': return 'Payment Applied';
+      case 'PAYMENT_REVERSED': return 'Payment Reversed';
+      default: return t;
+    }
+  }
+
+  reversePayment(payment: any): void {
+    const dialogRef = this.dialog.open(ReversePaymentDialogComponent, {
+      width: '440px',
+      data: { amount: payment.amount, receiptNumber: payment.receiptNumber }
+    });
+
+    dialogRef.afterClosed().subscribe((reason: string | undefined) => {
+      if (!reason) { return; }   // cancelled or empty
+      this.maintenanceService.reversePayment(payment.paymentId, reason).subscribe({
+        next: res => {
+          if (res.success) {
+            this.snackBar.open('Payment reversed', 'Close', { duration: 3000 });
+            this.loadBill();
+            this.loadPayments();
+            this.loadLedger();
+          }
+        },
+        error: err => this.snackBar.open(
+          err?.error?.message || 'Failed to reverse payment.', 'Close', { duration: 5000 })
+      });
+    });
   }
 
   loadBill(): void {

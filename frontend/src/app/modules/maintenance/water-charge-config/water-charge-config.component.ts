@@ -13,6 +13,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MaintenanceService } from '@core/services/maintenance.service';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-water-charge-config',
@@ -169,7 +170,8 @@ import { MaintenanceService } from '@core/services/maintenance.service';
                       [disabled]="configForm.invalid || loadingPreview">
                 <mat-icon>preview</mat-icon> Preview Charges
               </button>
-              <button mat-raised-button color="primary" type="submit" [disabled]="configForm.invalid">
+              <button mat-raised-button color="primary" type="submit"
+                      *ngIf="canManage()" [disabled]="configForm.invalid">
                 <mat-icon>save</mat-icon> Save Configuration
               </button>
             </div>
@@ -236,8 +238,13 @@ export class WaterChargeConfigComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private maintenanceService: MaintenanceService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private authService: AuthService
   ) {}
+
+  canManage(): boolean {
+    return this.authService.hasAnyRole(['SUPER_ADMIN', 'SECRETARY', 'TREASURER']);
+  }
 
   ngOnInit(): void {
     this.configForm = this.fb.group({

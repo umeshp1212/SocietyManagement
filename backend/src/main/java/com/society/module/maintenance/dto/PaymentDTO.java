@@ -27,4 +27,7 @@ public class PaymentDTO {
     private String remarks;
     private LocalDateTime verifiedOn;
     private String verifiedBy;
+    private LocalDateTime reversedOn;
+    private String reversedBy;
+    private String reversalReason;
 }

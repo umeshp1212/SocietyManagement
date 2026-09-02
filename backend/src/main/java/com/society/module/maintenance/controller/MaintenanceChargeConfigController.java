@@ -6,6 +6,7 @@ import com.society.module.maintenance.service.MaintenanceChargeConfigService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public class MaintenanceChargeConfigController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<ChargeConfigDTO>> createChargeConfig(
             @Valid @RequestBody ChargeConfigDTO dto) {
         ChargeConfigDTO config = chargeConfigService.createChargeConfig(dto);
@@ -43,6 +45,7 @@ public class MaintenanceChargeConfigController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<ChargeConfigDTO>> updateChargeConfig(
             @PathVariable Long id, @Valid @RequestBody ChargeConfigDTO dto) {
         ChargeConfigDTO config = chargeConfigService.updateChargeConfig(id, dto);
@@ -50,6 +53,7 @@ public class MaintenanceChargeConfigController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<Void>> deleteChargeConfig(@PathVariable Long id) {
         chargeConfigService.deleteChargeConfig(id);
         return ResponseEntity.ok(ApiResponse.success("Charge configuration deactivated", null));

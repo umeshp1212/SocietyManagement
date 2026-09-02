@@ -78,16 +78,27 @@ public class MemberPaymentController {
     public ResponseEntity<String> handleRazorpayWebhook(
             @RequestBody String webhookBody,
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
-        razorpayService.handleWebhook(webhookBody, signature);
+        boolean accepted = razorpayService.handleWebhook(webhookBody, signature);
+        if (!accepted) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body("INVALID_SIGNATURE");
+        }
         return ResponseEntity.ok("OK");
     }
 
     /**
-     * Cashfree webhook (server-to-server callback). PUBLIC — no auth.
+     * Cashfree webhook (server-to-server callback). PUBLIC — no auth, so the payload is
+     * authenticated via the Cashfree webhook signature. Takes the RAW body (signature is
+     * computed over the exact bytes) and returns 401 on an invalid signature.
      */
     @PostMapping("/webhook/cashfree")
-    public ResponseEntity<String> handleCashfreeWebhook(@RequestBody Map<String, Object> webhookData) {
-        cashfreeService.handlePaymentWebhook(webhookData);
+    public ResponseEntity<String> handleCashfreeWebhook(
+            @RequestBody String rawBody,
+            @RequestHeader(value = "x-webhook-signature", required = false) String signature,
+            @RequestHeader(value = "x-webhook-timestamp", required = false) String timestamp) {
+        boolean accepted = cashfreeService.handlePaymentWebhook(rawBody, signature, timestamp);
+        if (!accepted) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body("INVALID_SIGNATURE");
+        }
         return ResponseEntity.ok("OK");
     }
 
@@ -98,7 +109,10 @@ public class MemberPaymentController {
     public ResponseEntity<String> handleLegacyWebhook(
             @RequestBody String webhookBody,
             @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature) {
-        razorpayService.handleWebhook(webhookBody, signature);
+        boolean accepted = razorpayService.handleWebhook(webhookBody, signature);
+        if (!accepted) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body("INVALID_SIGNATURE");
+        }
         return ResponseEntity.ok("OK");
     }
 

@@ -88,6 +88,20 @@ export class MaintenanceService {
     return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/payments/bill/${billId}`);
   }
 
+  // ======================== PAYMENT REVERSAL & LEDGER (audit) ========================
+
+  reversePayment(paymentId: number, reason: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/payments/${paymentId}/reverse`, { reason });
+  }
+
+  getLedgerByBill(billId: number): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/ledger/bill/${billId}`);
+  }
+
+  getLedgerByUnit(unitId: number): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/ledger/unit/${unitId}`);
+  }
+
   generatePaymentLink(billId: number): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/bills/${billId}/payment-link`, {});
   }

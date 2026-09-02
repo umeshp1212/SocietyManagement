@@ -10,7 +10,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "maintenance_payments")
+@Table(name = "maintenance_payments", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_payment_receipt_number", columnNames = {"receipt_number"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,6 +24,15 @@ public class MaintenancePayment extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "payment_id")
     private Long paymentId;
+
+    /**
+     * Optimistic-locking version. Payments are effectively insert-only today, but this
+     * guards any future mutation (e.g. reversal/refund) against concurrent updates.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bill_id", nullable = false)
@@ -83,6 +94,15 @@ public class MaintenancePayment extends BaseEntity {
     @Column(name = "verified_by", length = 100)
     private String verifiedBy;
 
+    @Column(name = "reversed_on")
+    private LocalDateTime reversedOn;
+
+    @Column(name = "reversed_by", length = 100)
+    private String reversedBy;
+
+    @Column(name = "reversal_reason", length = 500)
+    private String reversalReason;
+
     /**
      * Original amount before discount was applied
      */
@@ -106,6 +126,6 @@ public class MaintenancePayment extends BaseEntity {
     }
 
     public enum PaymentStatus {
-        PENDING, SUCCESS, FAILED, VERIFIED
+        PENDING, SUCCESS, FAILED, VERIFIED, REVERSED
     }
 }

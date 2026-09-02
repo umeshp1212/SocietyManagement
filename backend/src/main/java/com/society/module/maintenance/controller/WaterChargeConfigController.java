@@ -6,6 +6,7 @@ import com.society.module.maintenance.service.WaterChargeConfigService;
 import com.society.module.maintenance.service.WaterChargeConfigService.WaterChargePreview;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,7 @@ public class WaterChargeConfigController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
     public ResponseEntity<ApiResponse<WaterChargeConfigDTO>> saveConfig(@RequestBody WaterChargeConfigDTO dto) {
         WaterChargeConfigDTO saved = waterChargeConfigService.saveConfig(dto);
         return ResponseEntity.ok(ApiResponse.success("Water charge configuration saved successfully", saved));
