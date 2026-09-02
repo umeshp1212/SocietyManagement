@@ -42,6 +42,54 @@ ALTER TABLE voucher_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_
 -- NULL; a NULL @Version breaks the first update of a pre-existing row. This backfill sets
 -- any NULL version to 0. It is idempotent (rows already at a value are untouched) and runs
 -- AFTER Hibernate DDL because spring.jpa.defer-datasource-initialization=true.
+-- ------------------------------------------------------------
+-- Ensure the columns referenced below actually exist. On databases where
+-- Hibernate ddl-auto did NOT add them (e.g. update mode disabled, or the table
+-- predates these features), the backfills/updates would fail with "Unknown column".
+-- Each ADD COLUMN is guarded via information_schema so re-running is a no-op and
+-- never errors (safe under spring.sql.init continue-on-error=false).
+
+-- maintenance_bills.version
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_bills' AND column_name = 'version');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_bills ADD COLUMN version BIGINT NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- maintenance_payments.version
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_payments' AND column_name = 'version');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_payments ADD COLUMN version BIGINT NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- maintenance_payments reversal-tracking columns (Phase 4)
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_payments' AND column_name = 'reversed_on');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_payments ADD COLUMN reversed_on DATETIME NULL', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_payments' AND column_name = 'reversed_by');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_payments ADD COLUMN reversed_by VARCHAR(100) NULL', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_payments' AND column_name = 'reversal_reason');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_payments ADD COLUMN reversal_reason VARCHAR(500) NULL', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- Widen the maintenance_payments.status ENUM to include REVERSED (Phase 4). Hibernate
+-- ddl-auto=update does NOT alter existing ENUM definitions, so a reversal write of
+-- 'REVERSED' fails with "Data truncated for column 'status'". This MODIFY is idempotent
+-- and only ADDS a value, preserving existing rows. Guarded so it only runs when the
+-- column is actually an ENUM missing REVERSED (skips VARCHAR-typed columns harmlessly).
+SET @is_enum_missing := (SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'maintenance_payments'
+      AND column_name = 'status' AND column_type LIKE 'enum(%' AND column_type NOT LIKE '%REVERSED%');
+SET @ddl := IF(@is_enum_missing > 0,
+    'ALTER TABLE maintenance_payments MODIFY COLUMN status ENUM(''PENDING'',''SUCCESS'',''FAILED'',''VERIFIED'',''REVERSED'') NOT NULL DEFAULT ''PENDING''',
+    'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
 UPDATE maintenance_bills    SET version = 0 WHERE version IS NULL;
 UPDATE maintenance_payments SET version = 0 WHERE version IS NULL;
 
