@@ -5,6 +5,35 @@
 -- ============================================================
 
 -- ============================================================
+-- SCHEMA MIGRATION (MUST RUN FIRST): normalize charset/collation
+-- ============================================================
+-- ROOT CAUSE: Every table in this app is created by Hibernate (ddl-auto=update),
+-- which does NOT specify a collation, so each table inherits the database default.
+-- On MySQL 8 the server default is utf8mb4_0900_ai_ci, but a DB created earlier (or
+-- via createDatabaseIfNotExist on a differently-configured server) can end up on
+-- utf8mb4_unicode_ci. When string columns from tables with different collations are
+-- compared/joined (e.g. vendor_categories.code vs vendors / tds_config values), MySQL
+-- throws "Illegal mix of collations (...)" and startup / requests crash.
+--
+-- FIX: force ONE collation everywhere: utf8mb4_0900_ai_ci (the MySQL 8 default, and
+-- the collation verified working in production). This runs on every startup, is fully
+-- idempotent (CONVERT TO is a no-op when already correct), preserves data, and must run
+-- BEFORE any statement below that joins tables. With this in place no manual ALTER is
+-- ever needed on deployment again.
+--
+-- If a new string-heavy table is added later, add it to this list.
+
+-- 1) Pin the database default so any future Hibernate-created table is consistent.
+ALTER DATABASE society_management CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+-- 2) Convert existing tables that participate in joins/comparisons on string columns.
+ALTER TABLE vendor_categories  CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+ALTER TABLE vendors            CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+ALTER TABLE tds_config         CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+ALTER TABLE voucher_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+
+-- ============================================================
 -- Initialize Voucher Sequences for FY 2026-27
 -- ============================================================
 INSERT IGNORE INTO voucher_sequences (sequence_id, voucher_type, financial_year, last_number) VALUES
@@ -312,16 +341,10 @@ ALTER TABLE tenants
     MODIFY COLUMN status ENUM('PENDING_APPROVAL','ACTIVE','NOTICE_PERIOD','VACATED','REJECTED')
     NOT NULL DEFAULT 'ACTIVE';
 
-
 -- ============================================================
--- SCHEMA MIGRATION: normalize charset/collation for vendor tables
+-- NOTE: charset/collation normalization now runs at the TOP of this file
+-- (see "SCHEMA MIGRATION (MUST RUN FIRST)") so it executes before any join,
+-- and standardizes on utf8mb4_0900_ai_ci to match the MySQL 8 default and the
+-- production-verified fix. Do not re-add a conflicting utf8mb4_unicode_ci
+-- conversion here.
 -- ============================================================
--- The `vendors` table is created by schema.sql while `vendor_categories` is
--- created by Hibernate (ddl-auto=update). On MySQL 8 these can end up with
--- different collations (e.g. utf8mb4_unicode_ci vs utf8mb4_0900_ai_ci), which
--- causes "Illegal mix of collations" when their string columns are compared /
--- joined. Force both tables to the same charset/collation as the database.
--- CONVERT TO CHARACTER SET is idempotent (no-op when already correct) and
--- preserves existing data.
-ALTER TABLE vendor_categories CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-ALTER TABLE vendors CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

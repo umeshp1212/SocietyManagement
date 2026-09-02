@@ -6,9 +6,18 @@
 
 CREATE DATABASE IF NOT EXISTS society_management
     CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
+    COLLATE utf8mb4_0900_ai_ci;
 
 USE society_management;
+
+-- Ensure the database default collation is utf8mb4_0900_ai_ci even if the database
+-- already existed (e.g. created earlier by createDatabaseIfNotExist with a different
+-- server default). New tables created by Hibernate (ddl-auto=update) inherit this
+-- default, so pinning it here keeps every table on the same collation and prevents
+-- "Illegal mix of collations" errors when joining/comparing string columns.
+ALTER DATABASE society_management
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_0900_ai_ci;
 
 -- ============================================================
 -- MODULE 1: OWNER MANAGEMENT
@@ -132,7 +141,7 @@ CREATE TABLE vendors (
     INDEX idx_vendor_category (category),
     INDEX idx_vendor_status (status),
     INDEX idx_vendor_agreement_end (agreement_end_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- Vendor Documents
 CREATE TABLE vendor_documents (

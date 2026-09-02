@@ -1,6 +1,7 @@
 package com.society.module.owner.dto;
 
 import com.society.enums.BhkType;
+import com.society.enums.OccupancyStatus;
 import com.society.enums.ParkingType;
 import com.society.enums.UnitType;
 import jakarta.validation.constraints.NotBlank;
@@ -48,4 +49,10 @@ public class UnitCreateRequest {
      * Parking type: NONE, TWO_WHEELER, FOUR_WHEELER, BOTH
      */
     private ParkingType parkingType;
+
+    /**
+     * Occupancy status: SELF_OCCUPIED, RENTED, VACANT.
+     * Optional on create (defaults to VACANT); settable on update.
+     */
+    private OccupancyStatus occupancyStatus;
 }

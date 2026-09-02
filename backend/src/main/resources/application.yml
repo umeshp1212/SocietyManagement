@@ -3,7 +3,7 @@ spring:
     name: society-management
 
   datasource:
-    url: jdbc:mysql://localhost:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata&createDatabaseIfNotExist=true
+    url: jdbc:mysql://localhost:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata&createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_0900_ai_ci
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver

@@ -96,6 +96,15 @@ import { OwnerService } from '@core/services/owner.service';
                   <mat-option value="BOTH">Both (Two + Four Wheeler)</mat-option>
                 </mat-select>
               </mat-form-field>
+              <mat-form-field appearance="outline" *ngIf="isEdit">
+                <mat-label>Occupancy Status</mat-label>
+                <mat-select formControlName="occupancyStatus">
+                  <mat-option value="VACANT">Vacant</mat-option>
+                  <mat-option value="SELF_OCCUPIED">Self Occupied</mat-option>
+                  <mat-option value="RENTED">Rented</mat-option>
+                </mat-select>
+                <mat-hint>Rented units are charged the non-occupancy charge</mat-hint>
+              </mat-form-field>
             </div>
 
             <!-- BHK Water Info -->
@@ -169,7 +178,8 @@ export class UnitFormComponent implements OnInit {
       areaSqft: [null],
       monthlyMaintenanceAmount: [null, Validators.required],
       waterCharges: [null],
-      parkingType: ['NONE']
+      parkingType: ['NONE'],
+      occupancyStatus: ['VACANT']
     });
 
     // Auto-suggest water charges when BHK type changes

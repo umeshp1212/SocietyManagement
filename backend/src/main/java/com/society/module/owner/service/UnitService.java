@@ -87,6 +87,9 @@ public class UnitService {
         if (request.getParkingType() != null) {
             unit.setParkingType(request.getParkingType());
         }
+        if (request.getOccupancyStatus() != null) {
+            unit.setOccupancyStatus(request.getOccupancyStatus());
+        }
 
         unit = unitRepository.save(unit);
         return mapToDTO(unit);
