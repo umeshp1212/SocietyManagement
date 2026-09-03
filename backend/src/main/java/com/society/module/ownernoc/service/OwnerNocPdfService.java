@@ -53,9 +53,11 @@ public class OwnerNocPdfService {
     public byte[] generate(OwnerNocRequest request) throws IOException {
         SocietySettings settings = settingsService.getSettings();
         String societyName = settings.getSocietyName();
-        String ownerName = request.getOwner() != null && request.getOwner().getFullName() != null
-                ? request.getOwner().getFullName() : "Owner";
+        // List ALL owners and co-owners of the unit (comma-separated), not just the
+        // requesting owner. Fall back to the requesting owner, then to "Owner".
+        String ownerName = resolveOwnerNames(request);
         String unitLabel = request.getUnit() != null ? request.getUnit().getUnitNumber() : null;
+        boolean multipleOwners = ownerName.contains(",");
         String typeName = request.getNocType() != null ? request.getNocType().getName() : "No Objection Certificate";
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -118,7 +120,7 @@ public class OwnerNocPdfService {
         Table details = new Table(UnitValue.createPercentArray(new float[]{1, 2}))
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginTop(8).setMarginBottom(16);
-        addDetailRow(details, "Owner Name", ownerName, boldFont, regularFont);
+        addDetailRow(details, multipleOwners ? "Owners" : "Owner Name", ownerName, boldFont, regularFont);
         if (unitLabel != null) {
             addDetailRow(details, "Unit / Flat No.", unitLabel, boldFont, regularFont);
         }
@@ -156,6 +158,24 @@ public class OwnerNocPdfService {
      * otherwise falls back to the NOC type default template; otherwise a generic body.
      * Simple placeholders are substituted in all cases.
      */
+    /**
+     * Resolve the owner name(s) for the certificate: all owners and co-owners of the unit
+     * as a comma-separated string. Falls back to the requesting owner, then "Owner".
+     */
+    private String resolveOwnerNames(OwnerNocRequest request) {
+        if (request.getUnit() != null) {
+            String names = request.getUnit().getOwnerNames();
+            if (names != null && !names.isBlank()) {
+                return names;
+            }
+        }
+        if (request.getOwner() != null && request.getOwner().getFullName() != null
+                && !request.getOwner().getFullName().isBlank()) {
+            return request.getOwner().getFullName();
+        }
+        return "Owner";
+    }
+
     private String resolveBody(OwnerNocRequest request, SocietySettings settings,
                                String ownerName, String unitLabel) {
         String template = request.getFinalContent();

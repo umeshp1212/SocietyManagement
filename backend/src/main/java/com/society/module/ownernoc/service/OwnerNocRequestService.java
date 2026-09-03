@@ -146,6 +146,7 @@ public class OwnerNocRequestService {
      * Generate the certificate PDF bytes for an approved request (download fallback,
      * usable when email is not configured or the owner needs another copy).
      */
+    @Transactional(readOnly = true)
     public byte[] generateCertificatePdf(Long requestId) {
         OwnerNocRequest req = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("NOC Request", "requestId", requestId));
@@ -156,6 +157,7 @@ public class OwnerNocRequestService {
      * Certificate download for the member portal: only the owner who submitted the
      * request may download it, and only when it is approved.
      */
+    @Transactional(readOnly = true)
     public byte[] generateCertificatePdfForOwner(Long requestId, Long ownerId) {
         OwnerNocRequest req = requestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("NOC Request", "requestId", requestId));
