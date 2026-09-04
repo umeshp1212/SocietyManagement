@@ -28,10 +28,14 @@ import { OwnerService } from '@core/services/owner.service';
               <mat-form-field appearance="outline">
                 <mat-label>Full Name *</mat-label>
                 <input matInput formControlName="fullName">
+                <mat-error *ngIf="ownerForm.get('fullName')?.hasError('required')">Full name is required</mat-error>
+                <mat-error *ngIf="ownerForm.get('fullName')?.hasError('maxlength')">Full name cannot exceed 150 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Contact Number *</mat-label>
-                <input matInput formControlName="contactNumber">
+                <input matInput formControlName="contactNumber" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('required')">Contact number is required</mat-error>
+                <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
             </div>
 
@@ -39,10 +43,12 @@ import { OwnerService } from '@core/services/owner.service';
               <mat-form-field appearance="outline">
                 <mat-label>Email</mat-label>
                 <input matInput formControlName="email" type="email">
+                <mat-error *ngIf="ownerForm.get('email')?.hasError('email')">Enter a valid email address</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Alternate Number</mat-label>
-                <input matInput formControlName="alternateNumber">
+                <input matInput formControlName="alternateNumber" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="ownerForm.get('alternateNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
             </div>
 
@@ -76,7 +82,8 @@ import { OwnerService } from '@core/services/owner.service';
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Emergency Contact Phone</mat-label>
-                <input matInput formControlName="emergencyContactPhone">
+                <input matInput formControlName="emergencyContactPhone" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="ownerForm.get('emergencyContactPhone')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
             </div>
 
@@ -108,17 +115,18 @@ export class OwnerFormComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const mobilePattern = /^[6-9]\d{9}$/;
     this.ownerForm = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(150)]],
-      contactNumber: ['', [Validators.required, Validators.maxLength(15)]],
-      alternateNumber: [''],
+      contactNumber: ['', [Validators.required, Validators.pattern(mobilePattern)]],
+      alternateNumber: ['', [Validators.pattern(mobilePattern)]],
       email: ['', [Validators.email]],
       aadharNumber: [''],
       panNumber: ['', [Validators.maxLength(20)]],
       permanentAddress: [''],
       occupation: [''],
       emergencyContactName: [''],
-      emergencyContactPhone: ['']
+      emergencyContactPhone: ['', [Validators.pattern(mobilePattern)]]
     });
 
     const id = this.route.snapshot.paramMap.get('id');

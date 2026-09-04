@@ -44,6 +44,7 @@ import { Unit } from '@core/models/owner.model';
                     {{ unit.unitNumber }} ({{ unit.unitType }}) - {{ unit.primaryOwnerName || 'No owner' }}
                   </mat-option>
                 </mat-select>
+                <mat-error *ngIf="tenantForm.get('unitId')?.hasError('required')">Please select a unit</mat-error>
               </mat-form-field>
             </div>
 
@@ -53,10 +54,14 @@ import { Unit } from '@core/models/owner.model';
               <mat-form-field appearance="outline">
                 <mat-label>Tenant Name *</mat-label>
                 <input matInput formControlName="tenantName">
+                <mat-error *ngIf="tenantForm.get('tenantName')?.hasError('required')">Tenant name is required</mat-error>
+                <mat-error *ngIf="tenantForm.get('tenantName')?.hasError('maxlength')">Tenant name cannot exceed 150 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Contact Number *</mat-label>
-                <input matInput formControlName="contactNumber">
+                <input matInput formControlName="contactNumber" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="tenantForm.get('contactNumber')?.hasError('required')">Contact number is required</mat-error>
+                <mat-error *ngIf="tenantForm.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
             </div>
 
@@ -64,6 +69,7 @@ import { Unit } from '@core/models/owner.model';
               <mat-form-field appearance="outline">
                 <mat-label>Email</mat-label>
                 <input matInput formControlName="email" type="email">
+                <mat-error *ngIf="tenantForm.get('email')?.hasError('email')">Enter a valid email address</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Aadhar Number</mat-label>
@@ -91,6 +97,7 @@ import { Unit } from '@core/models/owner.model';
                 <input matInput [matDatepicker]="startPicker" formControlName="rentStartDate">
                 <mat-datepicker-toggle matSuffix [for]="startPicker"></mat-datepicker-toggle>
                 <mat-datepicker #startPicker></mat-datepicker>
+                <mat-error *ngIf="tenantForm.get('rentStartDate')?.hasError('required')">Rent start date is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Rent End Date</mat-label>
@@ -127,6 +134,7 @@ import { Unit } from '@core/models/owner.model';
                   <mat-form-field appearance="outline">
                     <mat-label>Name *</mat-label>
                     <input matInput formControlName="memberName">
+                    <mat-error *ngIf="member.get('memberName')?.hasError('required')">Name is required</mat-error>
                   </mat-form-field>
                   <mat-form-field appearance="outline" style="max-width: 100px;">
                     <mat-label>Age</mat-label>
@@ -144,10 +152,12 @@ import { Unit } from '@core/models/owner.model';
                       <mat-option value="Sister">Sister</mat-option>
                       <mat-option value="Other">Other</mat-option>
                     </mat-select>
+                    <mat-error *ngIf="member.get('relation')?.hasError('required')">Relation is required</mat-error>
                   </mat-form-field>
                   <mat-form-field appearance="outline">
                     <mat-label>Contact</mat-label>
-                    <input matInput formControlName="contactNumber">
+                    <input matInput formControlName="contactNumber" maxlength="10" inputmode="numeric">
+                    <mat-error *ngIf="member.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number</mat-error>
                   </mat-form-field>
                   <button mat-icon-button color="warn" type="button" (click)="removeFamilyMember(i)">
                     <mat-icon>delete</mat-icon>
@@ -178,10 +188,12 @@ import { Unit } from '@core/models/owner.model';
                       <mat-option value="Bicycle">Bicycle</mat-option>
                       <mat-option value="Other">Other</mat-option>
                     </mat-select>
+                    <mat-error *ngIf="vehicle.get('vehicleType')?.hasError('required')">Vehicle type is required</mat-error>
                   </mat-form-field>
                   <mat-form-field appearance="outline">
                     <mat-label>Vehicle Number *</mat-label>
                     <input matInput formControlName="vehicleNumber" placeholder="MH 12 AB 1234">
+                    <mat-error *ngIf="vehicle.get('vehicleNumber')?.hasError('required')">Vehicle number is required</mat-error>
                   </mat-form-field>
                   <mat-form-field appearance="outline">
                     <mat-label>Parking Slot</mat-label>
@@ -234,7 +246,7 @@ export class TenantFormComponent implements OnInit {
     this.tenantForm = this.fb.group({
       unitId: [null, Validators.required],
       tenantName: ['', [Validators.required, Validators.maxLength(150)]],
-      contactNumber: ['', [Validators.required, Validators.maxLength(15)]],
+      contactNumber: ['', [Validators.required, Validators.pattern(/^[6-9]\d{9}$/)]],
       email: ['', Validators.email],
       aadharNumber: [''],
       panNumber: [''],
@@ -303,7 +315,7 @@ export class TenantFormComponent implements OnInit {
               age: [fm.age],
               relation: [fm.relation, Validators.required],
               aadharNumber: [fm.aadharNumber],
-              contactNumber: [fm.contactNumber]
+              contactNumber: [fm.contactNumber, [Validators.pattern(/^[6-9]\d{9}$/)]]
             }));
           });
         }
@@ -328,7 +340,7 @@ export class TenantFormComponent implements OnInit {
       age: [null],
       relation: ['', Validators.required],
       aadharNumber: [''],
-      contactNumber: ['']
+      contactNumber: ['', [Validators.pattern(/^[6-9]\d{9}$/)]]
     }));
   }
 

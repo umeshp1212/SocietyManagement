@@ -48,6 +48,7 @@ import { environment } from '@env/environment';
                   <mat-option value="JOURNAL">Journal Voucher</mat-option>
                   <mat-option value="CONTRA">Contra Voucher</mat-option>
                 </mat-select>
+                <mat-error *ngIf="voucherForm.get('voucherType')?.hasError('required')">Voucher type is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline" *ngIf="isEdit">
                 <mat-label>Voucher Type</mat-label>
@@ -58,6 +59,7 @@ import { environment } from '@env/environment';
                 <input matInput [matDatepicker]="datePicker" formControlName="voucherDate">
                 <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
                 <mat-datepicker #datePicker></mat-datepicker>
+                <mat-error *ngIf="voucherForm.get('voucherDate')?.hasError('required')">Voucher date is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline" *ngIf="isEdit">
                 <mat-label>Voucher Date</mat-label>
@@ -80,6 +82,7 @@ import { environment } from '@env/environment';
                     </mat-option>
                   </mat-optgroup>
                 </mat-select>
+                <mat-error *ngIf="voucherForm.get('category')?.hasError('required')">Category is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Vendor (optional)</mat-label>
@@ -99,6 +102,8 @@ import { environment } from '@env/environment';
                 <mat-label>Amount (Rs) *</mat-label>
                 <input matInput type="number" formControlName="amount" min="0.01">
                 <mat-icon matPrefix>currency_rupee</mat-icon>
+                <mat-error *ngIf="voucherForm.get('amount')?.hasError('required')">Amount is required</mat-error>
+                <mat-error *ngIf="voucherForm.get('amount')?.hasError('min')">Amount must be greater than 0</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Payment Mode</mat-label>
@@ -163,6 +168,7 @@ import { environment } from '@env/environment';
               <mat-label>Description *</mat-label>
               <textarea matInput formControlName="description" rows="3"
                         placeholder="Purpose of this voucher entry"></textarea>
+              <mat-error *ngIf="voucherForm.get('description')?.hasError('required')">Description is required</mat-error>
             </mat-form-field>
 
             <!-- Update Reason (only in edit mode) -->
@@ -172,6 +178,7 @@ import { environment } from '@env/environment';
                 <mat-label>Update Reason *</mat-label>
                 <textarea matInput formControlName="updateReason" rows="2"
                           placeholder="Why is this voucher being updated?"></textarea>
+                <mat-error *ngIf="voucherForm.get('updateReason')?.hasError('required')">Update reason is required</mat-error>
               </mat-form-field>
             </div>
 

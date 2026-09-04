@@ -37,6 +37,8 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
               <mat-form-field appearance="outline">
                 <mat-label>Vendor Name *</mat-label>
                 <input matInput formControlName="vendorName">
+                <mat-error *ngIf="vendorForm.get('vendorName')?.hasError('required')">Vendor name is required</mat-error>
+                <mat-error *ngIf="vendorForm.get('vendorName')?.hasError('maxlength')">Vendor name cannot exceed 200 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Category *</mat-label>
@@ -45,6 +47,7 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
                     {{ cat.label }}
                   </mat-option>
                 </mat-select>
+                <mat-error *ngIf="vendorForm.get('categoryId')?.hasError('required')">Category is required</mat-error>
               </mat-form-field>
             </div>
 
@@ -55,7 +58,9 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Phone *</mat-label>
-                <input matInput formControlName="phone">
+                <input matInput formControlName="phone" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="vendorForm.get('phone')?.hasError('required')">Phone number is required</mat-error>
+                <mat-error *ngIf="vendorForm.get('phone')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
             </div>
 
@@ -63,6 +68,7 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
               <mat-form-field appearance="outline">
                 <mat-label>Email</mat-label>
                 <input matInput formControlName="email" type="email">
+                <mat-error *ngIf="vendorForm.get('email')?.hasError('email')">Enter a valid email address</mat-error>
               </mat-form-field>
             </div>
 
@@ -186,7 +192,7 @@ export class VendorFormComponent implements OnInit {
       vendorName: ['', [Validators.required, Validators.maxLength(200)]],
       categoryId: [null, Validators.required],
       contactPerson: [''],
-      phone: ['', [Validators.required, Validators.maxLength(15)]],
+      phone: ['', [Validators.required, Validators.pattern(/^[6-9]\d{9}$/)]],
       email: ['', Validators.email],
       address: [''],
       panNumber: [''],

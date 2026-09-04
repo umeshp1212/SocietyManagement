@@ -48,6 +48,7 @@ import { AuthService } from '@core/services/auth.service';
                     {{ unit.unitNumber }}
                   </mat-option>
                 </mat-select>
+                <mat-error *ngIf="penaltyForm.get('unitId')?.hasError('required')">Please select a unit</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
@@ -65,6 +66,8 @@ import { AuthService } from '@core/services/auth.service';
               <mat-form-field appearance="outline">
                 <mat-label>Amount (₹) *</mat-label>
                 <input matInput type="number" formControlName="amount">
+                <mat-error *ngIf="penaltyForm.get('amount')?.hasError('required')">Amount is required</mat-error>
+                <mat-error *ngIf="penaltyForm.get('amount')?.hasError('min')">Amount must be at least ₹1</mat-error>
               </mat-form-field>
             </div>
 
@@ -86,6 +89,7 @@ import { AuthService } from '@core/services/auth.service';
               <mat-label>Reason *</mat-label>
               <textarea matInput formControlName="reason" rows="2"
                         placeholder="e.g., Water tank overflow due to negligence"></textarea>
+              <mat-error *ngIf="penaltyForm.get('reason')?.hasError('required')">Reason is required</mat-error>
             </mat-form-field>
 
             <div class="action-buttons">

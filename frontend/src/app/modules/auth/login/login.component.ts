@@ -32,6 +32,7 @@ import { AuthService } from '@core/services/auth.service';
               <mat-label>Username</mat-label>
               <input matInput formControlName="username" placeholder="Enter username">
               <mat-icon matPrefix>person</mat-icon>
+              <mat-error *ngIf="loginForm.get('username')?.hasError('required')">Username is required</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
@@ -43,6 +44,7 @@ import { AuthService } from '@core/services/auth.service';
                       (click)="hidePassword = !hidePassword">
                 <mat-icon>{{ hidePassword ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
+              <mat-error *ngIf="loginForm.get('password')?.hasError('required')">Password is required</mat-error>
             </mat-form-field>
 
             <div class="error-message" *ngIf="errorMessage">

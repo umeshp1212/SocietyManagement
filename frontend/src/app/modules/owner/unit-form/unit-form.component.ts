@@ -33,6 +33,8 @@ import { OwnerService } from '@core/services/owner.service';
               <mat-form-field appearance="outline">
                 <mat-label>Unit Number *</mat-label>
                 <input matInput formControlName="unitNumber" placeholder="e.g., A-101, S-01">
+                <mat-error *ngIf="unitForm.get('unitNumber')?.hasError('required')">Unit number is required</mat-error>
+                <mat-error *ngIf="unitForm.get('unitNumber')?.hasError('maxlength')">Unit number cannot exceed 20 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Unit Type *</mat-label>
@@ -40,6 +42,7 @@ import { OwnerService } from '@core/services/owner.service';
                   <mat-option value="FLAT">Flat</mat-option>
                   <mat-option value="SHOP">Shop</mat-option>
                 </mat-select>
+                <mat-error *ngIf="unitForm.get('unitType')?.hasError('required')">Unit type is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>BHK Type</mat-label>
@@ -78,6 +81,7 @@ import { OwnerService } from '@core/services/owner.service';
               <mat-form-field appearance="outline">
                 <mat-label>Monthly Maintenance (Rs) *</mat-label>
                 <input matInput type="number" formControlName="monthlyMaintenanceAmount">
+                <mat-error *ngIf="unitForm.get('monthlyMaintenanceAmount')?.hasError('required')">Monthly maintenance amount is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Water Charges (Rs)</mat-label>

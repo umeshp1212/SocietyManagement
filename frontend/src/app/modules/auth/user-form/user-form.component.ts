@@ -32,10 +32,14 @@ import { environment } from '@env/environment';
               <mat-form-field appearance="outline">
                 <mat-label>Username *</mat-label>
                 <input matInput formControlName="username">
+                <mat-error *ngIf="userForm.get('username')?.hasError('required')">Username is required</mat-error>
+                <mat-error *ngIf="userForm.get('username')?.hasError('minlength')">Username must be at least 4 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Password *</mat-label>
                 <input matInput type="password" formControlName="password">
+                <mat-error *ngIf="userForm.get('password')?.hasError('required')">Password is required</mat-error>
+                <mat-error *ngIf="userForm.get('password')?.hasError('minlength')">Password must be at least 6 characters</mat-error>
               </mat-form-field>
             </div>
 
@@ -43,17 +47,20 @@ import { environment } from '@env/environment';
               <mat-form-field appearance="outline">
                 <mat-label>Full Name *</mat-label>
                 <input matInput formControlName="fullName">
+                <mat-error *ngIf="userForm.get('fullName')?.hasError('required')">Full name is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Email</mat-label>
                 <input matInput formControlName="email" type="email">
+                <mat-error *ngIf="userForm.get('email')?.hasError('email')">Enter a valid email address</mat-error>
               </mat-form-field>
             </div>
 
             <div class="form-row">
               <mat-form-field appearance="outline">
                 <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone">
+                <input matInput formControlName="phone" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="userForm.get('phone')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Roles *</mat-label>
@@ -62,6 +69,7 @@ import { environment } from '@env/environment';
                     {{ role.displayName }}
                   </mat-option>
                 </mat-select>
+                <mat-error *ngIf="userForm.get('roles')?.hasError('required')">At least one role is required</mat-error>
               </mat-form-field>
             </div>
 
@@ -100,7 +108,7 @@ export class UserFormComponent implements OnInit {
       password: ['', [Validators.required, Validators.minLength(6)]],
       fullName: ['', Validators.required],
       email: ['', Validators.email],
-      phone: [''],
+      phone: ['', [Validators.pattern(/^[6-9]\d{9}$/)]],
       roles: [[], Validators.required]
     });
 

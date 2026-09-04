@@ -53,11 +53,15 @@ import { VoucherCategory } from '@core/models/voucher-category.model';
                 <input matInput formControlName="code" placeholder="ELECTRICITY_COMMON"
                        (input)="onCodeInput($event)">
                 <mat-hint>Uppercase letters, digits, underscores</mat-hint>
+                <mat-error *ngIf="addForm.get('code')?.hasError('required')">Code is required</mat-error>
+                <mat-error *ngIf="addForm.get('code')?.hasError('pattern')">Use uppercase letters, digits and underscores (must start with a letter)</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
                 <mat-label>Name</mat-label>
                 <input matInput formControlName="name" placeholder="Electricity (Common)">
+                <mat-error *ngIf="addForm.get('name')?.hasError('required')">Name is required</mat-error>
+                <mat-error *ngIf="addForm.get('name')?.hasError('maxlength')">Name cannot exceed 100 characters</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline">

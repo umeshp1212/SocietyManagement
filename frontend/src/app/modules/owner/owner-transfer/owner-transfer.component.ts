@@ -36,6 +36,7 @@ import { Owner, Unit } from '@core/models/owner.model';
                   {{ unit.unitNumber }} - {{ unit.primaryOwnerName || 'No owner' }}
                 </mat-option>
               </mat-select>
+              <mat-error *ngIf="transferForm.get('unitId')?.hasError('required')">Please select a unit</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
@@ -45,6 +46,7 @@ import { Owner, Unit } from '@core/models/owner.model';
                   {{ owner.fullName }} ({{ owner.contactNumber }})
                 </mat-option>
               </mat-select>
+              <mat-error *ngIf="transferForm.get('newOwnerId')?.hasError('required')">Please select the new owner</mat-error>
             </mat-form-field>
 
             <div class="form-row">
@@ -53,6 +55,7 @@ import { Owner, Unit } from '@core/models/owner.model';
                 <input matInput [matDatepicker]="picker" formControlName="transferDate">
                 <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
                 <mat-datepicker #picker></mat-datepicker>
+                <mat-error *ngIf="transferForm.get('transferDate')?.hasError('required')">Transfer date is required</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline">

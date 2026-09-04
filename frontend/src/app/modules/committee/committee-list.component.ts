@@ -60,20 +60,26 @@ interface CommitteeMember {
               <mat-form-field appearance="outline">
                 <mat-label>Full Name</mat-label>
                 <input matInput formControlName="fullName" placeholder="Mr. John Doe">
+                <mat-error *ngIf="addForm.get('fullName')?.hasError('required')">Full name is required</mat-error>
+                <mat-error *ngIf="addForm.get('fullName')?.hasError('maxlength')">Full name cannot exceed 150 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Designation</mat-label>
                 <input matInput formControlName="designation" placeholder="Chairman">
+                <mat-error *ngIf="addForm.get('designation')?.hasError('required')">Designation is required</mat-error>
+                <mat-error *ngIf="addForm.get('designation')?.hasError('maxlength')">Designation cannot exceed 100 characters</mat-error>
               </mat-form-field>
             </div>
             <div class="form-row">
               <mat-form-field appearance="outline">
                 <mat-label>Phone</mat-label>
-                <input matInput formControlName="phone" placeholder="9876543210">
+                <input matInput formControlName="phone" placeholder="9876543210" maxlength="10" inputmode="numeric">
+                <mat-error *ngIf="addForm.get('phone')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
                 <mat-label>Email</mat-label>
-                <input matInput formControlName="email" placeholder="john@example.com">
+                <input matInput formControlName="email" placeholder="john@example.com" type="email">
+                <mat-error *ngIf="addForm.get('email')?.hasError('email')">Enter a valid email address</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline" class="narrow-field">
                 <mat-label>Display Order</mat-label>
@@ -238,8 +244,8 @@ export class CommitteeListComponent implements OnInit {
     this.addForm = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(150)]],
       designation: ['', [Validators.required, Validators.maxLength(100)]],
-      phone: [''],
-      email: [''],
+      phone: ['', [Validators.pattern(/^[6-9]\d{9}$/)]],
+      email: ['', [Validators.email]],
       displayOrder: [0]
     });
   }
