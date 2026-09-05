@@ -26,7 +26,7 @@ import { AuthService, LoginResponse } from '../services/auth.service';
                    [fixedInViewport]="isMobile" fixedTopGap="56">
         <div class="sidenav-header">
           <mat-icon class="society-icon">apartment</mat-icon>
-          // <h3>Society Mgmt</h3>
+          <h3>Society Mgmt</h3>
         </div>
         <mat-nav-list>
           <a mat-list-item routerLink="/dashboard" routerLinkActive="active"
@@ -69,6 +69,13 @@ import { AuthService, LoginResponse } from '../services/auth.service';
              (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>payments</mat-icon>
             <span matListItemTitle>Maintenance</span>
+          </a>
+
+          <a mat-list-item routerLink="/transactions" routerLinkActive="active"
+             *ngIf="hasPermission('TRANSACTION_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>swap_horiz</mat-icon>
+            <span matListItemTitle>Transactions</span>
           </a>
 
           <mat-divider *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"></mat-divider>

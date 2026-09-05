@@ -104,5 +104,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./modules/reports/reports.component')
       .then(m => m.ReportsComponent)
+  },
+  {
+    path: 'transactions',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/transactions/transaction-list/transaction-list.component')
+      .then(m => m.TransactionListComponent)
   }
 ];
