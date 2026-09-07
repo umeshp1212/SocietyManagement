@@ -84,9 +84,12 @@ public class AdminRegistrationRequestController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_APPROVE')")
     public ResponseEntity<ApiResponse<MemberRegistrationRequestDTO>> approve(
             @PathVariable Long requestId,
-            @RequestBody Map<String, Object> body) {
-        Long ownerId = Long.valueOf(body.get("ownerId").toString());
-        String adminName = body.getOrDefault("adminName", "Admin").toString();
+            @RequestBody(required = false) Map<String, Object> body) {
+        Map<String, Object> payload = body != null ? body : Map.of();
+        Object ownerIdRaw = payload.get("ownerId");
+        Long ownerId = ownerIdRaw != null ? Long.valueOf(ownerIdRaw.toString()) : null;
+        Object adminNameRaw = payload.get("adminName");
+        String adminName = adminNameRaw != null ? adminNameRaw.toString() : "Admin";
         MemberRegistrationRequestDTO result = registrationService.approveRequest(requestId, ownerId, adminName);
         return ResponseEntity.ok(ApiResponse.success("Registration approved. Owner details updated.", result));
     }
@@ -98,9 +101,12 @@ public class AdminRegistrationRequestController {
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','CHAIRMAN','SECRETARY') or hasAuthority('MEMBER_REQUEST_APPROVE')")
     public ResponseEntity<ApiResponse<MemberRegistrationRequestDTO>> reject(
             @PathVariable Long requestId,
-            @RequestBody Map<String, String> body) {
-        String adminName = body.getOrDefault("adminName", "Admin");
-        String reason = body.getOrDefault("reason", "");
+            @RequestBody(required = false) Map<String, String> body) {
+        Map<String, String> payload = body != null ? body : Map.of();
+        String adminName = payload.getOrDefault("adminName", "Admin");
+        if (adminName == null || adminName.isBlank()) adminName = "Admin";
+        String reason = payload.getOrDefault("reason", "");
+        if (reason == null) reason = "";
         MemberRegistrationRequestDTO result = registrationService.rejectRequest(requestId, adminName, reason);
         return ResponseEntity.ok(ApiResponse.success("Registration rejected.", result));
     }

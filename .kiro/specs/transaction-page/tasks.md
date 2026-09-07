@@ -228,11 +228,11 @@ Angular CLI (`frontend/package.json`); tests run via `ng test`.
     - _Requirements: 1.1, 10.1_
 
 - [~] 13. Frontend component tests
-  - [~] 13.1 Write TransactionListComponent tests
+  - [-] 13.1 Write TransactionListComponent tests
     - Renders required columns and paginator; empty-state on empty content; error banner retains prior rows on service failure
     - _Requirements: 1.2, 1.3, 1.7, 2.5, 2.6, 3.6_
 
-  - [~] 13.2 Write TransactionFilterPanelComponent tests
+  - [-] 13.2 Write TransactionFilterPanelComponent tests
     - Emits AND-combined filter; mirrors server validation for start <= end and max lengths; preserves prior filter on server rejection
     - _Requirements: 3.4, 6.5, 7.1, 7.6, 9.3_
 
