@@ -577,6 +577,16 @@
         "executionId": "47b5eebf-2427-4b46-b16a-28907ccb96b0",
         "chatSessionId": "sess_72e764c8-8424-4104-8213-0861db6d538e",
         "timestamp": 1788592295770
+      },
+      {
+        "executionId": "7f18c61f-c6de-4b90-973c-3af806c8ca34",
+        "chatSessionId": "sess_1cd66296-2a4d-4f2a-ab6e-f8a6b0b170a1",
+        "timestamp": 1788776014232
+      },
+      {
+        "executionId": "7f18c61f-c6de-4b90-973c-3af806c8ca34",
+        "chatSessionId": "sess_1cd66296-2a4d-4f2a-ab6e-f8a6b0b170a1",
+        "timestamp": 1788776614987
       }
     ],
     "12. Frontend components": [
@@ -596,6 +606,11 @@
         "executionId": "d3e4a131-c36f-4831-820e-799a7b0da455",
         "chatSessionId": "sess_9db3dd53-c7f3-4f8d-a35d-f4cfd4499278",
         "timestamp": 1788768463484
+      },
+      {
+        "executionId": "d3e4a131-c36f-4831-820e-799a7b0da455",
+        "chatSessionId": "sess_9db3dd53-c7f3-4f8d-a35d-f4cfd4499278",
+        "timestamp": 1788774009132
       }
     ],
     "13.2 Write TransactionFilterPanelComponent tests": [
@@ -608,6 +623,11 @@
         "executionId": "d3e4a131-c36f-4831-820e-799a7b0da455",
         "chatSessionId": "sess_9db3dd53-c7f3-4f8d-a35d-f4cfd4499278",
         "timestamp": 1788768463802
+      },
+      {
+        "executionId": "d3e4a131-c36f-4831-820e-799a7b0da455",
+        "chatSessionId": "sess_9db3dd53-c7f3-4f8d-a35d-f4cfd4499278",
+        "timestamp": 1788774009015
       }
     ],
     "13.3 Write TransactionDetailDialogComponent tests": [
@@ -615,6 +635,44 @@
         "executionId": "b5cd6048-e4dc-4782-970c-47a0235f0292",
         "chatSessionId": "sess_8aea5357-5ee9-4f4e-a0e3-6fa94cce6909",
         "timestamp": 1788593313212
+      },
+      {
+        "executionId": "40ef4368-60f7-46a7-8524-2b98133b31f9",
+        "chatSessionId": "sess_b6af5283-731b-4d2f-8db6-80a7a0e3894e",
+        "timestamp": 1788775866866
+      },
+      {
+        "executionId": "40ef4368-60f7-46a7-8524-2b98133b31f9",
+        "chatSessionId": "sess_b6af5283-731b-4d2f-8db6-80a7a0e3894e",
+        "timestamp": 1788775955981
+      }
+    ],
+    "13. Frontend component tests": [
+      {
+        "executionId": "40ef4368-60f7-46a7-8524-2b98133b31f9",
+        "chatSessionId": "sess_b6af5283-731b-4d2f-8db6-80a7a0e3894e",
+        "timestamp": 1788775956059
+      }
+    ],
+    "9. Backend integration tests": [
+      {
+        "executionId": "411d24e2-6672-488f-bfe7-ce51286717d1",
+        "chatSessionId": "sess_f03d5c82-39ca-4d78-a0d5-58c5f0a94e88",
+        "timestamp": 1788776671210
+      }
+    ],
+    "2. Transaction module DTOs, filter request, and value objects": [
+      {
+        "executionId": "3c874be5-ea0c-498d-804e-763e5f7311d7",
+        "chatSessionId": "sess_34147430-9e76-401d-863b-f6eeb1695727",
+        "timestamp": 1788776752821
+      }
+    ],
+    "8. Access control wiring, controller, and error mapping": [
+      {
+        "executionId": "35ff4768-3b81-47d8-b069-0ac52cee948a",
+        "chatSessionId": "sess_647023d4-8929-4b80-8b24-4182220edd7b",
+        "timestamp": 1788777051443
       }
     ]
   }

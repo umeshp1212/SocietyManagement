@@ -215,7 +215,11 @@ describe('TransactionListComponent', () => {
 
   it('uses admin page sizing (25-based) when the caller has a society-wide role', () => {
     authService.hasAnyRole.and.returnValue(true);
-    transactionService.listTransactions.and.returnValue(of(makePage([])));
+    // For an admin caller with no explicit size, the backend resolves the
+    // 25-based admin default and echoes it back in the paged response.
+    transactionService.listTransactions.and.returnValue(
+      of({ ...makePage([]), size: 25 }),
+    );
     setup();
     fixture.detectChanges();
 

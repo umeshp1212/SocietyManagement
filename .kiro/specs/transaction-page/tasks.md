@@ -33,7 +33,7 @@ Angular CLI (`frontend/package.json`); tests run via `ng test`.
     - This supplies `Page<MaintenancePayment> findAll(Specification, Pageable)` used by the list query
     - _Requirements: 1.1, 7.1_
 
-- [ ] 2. Transaction module DTOs, filter request, and value objects
+- [x] 2. Transaction module DTOs, filter request, and value objects
   - [x] 2.1 Create TransactionFilterRequest DTO
     - Create `com.society.module.transaction.dto.TransactionFilterRequest` with fields: `startDate` (LocalDate), `endDate` (LocalDate), `paymentMode` (MaintenancePayment.PaymentMode), `statuses` (List<MaintenancePayment.PaymentStatus>), `payerType` (String), `unitId` (Long), `unitSearch` (String), `reference` (String)
     - _Requirements: 3.1, 4.1, 5.1, 5.3, 6.1, 6.3, 6.4, 9.1_
@@ -167,7 +167,7 @@ Angular CLI (`frontend/package.json`); tests run via `ng test`.
     - Assert `BusinessException` message names the offending value for invalid payment mode, status, payer type, unit-search/reference length, and unknown unit id; assert detail 404 for a non-existent id
     - _Requirements: 3.4, 3.5, 4.3, 5.4, 6.2, 6.5, 6.6, 7.6, 8.6, 9.3_
 
-- [ ] 8. Access control wiring, controller, and error mapping
+- [x] 8. Access control wiring, controller, and error mapping
   - [x] 8.1 Add AccessDeniedException -> 403 mapping in GlobalExceptionHandler
     - Add a handler for `org.springframework.security.access.AccessDeniedException` returning `ApiResponse.error(...)` with HTTP 403 (only if not already present)
     - _Requirements: 2.3, 8.5, 10.3, 10.5_
@@ -184,7 +184,7 @@ Angular CLI (`frontend/package.json`); tests run via `ng test`.
     - Translate unrecognized enum bind values into `BusinessException` naming the value (payment mode / status)
     - _Requirements: 1.5, 4.3, 5.4, 10.1, 10.5_
 
-- [ ] 9. Backend integration tests
+- [x] 9. Backend integration tests
   - [x] 9.1 Write MockMvc integration tests for access control and scope
     - `@SpringBootTest` + MockMvc: unauthenticated -> 401; authenticated without `TRANSACTION_VIEW`/`SUPER_ADMIN` -> 403; member vs admin scope end-to-end against seeded data; member out-of-scope detail -> 403; non-existent detail -> 404
     - _Requirements: 2.3, 8.5, 8.6, 10.1, 10.3, 10.4, 10.5_
@@ -227,20 +227,20 @@ Angular CLI (`frontend/package.json`); tests run via `ng test`.
     - Add a lazy-loaded `transactions` route in `frontend/src/app/app.routes.ts` guarded by auth, pointing at the transaction feature
     - _Requirements: 1.1, 10.1_
 
-- [~] 13. Frontend component tests
-  - [-] 13.1 Write TransactionListComponent tests
+- [x] 13. Frontend component tests
+  - [x] 13.1 Write TransactionListComponent tests
     - Renders required columns and paginator; empty-state on empty content; error banner retains prior rows on service failure
     - _Requirements: 1.2, 1.3, 1.7, 2.5, 2.6, 3.6_
 
-  - [-] 13.2 Write TransactionFilterPanelComponent tests
+  - [x] 13.2 Write TransactionFilterPanelComponent tests
     - Emits AND-combined filter; mirrors server validation for start <= end and max lengths; preserves prior filter on server rejection
     - _Requirements: 3.4, 6.5, 7.1, 7.6, 9.3_
 
-  - [ ]* 13.3 Write TransactionDetailDialogComponent tests
+  - [x] 13.3 Write TransactionDetailDialogComponent tests
     - Renders all fields with placeholders for nulls; verification block when verified; reversal block when reversed; correct error message (no fields) for 403/404/500
     - _Requirements: 8.1, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-- [ ] 14. Final checkpoint - Ensure all tests pass
+- [x] 14. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

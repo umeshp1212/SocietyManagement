@@ -49,6 +49,26 @@ module.exports = function (config) {
           '--headless=new',
         ],
       },
+      // Edge-based headless launcher. Used on machines where Chrome is enrolled
+      // in Cloud Management (CloudManagementEnrollmentToken) and is therefore
+      // forced to open the profile picker on launch, which prevents Karma from
+      // capturing the browser. Edge on this machine has no such policy.
+      EdgeHeadlessNoSandbox: {
+        base: 'ChromeHeadless',
+        flags: [
+          '--no-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--disable-extensions',
+          '--disable-background-networking',
+          '--disable-sync',
+          '--disable-default-apps',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--user-data-dir=' + require('os').tmpdir() + '/karma-edge-profile',
+          '--headless=new',
+        ],
+      },
     },
     restartOnFileChange: true,
   });
