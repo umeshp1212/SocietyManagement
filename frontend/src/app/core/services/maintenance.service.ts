@@ -11,6 +11,14 @@ export class MaintenanceService {
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * Advance credit (prepaid/overpaid money) held for a unit. Returns { entries, availableTotal }.
+   */
+  getUnitAdvanceCredit(unitId: number): Observable<ApiResponse<{ entries: any[]; availableTotal: number }>> {
+    return this.http.get<ApiResponse<{ entries: any[]; availableTotal: number }>>(
+      `${this.apiUrl}/advance-credit/unit/${unitId}`);
+  }
+
   // ======================== CHARGE CONFIG ========================
 
   getChargeConfigs(): Observable<ApiResponse<any[]>> {
@@ -92,6 +100,15 @@ export class MaintenanceService {
 
   reversePayment(paymentId: number, reason: string): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/payments/${paymentId}/reverse`, { reason });
+  }
+
+  /**
+   * Reassign a wrongly-attributed payment to the correct unit's bill. Atomically reverses
+   * the original payment and re-creates it against `targetBillId`.
+   */
+  reassignPayment(paymentId: number, targetBillId: number, reason: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.apiUrl}/payments/${paymentId}/reassign`, { targetBillId, reason });
   }
 
   getLedgerByBill(billId: number): Observable<ApiResponse<any[]>> {

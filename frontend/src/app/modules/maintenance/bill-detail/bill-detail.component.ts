@@ -17,6 +17,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { AuthService } from '@core/services/auth.service';
 import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse-payment-dialog.component';
+import { ReassignPaymentDialogComponent, ReassignPaymentResult } from '../reassign-payment-dialog/reassign-payment-dialog.component';
 
 @Component({
   selector: 'app-bill-detail',
@@ -223,6 +224,11 @@ import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef>Actions</th>
               <td mat-cell *matCellDef="let p">
+                <button mat-button color="primary" type="button"
+                        *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && canReassign()"
+                        (click)="reassignPayment(p)">
+                  <mat-icon>swap_horiz</mat-icon> Reassign
+                </button>
                 <button mat-button color="warn" type="button"
                         *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && canReverse()"
                         (click)="reversePayment(p)">
@@ -238,6 +244,54 @@ import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse
             <tr mat-row *matRowDef="let row; columns: paymentColumns;"></tr>
           </table>
           <p *ngIf="payments.length === 0" class="no-data">No payments recorded yet.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Advance Credit: overpayment surplus held for this unit (from suspense account) -->
+      <mat-card class="history-card" *ngIf="advanceCredit.length > 0">
+        <mat-card-header>
+          <mat-card-title>Advance Credit for Unit</mat-card-title>
+          <mat-card-subtitle>Total available: {{ advanceCreditTotal | currency:'INR' }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="advance-note">
+            Money the owner paid over the bill amount. It is held as credit for this unit and can be
+            applied to a future bill from the Suspense Account.
+          </p>
+          <table mat-table [dataSource]="advanceCredit" class="mat-elevation-z1">
+            <ng-container matColumnDef="receivedDate">
+              <th mat-header-cell *matHeaderCellDef>Date</th>
+              <td mat-cell *matCellDef="let c">{{ c.receivedDate | date:'mediumDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="payerName">
+              <th mat-header-cell *matHeaderCellDef>Payer</th>
+              <td mat-cell *matCellDef="let c">{{ c.payerName || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Credit</th>
+              <td mat-cell *matCellDef="let c">{{ c.amount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="balanceAmount">
+              <th mat-header-cell *matHeaderCellDef>Available</th>
+              <td mat-cell *matCellDef="let c">{{ c.balanceAmount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="paymentMode">
+              <th mat-header-cell *matHeaderCellDef>Mode</th>
+              <td mat-cell *matCellDef="let c">{{ c.paymentMode || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="referenceNumber">
+              <th mat-header-cell *matHeaderCellDef>Reference</th>
+              <td mat-cell *matCellDef="let c">{{ c.referenceNumber || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let c">
+                <span class="status-badge" [ngClass]="c.status?.toLowerCase()">{{ c.status }}</span>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="advanceColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: advanceColumns;"></tr>
+          </table>
         </mat-card-content>
       </mat-card>
 
@@ -333,6 +387,9 @@ import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse
     .status-badge.reversed { background: #eceff1; color: #455a64; }
     .negative { color: #c62828; }
     .reversed-note { font-size: 12px; color: #b71c1c; font-style: italic; cursor: help; }
+    .status-badge.available { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.applied { background: #e3f2fd; color: #1565c0; }
+    .advance-note { color: #555; font-size: 13px; margin: 0 0 12px; line-height: 1.5; }
   `]
 })
 export class BillDetailComponent implements OnInit {
@@ -343,6 +400,9 @@ export class BillDetailComponent implements OnInit {
   paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'transactionId', 'status', 'actions'];
   ledger: any[] = [];
   ledgerColumns = ['performedOn', 'entryType', 'amount', 'balanceAfter', 'source', 'performedBy', 'reason'];
+  advanceCredit: any[] = [];
+  advanceColumns = ['receivedDate', 'payerName', 'amount', 'balanceAmount', 'paymentMode', 'referenceNumber', 'status'];
+  advanceCreditTotal = 0;
   billId!: number;
 
   paymentForm = {
@@ -363,6 +423,16 @@ export class BillDetailComponent implements OnInit {
     this.loadQrCode();
     this.loadPayments();
     this.loadLedger();
+  }
+
+  loadAdvanceCredit(unitId: number): void {
+    if (!unitId) { return; }
+    this.maintenanceService.getUnitAdvanceCredit(unitId).subscribe(res => {
+      if (res.success) {
+        this.advanceCredit = res.data?.entries || [];
+        this.advanceCreditTotal = Number(res.data?.availableTotal || 0);
+      }
+    });
   }
 
   loadLedger(): void {
@@ -406,10 +476,42 @@ export class BillDetailComponent implements OnInit {
     });
   }
 
+  reassignPayment(payment: any): void {
+    const dialogRef = this.dialog.open(ReassignPaymentDialogComponent, {
+      width: '520px',
+      data: {
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        receiptNumber: payment.receiptNumber,
+        currentUnitNumber: this.bill?.unitNumber,
+        currentBillId: this.billId
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result: ReassignPaymentResult | undefined) => {
+      if (!result) { return; }   // cancelled
+      this.maintenanceService.reassignPayment(payment.paymentId, result.targetBillId, result.reason).subscribe({
+        next: res => {
+          if (res.success) {
+            this.snackBar.open('Payment reassigned', 'Close', { duration: 3000 });
+            this.loadBill();
+            this.loadPayments();
+            this.loadLedger();
+          }
+        },
+        error: err => this.snackBar.open(
+          err?.error?.message || 'Failed to reassign payment.', 'Close', { duration: 5000 })
+      });
+    });
+  }
+
   loadBill(): void {
     this.maintenanceService.getBillById(this.billId).subscribe(res => {
       if (res.success) {
         this.bill = res.data;
+        if (this.bill?.unitId) {
+          this.loadAdvanceCredit(this.bill.unitId);
+        }
       }
     });
   }
@@ -454,12 +556,22 @@ export class BillDetailComponent implements OnInit {
       billId: this.billId,
       ...this.paymentForm
     };
-    this.maintenanceService.recordOfflinePayment(request).subscribe(res => {
-      if (res.success) {
-        this.loadBill();
-        this.loadPayments();
-        this.paymentForm = { amount: null, paymentDate: '', paymentMode: '', transactionId: '', payerName: '', remarks: '' };
-      }
+    this.maintenanceService.recordOfflinePayment(request).subscribe({
+      next: res => {
+        if (res.success) {
+          // Backend may report that part of the amount was credited as advance/surplus.
+          const note = res.data?.remarks && /surplus|advance/i.test(res.data.remarks)
+            ? ' Surplus recorded as unit advance credit.'
+            : '';
+          this.snackBar.open((res.message || 'Payment recorded') + note, 'Close', { duration: 4000 });
+          this.loadBill();
+          this.loadPayments();
+          this.loadLedger();
+          this.paymentForm = { amount: null, paymentDate: '', paymentMode: '', transactionId: '', payerName: '', remarks: '' };
+        }
+      },
+      error: err => this.snackBar.open(
+        err?.error?.message || 'Failed to record payment.', 'Close', { duration: 5000 })
     });
   }
 
@@ -469,5 +581,6 @@ export class BillDetailComponent implements OnInit {
 
   canRecordPayment(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT'); }
   canReverse(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT_REVERSE'); }
+  canReassign(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT_REASSIGN'); }
   canViewLedger(): boolean { return this.authService.hasPermission('MAINTENANCE_VIEW'); }
 }

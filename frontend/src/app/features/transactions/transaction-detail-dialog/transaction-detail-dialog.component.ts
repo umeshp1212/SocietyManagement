@@ -10,9 +10,17 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 import { TransactionDetail } from '../models/transaction.models';
 import { TransactionService } from '../services/transaction.service';
+import { AuthService } from '@core/services/auth.service';
+import { MaintenanceService } from '@core/services/maintenance.service';
+import {
+  ReassignPaymentDialogComponent,
+  ReassignPaymentResult,
+} from '@modules/maintenance/reassign-payment-dialog/reassign-payment-dialog.component';
 
 /** Data injected into the detail dialog: the payment id to load. */
 export interface TransactionDetailDialogData {
@@ -140,6 +148,11 @@ export const EMPTY_PLACEHOLDER = '\u2014'; // em dash "—"
     </mat-dialog-content>
 
     <mat-dialog-actions align="end">
+      <button mat-button color="primary" type="button"
+              *ngIf="!loading && !errorMessage && detail && canReassign() && isReassignable(detail)"
+              (click)="reassign(detail)">
+        <mat-icon>swap_horiz</mat-icon> Reassign
+      </button>
       <button mat-button mat-dialog-close>Close</button>
     </mat-dialog-actions>
   `,
@@ -190,7 +203,55 @@ export class TransactionDetailDialogComponent implements OnInit {
     private readonly transactionService: TransactionService,
     private readonly dialogRef: MatDialogRef<TransactionDetailDialogComponent>,
     @Inject(MAT_DIALOG_DATA) private readonly data: TransactionDetailDialogData,
+    private readonly authService: AuthService,
+    private readonly maintenanceService: MaintenanceService,
+    private readonly dialog: MatDialog,
+    private readonly snackBar: MatSnackBar,
   ) {}
+
+  /** Whether the current user may reassign a payment. */
+  canReassign(): boolean {
+    return this.authService.hasPermission('MAINTENANCE_PAYMENT_REASSIGN');
+  }
+
+  /** A payment can only be reassigned while it is still active (not reversed/failed). */
+  isReassignable(d: TransactionDetail): boolean {
+    return d.status !== 'REVERSED' && d.status !== 'FAILED';
+  }
+
+  /** Open the reassign dialog and, on confirm, move the payment to the chosen bill. */
+  reassign(d: TransactionDetail): void {
+    const ref = this.dialog.open(ReassignPaymentDialogComponent, {
+      width: '520px',
+      data: {
+        paymentId: d.paymentId,
+        amount: d.amount,
+        receiptNumber: d.receiptNumber,
+        currentUnitNumber: d.unitNumber,
+      },
+    });
+
+    ref.afterClosed().subscribe((result: ReassignPaymentResult | undefined) => {
+      if (!result) { return; }
+      this.maintenanceService
+        .reassignPayment(d.paymentId, result.targetBillId, result.reason)
+        .subscribe({
+          next: res => {
+            if (res.success) {
+              this.snackBar.open('Payment reassigned', 'Close', { duration: 3000 });
+              // Close the detail dialog so the list refreshes on reopen.
+              this.dialogRef.close('reassigned');
+            }
+          },
+          error: (err: unknown) => {
+            const msg = err instanceof HttpErrorResponse
+              ? (err.error?.message || 'Failed to reassign payment.')
+              : 'Failed to reassign payment.';
+            this.snackBar.open(msg, 'Close', { duration: 5000 });
+          },
+        });
+    });
+  }
 
   ngOnInit(): void {
     this.transactionService.getTransaction(this.data.paymentId).subscribe({

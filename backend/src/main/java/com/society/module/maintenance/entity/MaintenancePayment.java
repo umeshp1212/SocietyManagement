@@ -121,6 +121,24 @@ public class MaintenancePayment extends BaseEntity {
     @Column(name = "discount_amount", precision = 10, scale = 2)
     private BigDecimal discountAmount;
 
+    /**
+     * Portion of {@link #amount} that was actually applied to the linked bill. When an owner
+     * pays more than the bill's outstanding balance, {@code amount} holds the full amount they
+     * paid (for the receipt and transaction record) while {@code appliedAmount} holds only what
+     * reduced this bill's balance. The remainder went to the unit's advance credit
+     * ({@link #surplusCreditId}). Null means the whole {@code amount} was applied to the bill.
+     */
+    @Column(name = "applied_amount", precision = 10, scale = 2)
+    private BigDecimal appliedAmount;
+
+    /**
+     * The {@code UnitAdvanceCredit} id that holds the surplus (advance credit) for an
+     * overpayment, if any. Used to reverse the credit together with the payment. Null when
+     * there was no surplus.
+     */
+    @Column(name = "surplus_credit_id")
+    private Long surplusCreditId;
+
     public enum PaymentMode {
         CASHFREE_LINK, CASHFREE_QR, RAZORPAY, UPI, GPAY, PHONEPE, NEFT, RTGS, IMPS, CHEQUE, CASH, BANK_TRANSFER
     }

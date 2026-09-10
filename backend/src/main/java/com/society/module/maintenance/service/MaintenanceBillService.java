@@ -14,6 +14,7 @@ import com.society.module.maintenance.entity.MaintenanceChargeConfig.ApplicableT
 import com.society.module.maintenance.entity.MaintenanceChargeConfig.CalculationType;
 import com.society.module.maintenance.entity.MaintenancePayment;
 import com.society.module.maintenance.entity.MaintenancePayment.PaymentMode;
+import com.society.module.maintenance.entity.UnitAdvanceCredit;
 import com.society.module.maintenance.entity.MaintenancePayment.PaymentStatus;
 import com.society.module.maintenance.entity.Penalty;
 import com.society.module.maintenance.entity.Penalty.PenaltyStatus;
@@ -63,6 +64,7 @@ public class MaintenanceBillService {
     private final ReceiptNumberService receiptNumberService;
     private final MaintenanceLedgerService ledgerService;
     private final com.society.module.maintenance.repository.MaintenanceLedgerRepository ledgerRepository;
+    private final com.society.module.maintenance.repository.UnitAdvanceCreditRepository advanceCreditRepository;
 
     /**
      * Flat late fee applied once to a bill when the unit is carrying arrears. Default 0
@@ -457,55 +459,113 @@ public class MaintenanceBillService {
         MaintenanceBill bill = billRepository.findById(request.getBillId())
                 .orElseThrow(() -> new ResourceNotFoundException("Bill not found with id: " + request.getBillId()));
 
-        if (bill.getStatus() == BillStatus.PAID) {
-            throw new BusinessException("Bill is already fully paid");
-        }
+        BigDecimal totalReceived = request.getAmount();
 
-        if (request.getAmount().compareTo(bill.getBalanceAmount()) > 0) {
-            throw new BusinessException("Payment amount exceeds the outstanding balance of " + bill.getBalanceAmount());
-        }
+        // An owner can transfer any amount to the society bank account (e.g. paying more than
+        // this month's bill, rounding up, or clearing several months at once). We must record
+        // what actually happened rather than reject it.
+        //
+        // The payment record captures the FULL received amount so it is visible in the
+        // Transaction module and payment history (these read MaintenancePayment). The BILL,
+        // however, only absorbs up to its outstanding balance so its balance never goes
+        // negative (keeping arrears carry-forward, outstanding totals and defaulter reports
+        // correct). Any surplus is credited to the unit's suspense/advance account so it is
+        // tracked and can later be applied to a future bill — nothing is lost.
+        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
+        BigDecimal appliedToBill = totalReceived.min(balanceBefore).max(BigDecimal.ZERO);
+        BigDecimal surplus = totalReceived.subtract(appliedToBill).max(BigDecimal.ZERO);
 
+        PaymentMode paymentMode = PaymentMode.valueOf(request.getPaymentMode());
+        String payerType = request.getPayerType() != null ? request.getPayerType() : "OWNER";
+
+        // ---- 1. Record the FULL received amount as a single payment (what the owner paid) ----
         MaintenancePayment payment = new MaintenancePayment();
         payment.setBill(bill);
         payment.setUnit(bill.getUnit());
-        payment.setAmount(request.getAmount());
+        payment.setAmount(totalReceived);
         payment.setPaymentDate(request.getPaymentDate());
-        payment.setPaymentMode(PaymentMode.valueOf(request.getPaymentMode()));
+        payment.setPaymentMode(paymentMode);
         payment.setTransactionId(request.getTransactionId());
         payment.setPayerName(request.getPayerName());
-        payment.setPayerType(request.getPayerType() != null ? request.getPayerType() : "OWNER");
+        payment.setPayerType(payerType);
         payment.setReceiptNumber(generateReceiptNumber());
         payment.setStatus(PaymentStatus.VERIFIED);
-        payment.setRemarks(request.getRemarks());
+        payment.setRemarks(buildAppliedRemarks(request.getRemarks(), totalReceived, appliedToBill, surplus));
+        payment.setAppliedAmount(appliedToBill);
         payment.setVerifiedOn(LocalDateTime.now());
-        payment.setVerifiedBy("ADMIN");
+        payment.setVerifiedBy(currentUsername());
+        // MaintenancePayment has a non-null @Version, so Spring Data's save() treats a brand-new
+        // instance as "not new" and routes it through EntityManager.merge(). merge() persists a
+        // managed COPY and returns it, leaving the original `payment` reference unmanaged with a
+        // null id. We must keep the returned managed instance — otherwise payment.getPaymentId()
+        // is null (breaking the DTO, the advance-credit link and reversal) and mutating the
+        // original later triggers a second INSERT (the duplicate-receipt bug).
+        payment = paymentRepository.save(payment);
 
-        paymentRepository.save(payment);
-
-        // Update bill amounts
-        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
-        BigDecimal paidAmount = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
-        paidAmount = paidAmount.add(request.getAmount());
+        // ---- 2. Apply only up to the outstanding balance to the bill (never overpay it) ----
+        BigDecimal paidAmount = (bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO)
+                .add(appliedToBill);
         bill.setPaidAmount(paidAmount);
-        bill.setBalanceAmount(bill.getTotalAmount().subtract(paidAmount));
-
-        if (bill.getBalanceAmount().compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal newBalance = bill.getTotalAmount().subtract(paidAmount).max(BigDecimal.ZERO);
+        bill.setBalanceAmount(newBalance);
+        if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
             bill.setStatus(BillStatus.PAID);
-            bill.setBalanceAmount(BigDecimal.ZERO);
         } else if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
             bill.setStatus(BillStatus.PARTIALLY_PAID);
         }
-
         billRepository.save(bill);
 
-        // Audit: record the money mutation
         ledgerService.record(bill, payment.getPaymentId(),
-                MaintenanceLedger.EntryType.PAYMENT_APPLIED, request.getAmount(),
+                MaintenanceLedger.EntryType.PAYMENT_APPLIED, appliedToBill,
                 balanceBefore, bill.getBalanceAmount(),
                 MaintenanceLedger.Source.OFFLINE, payment.getReceiptNumber(),
                 request.getRemarks());
 
+        // ---- 3. Record any surplus as the unit's advance credit (known owner, known source) ----
+        if (surplus.compareTo(BigDecimal.ZERO) > 0) {
+            UnitAdvanceCredit credit = UnitAdvanceCredit.builder()
+                    .unit(bill.getUnit())
+                    .amount(surplus)
+                    .appliedAmount(BigDecimal.ZERO)
+                    .balanceAmount(surplus)
+                    .receivedDate(request.getPaymentDate())
+                    .paymentMode(paymentMode.name())
+                    .referenceNumber(request.getTransactionId())
+                    .payerName(request.getPayerName())
+                    .sourcePaymentId(payment.getPaymentId())
+                    .sourceBillId(bill.getBillId())
+                    .remarks("Overpayment on receipt " + payment.getReceiptNumber()
+                            + " against bill #" + bill.getBillId()
+                            + " (" + Month.of(bill.getBillMonth()).name() + " " + bill.getBillYear() + "). "
+                            + "Received " + totalReceived + ", applied " + appliedToBill + ", credit " + surplus + ".")
+                    .status(UnitAdvanceCredit.CreditStatus.AVAILABLE)
+                    .build();
+            credit = advanceCreditRepository.save(credit);
+
+            // Link the credit to the payment so a later reversal can undo both together.
+            // `payment` here is the MANAGED instance returned by save() above, so mutating it is
+            // enough — the change is flushed automatically at commit. (Do NOT call save() again;
+            // re-saving previously caused a duplicate INSERT of the same receipt number.)
+            payment.setSurplusCreditId(credit.getAdvanceCreditId());
+
+            log.info("Offline payment on bill {}: received {}, applied {}, surplus {} held as advance credit {} for unit {}",
+                    bill.getBillId(), totalReceived, appliedToBill, surplus,
+                    credit.getAdvanceCreditId(), bill.getUnit().getUnitNumber());
+        }
+
         return mapToPaymentDTO(payment);
+    }
+
+    /** Compose the payment remarks, noting how a payment larger than the bill was split. */
+    private String buildAppliedRemarks(String userRemarks, BigDecimal totalReceived,
+                                       BigDecimal appliedToBill, BigDecimal surplus) {
+        String base = userRemarks != null ? userRemarks : "";
+        if (surplus.compareTo(BigDecimal.ZERO) > 0) {
+            String note = "[Received " + totalReceived + "; applied " + appliedToBill
+                    + " to this bill; surplus " + surplus + " credited to unit advance]";
+            return base.isBlank() ? note : base + " " + note;
+        }
+        return base.isBlank() ? null : base;
     }
 
     // ======================== PAYMENT REVERSAL ========================
@@ -538,11 +598,15 @@ public class MaintenanceBillService {
         }
 
         BigDecimal amount = payment.getAmount() != null ? payment.getAmount() : BigDecimal.ZERO;
+        // Only the portion that was actually applied to the bill should be removed from it.
+        // For an overpayment, amount = full received but appliedAmount = what reduced this bill;
+        // the surplus lives in a linked suspense entry and is reversed separately below.
+        BigDecimal appliedToBill = payment.getAppliedAmount() != null ? payment.getAppliedAmount() : amount;
         BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
 
-        // Restore the amount to the bill: reduce paidAmount, recompute balance (clamped to total).
+        // Restore the applied amount to the bill: reduce paidAmount, recompute balance (clamped to total).
         BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
-        BigDecimal newPaid = paidSoFar.subtract(amount).max(BigDecimal.ZERO);
+        BigDecimal newPaid = paidSoFar.subtract(appliedToBill).max(BigDecimal.ZERO);
         bill.setPaidAmount(newPaid);
         BigDecimal newBalance = bill.getTotalAmount().subtract(newPaid).max(BigDecimal.ZERO);
         bill.setBalanceAmount(newBalance);
@@ -556,6 +620,26 @@ public class MaintenanceBillService {
         }
         billRepository.save(bill);
 
+        // If this payment carried an advance-credit surplus, void that credit too so the whole
+        // payment is undone together (money can't linger as credit after a reversal). If part of
+        // the credit has already been applied to a later bill, we refuse rather than silently
+        // leave the books inconsistent.
+        if (payment.getSurplusCreditId() != null) {
+            UnitAdvanceCredit credit = advanceCreditRepository.findById(payment.getSurplusCreditId()).orElse(null);
+            if (credit != null && credit.getStatus() == UnitAdvanceCredit.CreditStatus.AVAILABLE) {
+                BigDecimal applied = credit.getAppliedAmount() != null ? credit.getAppliedAmount() : BigDecimal.ZERO;
+                if (applied.compareTo(BigDecimal.ZERO) > 0) {
+                    throw new BusinessException(
+                            "Part of this payment's advance credit has already been applied to another bill and cannot be reversed automatically.");
+                }
+                credit.setStatus(UnitAdvanceCredit.CreditStatus.REVERSED);
+                credit.setBalanceAmount(BigDecimal.ZERO);
+                credit.setRemarks((credit.getRemarks() != null ? credit.getRemarks() + " " : "")
+                        + "[Voided: source payment " + payment.getReceiptNumber() + " reversed - " + reason + "]");
+                advanceCreditRepository.save(credit);
+            }
+        }
+
         // Mark the payment reversed (kept for audit; never deleted).
         payment.setStatus(PaymentStatus.REVERSED);
         payment.setReversedOn(LocalDateTime.now());
@@ -563,16 +647,153 @@ public class MaintenanceBillService {
         payment.setReversalReason(reason);
         paymentRepository.save(payment);
 
-        // Audit: negative amount reflects that this removes previously-credited money.
+        // Audit: negative amount reflects the money removed from THIS bill (the applied portion).
         ledgerService.record(bill, payment.getPaymentId(),
-                MaintenanceLedger.EntryType.PAYMENT_REVERSED, amount.negate(),
+                MaintenanceLedger.EntryType.PAYMENT_REVERSED, appliedToBill.negate(),
                 balanceBefore, newBalance,
                 MaintenanceLedger.Source.ADMIN, payment.getReceiptNumber(), reason);
 
-        log.info("Payment {} reversed (amount {}), bill {} balance {} -> {}",
-                paymentId, amount, bill.getBillId(), balanceBefore, newBalance);
+        log.info("Payment {} reversed (received {}, applied-to-bill {}), bill {} balance {} -> {}",
+                paymentId, amount, appliedToBill, bill.getBillId(), balanceBefore, newBalance);
 
         return mapToPaymentDTO(payment);
+    }
+
+    // ======================== PAYMENT REASSIGNMENT ========================
+
+    /**
+     * Reassign a wrongly-attributed payment to the correct unit's bill.
+     *
+     * <p>Implemented as an atomic reverse-and-recreate: the original payment is reversed
+     * (restoring the source bill's balance and marked REVERSED for audit), and an equivalent
+     * VERIFIED payment is created against the target bill carrying over the original's mode,
+     * transaction reference, payer and amount. Both mutations and their ledger entries are
+     * committed together; retried on optimistic-lock conflict.
+     *
+     * @return the newly created payment on the target bill
+     */
+    public PaymentDTO reassignPayment(Long paymentId, Long targetBillId, String reason) {
+        return optimisticRetry.execute("reassign payment",
+                () -> self.reassignPaymentTransactional(paymentId, targetBillId, reason));
+    }
+
+    @Transactional
+    public PaymentDTO reassignPaymentTransactional(Long paymentId, Long targetBillId, String reason) {
+        MaintenancePayment original = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
+
+        if (original.getStatus() == PaymentStatus.REVERSED) {
+            throw new BusinessException("Payment has already been reversed and cannot be reassigned");
+        }
+        if (original.getStatus() == PaymentStatus.FAILED) {
+            throw new BusinessException("A failed payment cannot be reassigned");
+        }
+
+        MaintenanceBill sourceBill = original.getBill();
+        if (sourceBill == null) {
+            throw new BusinessException("Payment is not linked to a bill and cannot be reassigned here");
+        }
+
+        MaintenanceBill targetBill = billRepository.findById(targetBillId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target bill not found with id: " + targetBillId));
+
+        if (targetBill.getBillId().equals(sourceBill.getBillId())) {
+            throw new BusinessException("The payment is already assigned to this bill");
+        }
+        if (targetBill.getStatus() == BillStatus.PAID) {
+            throw new BusinessException("Target bill is already fully paid");
+        }
+
+        // A payment that carried an overpayment surplus (advance credit) can't be cleanly
+        // moved in one step, because part of it lives in a separate credit record. Ask the
+        // manager to reverse it (which also voids the credit) and record a fresh payment instead.
+        if (original.getSurplusCreditId() != null) {
+            throw new BusinessException(
+                    "This payment includes an advance-credit surplus. Please reverse it and record a new payment on the correct bill.");
+        }
+
+        BigDecimal amount = original.getAmount() != null ? original.getAmount() : BigDecimal.ZERO;
+
+        BigDecimal targetBalance = targetBill.getBalanceAmount() != null
+                ? targetBill.getBalanceAmount() : BigDecimal.ZERO;
+        if (amount.compareTo(targetBalance) > 0) {
+            throw new BusinessException(
+                    "Payment amount exceeds the outstanding balance of the target bill (" + targetBalance + ")");
+        }
+
+        // ---- 1. Reverse the original payment off the source bill ----
+        // (No surplus here — guarded above — so amount == what was applied to the source bill.)
+        BigDecimal sourceBalanceBefore = sourceBill.getBalanceAmount() != null
+                ? sourceBill.getBalanceAmount() : BigDecimal.ZERO;
+        BigDecimal sourcePaidSoFar = sourceBill.getPaidAmount() != null
+                ? sourceBill.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal sourceNewPaid = sourcePaidSoFar.subtract(amount).max(BigDecimal.ZERO);
+        sourceBill.setPaidAmount(sourceNewPaid);
+        BigDecimal sourceNewBalance = sourceBill.getTotalAmount().subtract(sourceNewPaid).max(BigDecimal.ZERO);
+        sourceBill.setBalanceAmount(sourceNewBalance);
+        if (sourceNewPaid.compareTo(BigDecimal.ZERO) <= 0) {
+            sourceBill.setStatus(BillStatus.UNPAID);
+        } else if (sourceNewBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            sourceBill.setStatus(BillStatus.PAID);
+        } else {
+            sourceBill.setStatus(BillStatus.PARTIALLY_PAID);
+        }
+        billRepository.save(sourceBill);
+
+        String reassignNote = "Reassigned to bill #" + targetBill.getBillId()
+                + " (unit " + targetBill.getUnit().getUnitNumber() + "): " + reason;
+        original.setStatus(PaymentStatus.REVERSED);
+        original.setReversedOn(LocalDateTime.now());
+        original.setReversedBy(currentUsername());
+        original.setReversalReason(reassignNote);
+        paymentRepository.save(original);
+
+        ledgerService.record(sourceBill, original.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_REVERSED, amount.negate(),
+                sourceBalanceBefore, sourceNewBalance,
+                MaintenanceLedger.Source.ADMIN, original.getReceiptNumber(), reassignNote);
+
+        // ---- 2. Create the equivalent payment on the target bill ----
+        MaintenancePayment moved = new MaintenancePayment();
+        moved.setBill(targetBill);
+        moved.setUnit(targetBill.getUnit());
+        moved.setAmount(amount);
+        moved.setPaymentDate(original.getPaymentDate() != null ? original.getPaymentDate() : LocalDate.now());
+        moved.setPaymentMode(original.getPaymentMode());
+        moved.setTransactionId(original.getTransactionId());
+        moved.setPayerName(original.getPayerName());
+        moved.setPayerType(original.getPayerType() != null ? original.getPayerType() : "OWNER");
+        moved.setReceiptNumber(generateReceiptNumber());
+        moved.setStatus(PaymentStatus.VERIFIED);
+        moved.setRemarks("Reassigned from bill #" + sourceBill.getBillId()
+                + " (receipt " + original.getReceiptNumber() + "): " + reason);
+        moved.setVerifiedOn(LocalDateTime.now());
+        moved.setVerifiedBy(currentUsername());
+        paymentRepository.save(moved);
+
+        BigDecimal targetBalanceBefore = targetBalance;
+        BigDecimal targetPaidSoFar = targetBill.getPaidAmount() != null
+                ? targetBill.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal targetNewPaid = targetPaidSoFar.add(amount);
+        targetBill.setPaidAmount(targetNewPaid);
+        BigDecimal targetNewBalance = targetBill.getTotalAmount().subtract(targetNewPaid).max(BigDecimal.ZERO);
+        targetBill.setBalanceAmount(targetNewBalance);
+        if (targetNewBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            targetBill.setStatus(BillStatus.PAID);
+        } else {
+            targetBill.setStatus(BillStatus.PARTIALLY_PAID);
+        }
+        billRepository.save(targetBill);
+
+        ledgerService.record(targetBill, moved.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_APPLIED, amount,
+                targetBalanceBefore, targetNewBalance,
+                MaintenanceLedger.Source.ADMIN, moved.getReceiptNumber(), reassignNote);
+
+        log.info("Payment {} reassigned from bill {} to bill {} (amount {}); new payment {}",
+                paymentId, sourceBill.getBillId(), targetBill.getBillId(), amount, moved.getPaymentId());
+
+        return mapToPaymentDTO(moved);
     }
 
     private String currentUsername() {
@@ -631,6 +852,42 @@ public class MaintenanceBillService {
         return payments.stream()
                 .map(this::mapToPaymentDTO)
                 .collect(Collectors.toList());
+    }
+
+    // ======================== ADVANCE CREDIT ========================
+
+    /** All advance-credit entries for a unit (newest first). */
+    public List<AdvanceCreditDTO> getAdvanceCreditByUnit(Long unitId) {
+        return advanceCreditRepository
+                .findByUnit_UnitIdOrderByReceivedDateDescAdvanceCreditIdDesc(unitId)
+                .stream().map(this::mapToAdvanceCreditDTO).collect(Collectors.toList());
+    }
+
+    /** Total still-available advance credit for a unit. */
+    public BigDecimal getAvailableAdvanceCredit(Long unitId) {
+        BigDecimal available = advanceCreditRepository.getAvailableCreditByUnit(unitId);
+        return available != null ? available : BigDecimal.ZERO;
+    }
+
+    private AdvanceCreditDTO mapToAdvanceCreditDTO(UnitAdvanceCredit c) {
+        return AdvanceCreditDTO.builder()
+                .advanceCreditId(c.getAdvanceCreditId())
+                .unitId(c.getUnit() != null ? c.getUnit().getUnitId() : null)
+                .unitNumber(c.getUnit() != null ? c.getUnit().getUnitNumber() : null)
+                .amount(c.getAmount())
+                .appliedAmount(c.getAppliedAmount())
+                .balanceAmount(c.getBalanceAmount())
+                .receivedDate(c.getReceivedDate())
+                .paymentMode(c.getPaymentMode())
+                .referenceNumber(c.getReferenceNumber())
+                .payerName(c.getPayerName())
+                .sourcePaymentId(c.getSourcePaymentId())
+                .sourceBillId(c.getSourceBillId())
+                .remarks(c.getRemarks())
+                .status(c.getStatus() != null ? c.getStatus().name() : null)
+                .createdOn(c.getCreatedOn())
+                .createdBy(c.getCreatedBy())
+                .build();
     }
 
     public Map<String, Object> getCollectionSummary(int month, int year) {

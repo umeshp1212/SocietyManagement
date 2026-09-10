@@ -262,10 +262,16 @@ export class TransactionListComponent implements OnInit {
   /** Open the detail dialog for the clicked row (Req 8). */
   openDetail(row: TransactionSummary): void {
     const data: TransactionDetailDialogData = { paymentId: row.paymentId };
-    this.dialog.open(TransactionDetailDialogComponent, {
+    const ref = this.dialog.open(TransactionDetailDialogComponent, {
       data,
       width: '640px',
       maxWidth: '95vw',
+    });
+    // A reassign changes the underlying data, so refresh the current page on close.
+    ref.afterClosed().subscribe(result => {
+      if (result === 'reassigned') {
+        this.load();
+      }
     });
   }
 

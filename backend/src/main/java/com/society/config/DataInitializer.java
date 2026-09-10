@@ -30,6 +30,9 @@ public class DataInitializer implements CommandLineRunner {
     /** Authority that gates access to the Transaction Page (design: TRANSACTION_VIEW). */
     private static final String TRANSACTION_VIEW = "TRANSACTION_VIEW";
 
+    /** Authority that gates reassigning a wrongly-attributed payment to the correct unit's bill. */
+    private static final String MAINTENANCE_PAYMENT_REASSIGN = "MAINTENANCE_PAYMENT_REASSIGN";
+
     /**
      * Society-wide roles that view all transactions. They also receive the
      * {@code TRANSACTION_VIEW} permission so the endpoint's authority check
@@ -50,6 +53,7 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         seedTransactionViewPermission();
+        seedPaymentReassignPermission();
 
         Optional<User> existingAdmin = userRepository.findByUsername("admin");
 
@@ -147,6 +151,44 @@ public class DataInitializer implements CommandLineRunner {
                 role.getPermissions().add(transactionView);
                 roleRepository.save(role);
                 log.info("Granted {} to role {}.", TRANSACTION_VIEW, roleName);
+            }
+        }
+    }
+
+    /**
+     * Ensures the {@code MAINTENANCE_PAYMENT_REASSIGN} permission exists and is granted to the
+     * society-wide management roles (chairman/secretary/treasurer). SUPER_ADMIN bypasses the
+     * authority check via {@code hasRole('SUPER_ADMIN')}. Idempotent on every startup.
+     */
+    private void seedPaymentReassignPermission() {
+        Permission reassign = permissionRepository.findByPermissionName(MAINTENANCE_PAYMENT_REASSIGN)
+                .orElseGet(() -> {
+                    Permission permission = Permission.builder()
+                            .permissionName(MAINTENANCE_PAYMENT_REASSIGN)
+                            .module("maintenance")
+                            .description("Reassign a wrongly-attributed payment to the correct unit's bill")
+                            .build();
+                    log.info("Creating {} permission.", MAINTENANCE_PAYMENT_REASSIGN);
+                    return permissionRepository.save(permission);
+                });
+
+        for (String roleName : SOCIETY_WIDE_ROLES) {
+            Role role = roleRepository.findByRoleName(roleName)
+                    .orElseGet(() -> {
+                        Role newRole = Role.builder()
+                                .roleName(roleName)
+                                .displayName(toDisplayName(roleName))
+                                .description("Auto-provisioned society-wide role")
+                                .build();
+                        log.info("Creating {} role.", roleName);
+                        return roleRepository.save(newRole);
+                    });
+
+            if (role.getPermissions().stream()
+                    .noneMatch(p -> MAINTENANCE_PAYMENT_REASSIGN.equals(p.getPermissionName()))) {
+                role.getPermissions().add(reassign);
+                roleRepository.save(role);
+                log.info("Granted {} to role {}.", MAINTENANCE_PAYMENT_REASSIGN, roleName);
             }
         }
     }

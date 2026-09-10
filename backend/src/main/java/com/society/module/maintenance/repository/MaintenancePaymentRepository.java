@@ -37,6 +37,8 @@ public interface MaintenancePaymentRepository extends JpaRepository<MaintenanceP
 
     Optional<MaintenancePayment> findByTransactionId(String transactionId);
 
+    boolean existsByReceiptNumber(String receiptNumber);
+
     @Query("SELECT p FROM MaintenancePayment p WHERE p.status = :status ORDER BY p.paymentDate DESC")
     Page<MaintenancePayment> findByStatus(@Param("status") PaymentStatus status, Pageable pageable);
 

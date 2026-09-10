@@ -123,6 +123,17 @@ public class MaintenanceController {
         return ResponseEntity.ok(ApiResponse.success("Payments fetched", payments));
     }
 
+    // ======================== ADVANCE CREDIT ========================
+
+    /** Advance credit (prepaid/overpaid money) held for a unit. */
+    @GetMapping("/advance-credit/unit/{unitId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getAdvanceCreditByUnit(@PathVariable Long unitId) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("entries", billService.getAdvanceCreditByUnit(unitId));
+        result.put("availableTotal", billService.getAvailableAdvanceCredit(unitId));
+        return ResponseEntity.ok(ApiResponse.success("Advance credit fetched", result));
+    }
+
     /**
      * Reverse (void) a recorded payment. Admin-only, mandatory reason, fully audited.
      */
@@ -133,6 +144,20 @@ public class MaintenanceController {
             @Valid @RequestBody com.society.module.maintenance.dto.ReversePaymentRequest request) {
         PaymentDTO reversed = billService.reversePayment(paymentId, request.getReason());
         return ResponseEntity.ok(ApiResponse.success("Payment reversed", reversed));
+    }
+
+    /**
+     * Reassign a wrongly-attributed payment to the correct unit's bill. Atomic
+     * reverse-and-recreate, mandatory reason, fully audited on both bills.
+     * Returns the newly created payment on the target bill.
+     */
+    @PostMapping("/payments/{paymentId}/reassign")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_PAYMENT_REASSIGN')")
+    public ResponseEntity<ApiResponse<PaymentDTO>> reassignPayment(
+            @PathVariable Long paymentId,
+            @Valid @RequestBody com.society.module.maintenance.dto.ReassignPaymentRequest request) {
+        PaymentDTO moved = billService.reassignPayment(paymentId, request.getTargetBillId(), request.getReason());
+        return ResponseEntity.ok(ApiResponse.success("Payment reassigned", moved));
     }
 
     // ======================== LEDGER / AUDIT ========================
