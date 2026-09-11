@@ -59,8 +59,17 @@ import { AuthService } from '@core/services/auth.service';
           <input matInput type="number" [(ngModel)]="selectedYear">
         </mat-form-field>
         <button mat-raised-button color="accent" (click)="loadData()">
-          <mat-icon>search</mat-icon> Load
+          <mat-icon>refresh</mat-icon> Load
         </button>
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Search by unit no or owner</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput [(ngModel)]="searchTerm" (input)="applySearch()"
+                 placeholder="e.g. 105 or Umesh or Patil" autocomplete="off">
+          <button mat-icon-button matSuffix *ngIf="searchTerm" (click)="clearSearch()" matTooltip="Clear">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
       </div>
 
       <div class="summary-cards" *ngIf="summary">
@@ -152,7 +161,12 @@ import { AuthService } from '@core/services/auth.service';
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
       </table>
-      <mat-paginator [length]="totalElements" [pageSize]="pageSize" [pageSizeOptions]="[10,20,50]"
+      <div class="no-results" *ngIf="bills.length === 0">
+        <mat-icon>search_off</mat-icon>
+        <span *ngIf="searchTerm">No bills match "{{ searchTerm }}" on this page.</span>
+        <span *ngIf="!searchTerm">No bills found for the selected period.</span>
+      </div>
+      <mat-paginator *ngIf="!searchTerm" [length]="totalElements" [pageSize]="pageSize" [pageSizeOptions]="[10,20,50]"
         (page)="onPageChange($event)"></mat-paginator>
     </div>
   `,
@@ -162,6 +176,8 @@ import { AuthService } from '@core/services/auth.service';
     .header-actions { display: flex; gap: 8px; align-items: center; }
     .filter-bar { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
     .filter-bar mat-form-field { width: 150px; }
+    .filter-bar .search-field { width: 320px; margin-left: auto; }
+    .no-results { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 32px; color: #888; }
     .summary-cards { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
     .summary-cards mat-card { flex: 1; min-width: 150px; text-align: center; }
     .summary-label { font-size: 12px; color: #666; text-transform: uppercase; }
@@ -176,6 +192,8 @@ import { AuthService } from '@core/services/auth.service';
 })
 export class BillListComponent implements OnInit {
   bills: any[] = [];
+  allBills: any[] = [];
+  searchTerm = '';
   summary: any = null;
   displayedColumns = ['unitNumber', 'ownerName', 'amount', 'arrears', 'totalAmount', 'paidAmount', 'balance', 'status', 'dueDate', 'actions'];
   totalElements = 0;
@@ -205,10 +223,29 @@ export class BillListComponent implements OnInit {
     this.maintenanceService.getBillsByMonth(this.selectedMonth, this.selectedYear, this.currentPage, this.pageSize)
       .subscribe(res => {
         if (res.success) {
-          this.bills = res.data.content;
+          this.allBills = res.data.content;
           this.totalElements = res.data.totalElements;
+          this.applySearch();
         }
       });
+  }
+
+  applySearch(): void {
+    const term = this.searchTerm.trim().toLowerCase();
+    if (!term) {
+      this.bills = this.allBills;
+      return;
+    }
+    this.bills = this.allBills.filter(bill => {
+      const unit = (bill.unitNumber ?? '').toString().toLowerCase();
+      const owner = (bill.ownerName ?? '').toString().toLowerCase();
+      return unit.includes(term) || owner.includes(term);
+    });
+  }
+
+  clearSearch(): void {
+    this.searchTerm = '';
+    this.applySearch();
   }
 
   loadSummary(): void {
