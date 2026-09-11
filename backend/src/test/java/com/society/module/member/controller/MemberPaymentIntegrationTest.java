@@ -293,6 +293,37 @@ class MemberPaymentIntegrationTest {
     }
 
     // ------------------------------------------------------------------
+    // Cashfree webhook (server-to-server) — must record the payer name
+    // ------------------------------------------------------------------
+
+    @Test
+    @DisplayName("Cashfree SUCCESS webhook records the payment WITH the unit owner's payer name")
+    void cashfreeWebhook_recordsPayerName() throws Exception {
+        // Production member checkouts confirm via this webhook, not the /verify call. The bill is
+        // matched by its cashfree_order_id, so seed that. Signature is skipped (blank secret).
+        MaintenanceBill bill = persistBill(5, new BigDecimal("5000.00"));
+        bill.setCashfreeOrderId("CF-ORDER-WH-1");
+        billRepository.save(bill);
+
+        mockMvc.perform(post("/member/payments/webhook/cashfree")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cashfreeWebhookBody("CF-ORDER-WH-1", "CFPAY-1", "SUCCESS",
+                                new BigDecimal("5000.00"))))
+                .andExpect(status().isOk());
+
+        MaintenancePayment payment = paymentRepository.findByCashfreeOrderId("CF-ORDER-WH-1").orElseThrow();
+        assertThat(payment.getPaymentMode()).isEqualTo(MaintenancePayment.PaymentMode.CASHFREE_LINK);
+        assertThat(payment.getStatus()).isEqualTo(MaintenancePayment.PaymentStatus.SUCCESS);
+        // The regression: this was null, so the Transaction list showed '-'. It must now carry the
+        // owner's name resolved from the bill's unit.
+        assertThat(payment.getPayerName()).isEqualTo("Umesh Patil");
+        assertThat(payment.getPayerType()).isEqualTo("OWNER");
+
+        MaintenanceBill reloaded = billRepository.findById(bill.getBillId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(BillStatus.PAID);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
@@ -313,6 +344,26 @@ class MemberPaymentIntegrationTest {
         body.put("amount", amount);
         body.put("cashfreeOrderId", orderId);
         return objectMapper.writeValueAsString(body);
+    }
+
+    /** Build the Cashfree webhook payload shape: data.order.order_id + data.payment.*. */
+    private String cashfreeWebhookBody(String orderId, String cfPaymentId, String status,
+                                       BigDecimal amount) throws Exception {
+        Map<String, Object> order = new LinkedHashMap<>();
+        order.put("order_id", orderId);
+
+        Map<String, Object> payment = new LinkedHashMap<>();
+        payment.put("payment_status", status);
+        payment.put("cf_payment_id", cfPaymentId);
+        payment.put("payment_amount", amount);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("order", order);
+        data.put("payment", payment);
+
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("data", data);
+        return objectMapper.writeValueAsString(root);
     }
 
     private MaintenanceBill persistBill(int month, BigDecimal total) {

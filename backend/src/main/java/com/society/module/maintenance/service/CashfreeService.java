@@ -350,6 +350,12 @@ public class CashfreeService {
         payment.setAmount(paymentAmount);
         payment.setPaymentDate(LocalDate.now());
         payment.setReceiptNumber(generateWebhookReceiptNumber());
+        // Record who paid so the Transaction list shows the payer (not '-'). The webhook is a
+        // server-to-server callback with no logged-in user, so resolve the payer from the bill's
+        // unit: prefer the primary owner, else all owner names. The interactive /verify path sets
+        // this from the authenticated owner; the webhook must do the equivalent.
+        payment.setPayerName(resolvePayerName(bill.getUnit()));
+        payment.setPayerType("OWNER");
         paymentRepository.save(payment);
 
         // Update bill totals, clamping balance so overpay can't go negative.
@@ -372,6 +378,26 @@ public class CashfreeService {
                 balanceBefore, newBalance,
                 MaintenanceLedger.Source.CASHFREE_WEBHOOK, paymentId, "Cashfree webhook payment");
         log.info("Payment successful for bill: {}, amount: {}", bill.getBillId(), paymentAmount);
+    }
+
+    /**
+     * Resolve the payer name for a unit when there is no authenticated user (webhook path):
+     * prefer the primary owner's full name, else the comma-separated list of all owner names,
+     * else "Owner" as a last resort so the Transaction list never shows a bare '-'.
+     */
+    private String resolvePayerName(Unit unit) {
+        if (unit == null) {
+            return "Owner";
+        }
+        String primaryName = unitOwnerRepository.findPrimaryOwnerByUnitId(unit.getUnitId())
+                .map(uo -> uo.getOwner() != null ? uo.getOwner().getFullName() : null)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(null);
+        if (primaryName != null) {
+            return primaryName;
+        }
+        String allNames = unit.getOwnerNames();
+        return (allNames != null && !allNames.isBlank()) ? allNames : "Owner";
     }
 
     /**
