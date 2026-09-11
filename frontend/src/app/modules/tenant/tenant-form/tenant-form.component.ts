@@ -15,6 +15,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { TenantService } from '@core/services/tenant.service';
 import { OwnerService } from '@core/services/owner.service';
 import { Unit } from '@core/models/owner.model';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-tenant-form',
@@ -23,7 +24,7 @@ import { Unit } from '@core/models/owner.model';
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatDatepickerModule, MatNativeDateModule, MatIconModule,
-    MatDividerModule, MatSnackBarModule
+    MatDividerModule, MatSnackBarModule, SearchableSelectComponent
   ],
   template: `
     <div class="form-container">
@@ -37,15 +38,16 @@ import { Unit } from '@core/models/owner.model';
             <!-- Unit Selection (only for new registration) -->
             <h4>Unit Details</h4>
             <div class="form-row" *ngIf="!isEdit">
-              <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Select Unit (Flat/Shop) *</mat-label>
-                <mat-select formControlName="unitId">
-                  <mat-option *ngFor="let unit of units" [value]="unit.unitId">
-                    {{ unit.unitNumber }} ({{ unit.unitType }}) - {{ unit.primaryOwnerName || 'No owner' }}
-                  </mat-option>
-                </mat-select>
-                <mat-error *ngIf="tenantForm.get('unitId')?.hasError('required')">Please select a unit</mat-error>
-              </mat-form-field>
+              <app-searchable-select
+                formControlName="unitId"
+                label="Select Unit (Flat/Shop) *"
+                placeholder="Search by unit number..."
+                [options]="units"
+                valueKey="unitId"
+                [labelWith]="unitLabel"
+                [required]="true"
+                errorText="Please select a unit">
+              </app-searchable-select>
             </div>
 
             <!-- Tenant Information -->
@@ -232,6 +234,10 @@ export class TenantFormComponent implements OnInit {
   isEdit = false;
   tenantId?: number;
   units: Unit[] = [];
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: Unit): string =>
+    `${u.unitNumber} (${u.unitType}) - ${u.primaryOwnerName || 'No owner'}`;
 
   constructor(
     private fb: FormBuilder,

@@ -15,6 +15,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 interface OpeningBalance {
   openingBalanceId: number;
@@ -42,7 +43,8 @@ interface UnitOption {
   imports: [
     CommonModule, FormsModule, MatCardModule, MatTableModule, MatButtonModule,
     MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatDialogModule, MatSnackBarModule, MatChipsModule, MatTooltipModule
+    MatDialogModule, MatSnackBarModule, MatChipsModule, MatTooltipModule,
+    SearchableSelectComponent
   ],
   template: `
     <div class="container">
@@ -87,14 +89,16 @@ interface UnitOption {
         </mat-card-header>
         <mat-card-content>
           <div class="form-row">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Select Unit</mat-label>
-              <mat-select [(ngModel)]="formData.unitId">
-                <mat-option *ngFor="let unit of units" [value]="unit.unitId">
-                  {{ unit.unitNumber }} - {{ unit.ownerNames || 'No owner' }}
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-searchable-select
+              [(ngModel)]="formData.unitId"
+              name="obUnitId"
+              [ngModelOptions]="{ standalone: true }"
+              label="Select Unit"
+              placeholder="Search by unit or owner..."
+              [options]="units"
+              valueKey="unitId"
+              [labelWith]="unitLabel">
+            </app-searchable-select>
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Outstanding Amount (Rs)</mat-label>
@@ -201,6 +205,10 @@ interface UnitOption {
 export class OpeningBalanceComponent implements OnInit {
   balances: OpeningBalance[] = [];
   units: UnitOption[] = [];
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: UnitOption): string =>
+    `${u.unitNumber} - ${u.ownerNames || 'No owner'}`;
   summary: any = null;
   showAddForm = false;
   editingId: number | null = null;

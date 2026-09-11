@@ -17,6 +17,7 @@ import { VendorService } from '@core/services/vendor.service';
 import { VoucherCategoryService } from '@core/services/voucher-category.service';
 import { Vendor } from '@core/models/vendor.model';
 import { VoucherCategory } from '@core/models/voucher-category.model';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 import { environment } from '@env/environment';
 
 @Component({
@@ -25,7 +26,8 @@ import { environment } from '@env/environment';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule
+    MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule,
+    SearchableSelectComponent
   ],
   template: `
     <div class="form-container">
@@ -84,15 +86,15 @@ import { environment } from '@env/environment';
                 </mat-select>
                 <mat-error *ngIf="voucherForm.get('category')?.hasError('required')">Category is required</mat-error>
               </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Vendor (optional)</mat-label>
-                <mat-select formControlName="vendorId">
-                  <mat-option [value]="null">-- None --</mat-option>
-                  <mat-option *ngFor="let vendor of vendors" [value]="vendor.vendorId">
-                    {{ vendor.vendorName }} ({{ vendor.categoryName }})
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
+              <app-searchable-select
+                formControlName="vendorId"
+                label="Vendor (optional)"
+                placeholder="Search vendor..."
+                [options]="vendors"
+                valueKey="vendorId"
+                [labelWith]="vendorLabel"
+                [allowClear]="true">
+              </app-searchable-select>
             </div>
 
             <!-- Amount & Payment -->
@@ -215,6 +217,9 @@ export class VoucherFormComponent implements OnInit {
   voucherId?: number;
   voucherNumber = '';
   vendors: Vendor[] = [];
+
+  /** Display label for a vendor option in the searchable dropdown. */
+  readonly vendorLabel = (v: Vendor): string => `${v.vendorName} (${v.categoryName})`;
   selectedFile: File | null = null;
   uploadedDocuments: any[] = [];
 

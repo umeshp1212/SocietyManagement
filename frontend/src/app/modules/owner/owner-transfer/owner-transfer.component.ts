@@ -12,6 +12,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { OwnerService } from '@core/services/owner.service';
 import { Owner, Unit } from '@core/models/owner.model';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-owner-transfer',
@@ -19,7 +20,8 @@ import { Owner, Unit } from '@core/models/owner.model';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatDatepickerModule, MatNativeDateModule, MatSnackBarModule
+    MatDatepickerModule, MatNativeDateModule, MatSnackBarModule,
+    SearchableSelectComponent
   ],
   template: `
     <div class="form-container">
@@ -29,25 +31,27 @@ import { Owner, Unit } from '@core/models/owner.model';
         </mat-card-header>
         <mat-card-content>
           <form [formGroup]="transferForm" (ngSubmit)="onSubmit()">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Select Unit *</mat-label>
-              <mat-select formControlName="unitId">
-                <mat-option *ngFor="let unit of units" [value]="unit.unitId">
-                  {{ unit.unitNumber }} - {{ unit.primaryOwnerName || 'No owner' }}
-                </mat-option>
-              </mat-select>
-              <mat-error *ngIf="transferForm.get('unitId')?.hasError('required')">Please select a unit</mat-error>
-            </mat-form-field>
+            <app-searchable-select
+              formControlName="unitId"
+              label="Select Unit *"
+              placeholder="Search by unit number..."
+              [options]="units"
+              valueKey="unitId"
+              [labelWith]="unitLabel"
+              [required]="true"
+              errorText="Please select a unit">
+            </app-searchable-select>
 
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>New Owner *</mat-label>
-              <mat-select formControlName="newOwnerId">
-                <mat-option *ngFor="let owner of activeOwners" [value]="owner.ownerId">
-                  {{ owner.fullName }} ({{ owner.contactNumber }})
-                </mat-option>
-              </mat-select>
-              <mat-error *ngIf="transferForm.get('newOwnerId')?.hasError('required')">Please select the new owner</mat-error>
-            </mat-form-field>
+            <app-searchable-select
+              formControlName="newOwnerId"
+              label="New Owner *"
+              placeholder="Search by name or contact..."
+              [options]="activeOwners"
+              valueKey="ownerId"
+              [labelWith]="ownerLabel"
+              [required]="true"
+              errorText="Please select the new owner">
+            </app-searchable-select>
 
             <div class="form-row">
               <mat-form-field appearance="outline">
@@ -92,6 +96,13 @@ export class OwnerTransferComponent implements OnInit {
   transferForm!: FormGroup;
   units: Unit[] = [];
   activeOwners: Owner[] = [];
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: Unit): string =>
+    `${u.unitNumber} - ${u.primaryOwnerName || 'No owner'}`;
+
+  /** Display label for an owner option in the searchable dropdown. */
+  readonly ownerLabel = (o: Owner): string => `${o.fullName} (${o.contactNumber})`;
 
   constructor(
     private fb: FormBuilder,

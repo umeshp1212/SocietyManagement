@@ -14,6 +14,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { OwnerService } from '@core/services/owner.service';
 import { Owner, Unit, UnitOwner } from '@core/models/owner.model';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-unit-owners',
@@ -21,7 +22,8 @@ import { Owner, Unit, UnitOwner } from '@core/models/owner.model';
   imports: [
     CommonModule, FormsModule, RouterModule, MatCardModule, MatButtonModule,
     MatIconModule, MatTableModule, MatFormFieldModule, MatSelectModule,
-    MatInputModule, MatCheckboxModule, MatSnackBarModule, MatDividerModule
+    MatInputModule, MatCheckboxModule, MatSnackBarModule, MatDividerModule,
+    SearchableSelectComponent
   ],
   template: `
     <div class="container" *ngIf="unit">
@@ -96,14 +98,17 @@ import { Owner, Unit, UnitOwner } from '@core/models/owner.model';
         </mat-card-header>
         <mat-card-content>
           <div class="add-owner-form">
-            <mat-form-field appearance="outline" class="owner-select">
-              <mat-label>Select Owner *</mat-label>
-              <mat-select [(ngModel)]="newOwnerId">
-                <mat-option *ngFor="let owner of availableOwners" [value]="owner.ownerId">
-                  {{ owner.fullName }} ({{ owner.contactNumber }})
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-searchable-select
+              class="owner-select"
+              [(ngModel)]="newOwnerId"
+              name="newOwnerId"
+              [ngModelOptions]="{ standalone: true }"
+              label="Select Owner *"
+              placeholder="Search by name or contact..."
+              [options]="availableOwners"
+              valueKey="ownerId"
+              [labelWith]="ownerLabel">
+            </app-searchable-select>
 
             <mat-form-field appearance="outline" style="width: 150px;">
               <mat-label>Ownership %</mat-label>
@@ -151,6 +156,9 @@ export class UnitOwnersComponent implements OnInit {
   unit?: Unit;
   owners: UnitOwner[] = [];
   availableOwners: Owner[] = [];
+
+  /** Display label for an owner option in the searchable dropdown. */
+  readonly ownerLabel = (o: Owner): string => `${o.fullName} (${o.contactNumber})`;
   displayedColumns = ['ownerName', 'ownerContact', 'isPrimary', 'ownershipPercentage', 'actions'];
 
   // Add form

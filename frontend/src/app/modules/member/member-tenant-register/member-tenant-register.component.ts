@@ -13,6 +13,7 @@ import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.service';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-member-tenant-register',
@@ -22,7 +23,7 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
     MatCardModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
     MatDatepickerModule, MatNativeDateModule,
-    MatSnackBarModule, MatProgressSpinnerModule
+    MatSnackBarModule, MatProgressSpinnerModule, SearchableSelectComponent
   ],
   template: `
     <div class="tenant-page">
@@ -42,14 +43,16 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
       <mat-card>
         <mat-card-content>
           <form (ngSubmit)="onSubmit()" #f="ngForm">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Your Unit / Flat</mat-label>
-              <mat-select [(ngModel)]="form.unitId" name="unitId" required>
-                <mat-option *ngFor="let u of units" [value]="u.unitId">
-                  {{ u.unitNumber }}<span *ngIf="u.wing"> - Wing {{ u.wing }}</span>
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-searchable-select
+              [(ngModel)]="form.unitId"
+              name="unitId"
+              [ngModelOptions]="{ standalone: true }"
+              label="Your Unit / Flat"
+              placeholder="Search your unit..."
+              [options]="units"
+              valueKey="unitId"
+              [labelWith]="unitLabel">
+            </app-searchable-select>
 
             <h4 class="section-title">Tenant Details</h4>
 
@@ -149,6 +152,10 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
 })
 export class MemberTenantRegisterComponent implements OnInit {
   units: MemberUnitInfo[] = [];
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: MemberUnitInfo): string =>
+    `${u.unitNumber}${u.wing ? ' - Wing ' + u.wing : ''}`;
   submitting = false;
 
   rentStartDate: Date | null = null;

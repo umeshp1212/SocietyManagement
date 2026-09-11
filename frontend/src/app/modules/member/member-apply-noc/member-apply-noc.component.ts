@@ -11,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.service';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-member-apply-noc',
@@ -19,7 +20,7 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
     CommonModule, FormsModule,
     MatCardModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatSnackBarModule, MatProgressSpinnerModule
+    MatSnackBarModule, MatProgressSpinnerModule, SearchableSelectComponent
   ],
   template: `
     <div class="noc-page">
@@ -37,24 +38,31 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
       <mat-card>
         <mat-card-content>
           <form (ngSubmit)="onSubmit()" #f="ngForm">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>NOC Type</mat-label>
-              <mat-select [(ngModel)]="form.nocTypeId" name="nocTypeId" required
-                          (selectionChange)="onTypeChange()">
-                <mat-option *ngFor="let t of nocTypes" [value]="t.nocTypeId">{{ t.name }}</mat-option>
-              </mat-select>
-              <mat-hint *ngIf="selectedTypeDesc">{{ selectedTypeDesc }}</mat-hint>
-            </mat-form-field>
+            <app-searchable-select
+              [(ngModel)]="form.nocTypeId"
+              name="nocTypeId"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onTypeChange()"
+              label="NOC Type"
+              placeholder="Search NOC type..."
+              [options]="nocTypes"
+              valueKey="nocTypeId"
+              [labelWith]="nocTypeLabel">
+            </app-searchable-select>
+            <div class="ss-hint" *ngIf="selectedTypeDesc">{{ selectedTypeDesc }}</div>
 
-            <mat-form-field appearance="outline" class="full-width" *ngIf="units.length > 0">
-              <mat-label>Unit / Flat (optional)</mat-label>
-              <mat-select [(ngModel)]="form.unitId" name="unitId">
-                <mat-option [value]="null">-- None --</mat-option>
-                <mat-option *ngFor="let u of units" [value]="u.unitId">
-                  {{ u.unitNumber }}<span *ngIf="u.wing"> - Wing {{ u.wing }}</span>
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
+            <app-searchable-select
+              *ngIf="units.length > 0"
+              [(ngModel)]="form.unitId"
+              name="unitId"
+              [ngModelOptions]="{ standalone: true }"
+              label="Unit / Flat (optional)"
+              placeholder="Search your unit..."
+              [options]="units"
+              valueKey="unitId"
+              [labelWith]="unitLabel"
+              [allowClear]="true">
+            </app-searchable-select>
 
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Addressed To (optional)</mat-label>
@@ -129,6 +137,13 @@ import { MemberAuthService, MemberUnitInfo } from '@core/services/member-auth.se
 export class MemberApplyNocComponent implements OnInit {
   nocTypes: any[] = [];
   units: MemberUnitInfo[] = [];
+
+  /** Display label for a NOC type option in the searchable dropdown. */
+  readonly nocTypeLabel = (t: any): string => (t?.name ?? '');
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: MemberUnitInfo): string =>
+    `${u.unitNumber}${u.wing ? ' - Wing ' + u.wing : ''}`;
   myRequests: any[] = [];
   submitting = false;
   selectedTypeDesc = '';

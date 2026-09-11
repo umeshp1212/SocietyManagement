@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { VendorService } from '@core/services/vendor.service';
 import { VendorCategoryService } from '@core/services/vendor-category.service';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-vendor-form',
@@ -20,7 +21,8 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule
+    MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule,
+    SearchableSelectComponent
   ],
   template: `
     <div class="form-container">
@@ -40,15 +42,16 @@ import { VendorCategoryService } from '@core/services/vendor-category.service';
                 <mat-error *ngIf="vendorForm.get('vendorName')?.hasError('required')">Vendor name is required</mat-error>
                 <mat-error *ngIf="vendorForm.get('vendorName')?.hasError('maxlength')">Vendor name cannot exceed 200 characters</mat-error>
               </mat-form-field>
-              <mat-form-field appearance="outline">
-                <mat-label>Category *</mat-label>
-                <mat-select formControlName="categoryId">
-                  <mat-option *ngFor="let cat of categories" [value]="cat.value">
-                    {{ cat.label }}
-                  </mat-option>
-                </mat-select>
-                <mat-error *ngIf="vendorForm.get('categoryId')?.hasError('required')">Category is required</mat-error>
-              </mat-form-field>
+              <app-searchable-select
+                formControlName="categoryId"
+                label="Category *"
+                placeholder="Search category..."
+                [options]="categories"
+                valueKey="value"
+                [labelWith]="categoryLabel"
+                [required]="true"
+                errorText="Category is required">
+              </app-searchable-select>
             </div>
 
             <div class="form-row">
@@ -177,6 +180,9 @@ export class VendorFormComponent implements OnInit {
   vendorId?: number;
 
   categories: { value: number; label: string }[] = [];
+
+  /** Display label for a category option in the searchable dropdown. */
+  readonly categoryLabel = (c: { value: number; label: string }): string => c.label;
 
   constructor(
     private fb: FormBuilder,

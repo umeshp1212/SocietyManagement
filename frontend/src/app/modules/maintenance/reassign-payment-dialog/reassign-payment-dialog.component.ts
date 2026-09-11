@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { OwnerService } from '@core/services/owner.service';
 import { Unit } from '@core/models/owner.model';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 export interface ReassignPaymentDialogData {
   paymentId: number;
@@ -47,7 +48,7 @@ interface TargetBillOption {
   imports: [
     CommonModule, ReactiveFormsModule, MatDialogModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatIconModule,
-    MatProgressSpinnerModule, CurrencyPipe
+    MatProgressSpinnerModule, CurrencyPipe, SearchableSelectComponent
   ],
   template: `
     <h2 mat-dialog-title>Reassign Payment</h2>
@@ -64,15 +65,16 @@ interface TargetBillOption {
 
       <form [formGroup]="form">
         <!-- Correct unit -->
-        <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Correct Unit</mat-label>
-          <mat-select formControlName="unitId" (selectionChange)="onUnitChange($event.value)">
-            <mat-option *ngFor="let u of units" [value]="u.unitId">
-              {{ u.unitNumber }}<span *ngIf="u.primaryOwnerName"> — {{ u.primaryOwnerName }}</span>
-            </mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('unitId')?.hasError('required')">Select the correct unit</mat-error>
-        </mat-form-field>
+        <app-searchable-select
+          formControlName="unitId"
+          label="Correct Unit"
+          placeholder="Search by unit number..."
+          [options]="units"
+          valueKey="unitId"
+          [labelWith]="unitLabel"
+          [required]="true"
+          errorText="Select the correct unit">
+        </app-searchable-select>
 
         <!-- Loading bills for the chosen unit -->
         <div class="loading-row" *ngIf="loadingBills">
@@ -81,14 +83,17 @@ interface TargetBillOption {
         </div>
 
         <!-- Target bill -->
-        <mat-form-field appearance="outline" class="full-width"
-                        *ngIf="form.get('unitId')?.value && !loadingBills">
-          <mat-label>Target Bill</mat-label>
-          <mat-select formControlName="targetBillId">
-            <mat-option *ngFor="let b of eligibleBills" [value]="b.billId">{{ b.label }}</mat-option>
-          </mat-select>
-          <mat-error *ngIf="form.get('targetBillId')?.hasError('required')">Select a bill</mat-error>
-        </mat-form-field>
+        <app-searchable-select
+          *ngIf="form.get('unitId')?.value && !loadingBills"
+          formControlName="targetBillId"
+          label="Target Bill"
+          placeholder="Search bills..."
+          [options]="eligibleBills"
+          valueKey="billId"
+          [labelWith]="billLabel"
+          [required]="true"
+          errorText="Select a bill">
+        </app-searchable-select>
 
         <p class="hint" *ngIf="form.get('unitId')?.value && !loadingBills && eligibleBills.length === 0">
           This unit has no outstanding bill that can absorb {{ data.amount | currency:'INR' }}.
@@ -124,6 +129,13 @@ export class ReassignPaymentDialogComponent implements OnInit {
   eligibleBills: TargetBillOption[] = [];
   loadingBills = false;
 
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: Unit): string =>
+    `${u.unitNumber}${u.primaryOwnerName ? ' — ' + u.primaryOwnerName : ''}`;
+
+  /** Display label for a target-bill option in the searchable dropdown. */
+  readonly billLabel = (b: TargetBillOption): string => b.label;
+
   constructor(
     private fb: FormBuilder,
     private maintenanceService: MaintenanceService,
@@ -146,6 +158,10 @@ export class ReassignPaymentDialogComponent implements OnInit {
           .sort((a, b) => (a.unitNumber || '').localeCompare(b.unitNumber || ''));
       }
     });
+
+    // The searchable-select drives the reactive control; react to unit changes here
+    // (replaces the old (selectionChange) handler on <mat-select>).
+    this.form.get('unitId')!.valueChanges.subscribe((unitId: number) => this.onUnitChange(unitId));
   }
 
   onUnitChange(unitId: number): void {

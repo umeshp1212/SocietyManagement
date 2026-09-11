@@ -15,6 +15,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { OwnerService } from '@core/services/owner.service';
 import { AuthService } from '@core/services/auth.service';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 @Component({
   selector: 'app-penalty-management',
@@ -22,7 +23,8 @@ import { AuthService } from '@core/services/auth.service';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatIconModule, MatTableModule, MatChipsModule, MatSnackBarModule, MatTooltipModule
+    MatIconModule, MatTableModule, MatChipsModule, MatSnackBarModule, MatTooltipModule,
+    SearchableSelectComponent
   ],
   template: `
     <div class="container">
@@ -41,15 +43,16 @@ import { AuthService } from '@core/services/auth.service';
         <mat-card-content>
           <form [formGroup]="penaltyForm" (ngSubmit)="onSubmit()">
             <div class="form-row">
-              <mat-form-field appearance="outline">
-                <mat-label>Select Unit *</mat-label>
-                <mat-select formControlName="unitId">
-                  <mat-option *ngFor="let unit of units" [value]="unit.unitId">
-                    {{ unit.unitNumber }}
-                  </mat-option>
-                </mat-select>
-                <mat-error *ngIf="penaltyForm.get('unitId')?.hasError('required')">Please select a unit</mat-error>
-              </mat-form-field>
+              <app-searchable-select
+                formControlName="unitId"
+                label="Select Unit *"
+                placeholder="Search by unit number..."
+                [options]="units"
+                valueKey="unitId"
+                [labelWith]="unitLabel"
+                [required]="true"
+                errorText="Please select a unit">
+              </app-searchable-select>
 
               <mat-form-field appearance="outline">
                 <mat-label>Category *</mat-label>
@@ -176,6 +179,9 @@ export class PenaltyManagementComponent implements OnInit {
   penaltyForm!: FormGroup;
   penalties: any[] = [];
   units: any[] = [];
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: any): string => `${u.unitNumber}`;
   displayedColumns = ['unitNumber', 'category', 'reason', 'amount', 'billMonth', 'status', 'actions'];
   months = [
     { value: 1, label: 'January' }, { value: 2, label: 'February' },

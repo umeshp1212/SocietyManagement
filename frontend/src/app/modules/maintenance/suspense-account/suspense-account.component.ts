@@ -17,6 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
+import { SearchableSelectComponent } from '@shared/components/searchable-select';
 
 interface SuspenseEntry {
   suspenseId: number;
@@ -51,7 +52,7 @@ interface UnitOption {
     CommonModule, FormsModule, MatCardModule, MatTableModule, MatPaginatorModule,
     MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatCheckboxModule, MatChipsModule, MatDividerModule,
-    MatTooltipModule, MatSnackBarModule
+    MatTooltipModule, MatSnackBarModule, SearchableSelectComponent
   ],
   template: `
     <div class="container">
@@ -236,14 +237,16 @@ interface UnitOption {
             | Ref: {{ selectedEntry?.referenceNumber || 'N/A' }}
             | Date: {{ selectedEntry?.receivedDate }}</p>
 
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Assign to Unit</mat-label>
-            <mat-select [(ngModel)]="assignForm.unitId">
-              <mat-option *ngFor="let unit of units" [value]="unit.unitId">
-                {{ unit.unitNumber }} - {{ unit.ownerNames || 'No owner' }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+          <app-searchable-select
+            [(ngModel)]="assignForm.unitId"
+            name="assignUnitId"
+            [ngModelOptions]="{ standalone: true }"
+            label="Assign to Unit"
+            placeholder="Search by unit or owner..."
+            [options]="units"
+            valueKey="unitId"
+            [labelWith]="unitLabel">
+          </app-searchable-select>
 
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Remarks</mat-label>
@@ -361,6 +364,10 @@ interface UnitOption {
 export class SuspenseAccountComponent implements OnInit {
   entries: SuspenseEntry[] = [];
   units: UnitOption[] = [];
+
+  /** Display label for a unit option in the searchable dropdown. */
+  readonly unitLabel = (u: UnitOption): string =>
+    `${u.unitNumber} - ${u.ownerNames || 'No owner'}`;
   summary: any = null;
   auditTrail: any[] = [];
 
