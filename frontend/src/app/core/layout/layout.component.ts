@@ -72,23 +72,23 @@ import { AuthService, LoginResponse } from '../services/auth.service';
           </a>
 
           <a mat-list-item routerLink="/transactions" routerLinkActive="active"
-             *ngIf="hasPermission('TRANSACTION_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             *ngIf="hasPermission('TRANSACTION_VIEW')"
              (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>swap_horiz</mat-icon>
             <span matListItemTitle>Transactions</span>
           </a>
 
-          <mat-divider *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"></mat-divider>
+          <mat-divider *ngIf="hasAnyPermission(['USER_VIEW', 'USER_ASSIGN_ROLES', 'MEMBER_REQUEST_VIEW'])"></mat-divider>
 
           <a mat-list-item routerLink="/users" routerLinkActive="active"
-             *ngIf="hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             *ngIf="hasAnyPermission(['USER_VIEW', 'USER_ASSIGN_ROLES'])"
              (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>manage_accounts</mat-icon>
             <span matListItemTitle>User Management</span>
           </a>
 
           <a mat-list-item routerLink="/users/member-requests" routerLinkActive="active"
-             *ngIf="hasPermission('MEMBER_REQUEST_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             *ngIf="hasPermission('MEMBER_REQUEST_VIEW')"
              (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>contact_mail</mat-icon>
             <span matListItemTitle>Member Requests</span>
@@ -108,7 +108,7 @@ import { AuthService, LoginResponse } from '../services/auth.service';
           </a>
 
           <a mat-list-item routerLink="/committee" routerLinkActive="active"
-             *ngIf="hasPermission('COMMITTEE_VIEW') || hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY'])"
+             *ngIf="hasPermission('COMMITTEE_VIEW')"
              (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>groups</mat-icon>
             <span matListItemTitle>Committee</span>
@@ -204,8 +204,8 @@ export class LayoutComponent implements OnInit {
     return this.authService.hasPermission(permission);
   }
 
-  hasAnyRole(roles: string[]): boolean {
-    return this.authService.hasAnyRole(roles);
+  hasAnyPermission(permissions: string[]): boolean {
+    return this.authService.hasAnyPermission(permissions);
   }
 
   onLogout(): void {

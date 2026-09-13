@@ -113,6 +113,11 @@ export class AuthService {
     return user?.permissions?.includes(permission) || false;
   }
 
+  hasAnyPermission(permissions: string[]): boolean {
+    const user = this.getCurrentUser();
+    return permissions.some(permission => user?.permissions?.includes(permission));
+  }
+
   // ===== Private =====
 
   private storeAuth(data: LoginResponse): void {

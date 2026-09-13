@@ -24,7 +24,7 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CHAIRMAN') or hasRole('SECRETARY')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_VIEW')")
     public ResponseEntity<ApiResponse<PagedResponse<UserDTO>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -35,14 +35,14 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('CHAIRMAN') or hasRole('SECRETARY')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_VIEW')")
     public ResponseEntity<ApiResponse<UserDTO>> getUserById(@PathVariable Long userId) {
         UserDTO user = userService.getUserById(userId);
         return ResponseEntity.ok(ApiResponse.success(user));
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('SECRETARY')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_CREATE')")
     public ResponseEntity<ApiResponse<UserDTO>> createUser(@Valid @RequestBody UserCreateRequest request) {
         UserDTO user = userService.createUser(request);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -50,7 +50,7 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('SECRETARY')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_UPDATE')")
     public ResponseEntity<ApiResponse<UserDTO>> updateUser(
             @PathVariable Long userId,
             @Valid @RequestBody UserUpdateRequest request) {
@@ -59,14 +59,14 @@ public class UserController {
     }
 
     @PatchMapping("/{userId}/toggle-status")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_UPDATE')")
     public ResponseEntity<ApiResponse<UserDTO>> toggleUserStatus(@PathVariable Long userId) {
         UserDTO user = userService.toggleUserStatus(userId);
         return ResponseEntity.ok(ApiResponse.success("User status updated", user));
     }
 
     @PatchMapping("/{userId}/roles")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_ASSIGN_ROLES')")
     public ResponseEntity<ApiResponse<UserDTO>> assignRoles(
             @PathVariable Long userId,
             @RequestBody Map<String, List<String>> body) {
@@ -76,7 +76,7 @@ public class UserController {
     }
 
     @PostMapping("/{userId}/reset-password")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_RESET_PASSWORD')")
     public ResponseEntity<ApiResponse<String>> resetPassword(
             @PathVariable Long userId,
             @RequestBody Map<String, String> body) {
@@ -88,20 +88,21 @@ public class UserController {
     // ===== ROLES & PERMISSIONS =====
 
     @GetMapping("/roles")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_VIEW') or hasAuthority('USER_ASSIGN_ROLES')")
     public ResponseEntity<ApiResponse<List<com.society.module.auth.dto.RoleDTO>>> getAllRoles() {
         List<com.society.module.auth.dto.RoleDTO> roles = userService.getAllRoles();
         return ResponseEntity.ok(ApiResponse.success(roles));
     }
 
     @GetMapping("/permissions")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_ASSIGN_ROLES')")
     public ResponseEntity<ApiResponse<List<com.society.module.auth.dto.PermissionDTO>>> getAllPermissions() {
         List<com.society.module.auth.dto.PermissionDTO> permissions = userService.getAllPermissions();
         return ResponseEntity.ok(ApiResponse.success(permissions));
     }
 
     @PutMapping("/roles/{roleId}/permissions")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('USER_ASSIGN_ROLES')")
     public ResponseEntity<ApiResponse<com.society.module.auth.dto.RoleDTO>> updateRolePermissions(
             @PathVariable Long roleId,
             @RequestBody Map<String, List<Long>> body) {

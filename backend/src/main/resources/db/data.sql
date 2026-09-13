@@ -245,7 +245,16 @@ INSERT IGNORE INTO permissions (permission_id, permission_name, module, descript
 (44, 'MAINTENANCE_CONFIG', 'MAINTENANCE', 'Manage charge and water-charge configuration'),
 (45, 'MAINTENANCE_PENALTY', 'MAINTENANCE', 'Impose or cancel penalties'),
 (46, 'MAINTENANCE_SUSPENSE', 'MAINTENANCE', 'Manage suspense account entries (create/assign/reverse)'),
-(47, 'MAINTENANCE_OPENING_BALANCE', 'MAINTENANCE', 'Manage opening balances (legacy arrears)');
+(47, 'MAINTENANCE_OPENING_BALANCE', 'MAINTENANCE', 'Manage opening balances (legacy arrears)'),
+-- Maintenance: reassign wrongly-attributed payment (was seeded only via DataInitializer; reconciled here)
+(48, 'MAINTENANCE_PAYMENT_REASSIGN', 'MAINTENANCE', 'Reassign a wrongly-attributed payment to the correct unit''s bill'),
+-- Voucher approval workflow (fine-grained actions; replaces hardcoded role checks)
+(49, 'VOUCHER_SUBMIT', 'VOUCHER', 'Submit a voucher for approval'),
+(50, 'VOUCHER_TREASURER_REVIEW', 'VOUCHER', 'Treasurer review step in voucher approval'),
+(51, 'VOUCHER_SECRETARY_VERIFY', 'VOUCHER', 'Secretary verify step in voucher approval'),
+(52, 'VOUCHER_CHAIRMAN_APPROVE', 'VOUCHER', 'Chairman approve step in voucher approval'),
+-- Voucher: manage TDS configuration
+(53, 'VOUCHER_TDS_CONFIG', 'VOUCHER', 'Manage TDS configuration for vouchers');
 
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
@@ -258,7 +267,9 @@ SELECT 1, permission_id FROM permissions;
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (2, 1), (2, 6), (2, 10), (2, 13), (2, 18), (2, 21), (2, 22), (2, 23),
 (2, 4), (2, 16), (2, 24), (2, 31), (2, 32),
-(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41), (2, 42);
+(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41), (2, 42),
+-- payment reassign + chairman voucher-approve step
+(2, 48), (2, 52);
 
 -- SECRETARY (full maintenance management)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -267,14 +278,18 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (3, 18), (3, 19), (3, 20), (3, 23), (3, 24), (3, 26), (3, 27), (3, 28),
 (3, 31), (3, 32),
 (3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40), (3, 41), (3, 42),
-(3, 43), (3, 44), (3, 45), (3, 46), (3, 47);
+(3, 43), (3, 44), (3, 45), (3, 46), (3, 47),
+-- payment reassign + voucher submit/secretary-verify + TDS config
+(3, 48), (3, 49), (3, 51), (3, 53);
 
 -- TREASURER (finance-focused: bills, payments, reversals, opening balance, suspense)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (4, 1), (4, 6), (4, 10), (4, 13), (4, 18), (4, 19), (4, 20), (4, 21),
 (4, 22), (4, 23), (4, 24), (4, 31),
 (4, 33), (4, 36),
-(4, 34), (4, 35), (4, 43), (4, 46), (4, 47);
+(4, 34), (4, 35), (4, 43), (4, 46), (4, 47),
+-- payment reassign + voucher submit/treasurer-review + TDS config
+(4, 48), (4, 49), (4, 50), (4, 53);
 
 -- COMMITTEE_MEMBER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -294,7 +309,9 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 
 -- MANAGER (create/update/view vouchers, view vendors)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
-(9, 10), (9, 18), (9, 19), (9, 20), (9, 23);
+(9, 10), (9, 18), (9, 19), (9, 20), (9, 23),
+-- voucher submit-for-approval step
+(9, 49);
 
 -- ============================================================
 -- MAINTENANCE CHARGE CONFIGURATION

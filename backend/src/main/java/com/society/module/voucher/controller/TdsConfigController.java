@@ -37,7 +37,7 @@ public class TdsConfigController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_TDS_CONFIG')")
     public ResponseEntity<ApiResponse<TdsConfigDTO>> createTdsConfig(@RequestBody TdsConfigDTO dto) {
         TdsConfigDTO config = tdsConfigService.createTdsConfig(dto);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -45,7 +45,7 @@ public class TdsConfigController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_TDS_CONFIG')")
     public ResponseEntity<ApiResponse<TdsConfigDTO>> updateTdsConfig(
             @PathVariable Long id, @RequestBody TdsConfigDTO dto) {
         TdsConfigDTO config = tdsConfigService.updateTdsConfig(id, dto);

@@ -203,15 +203,15 @@ import { environment } from '@env/environment';
           <div class="approval-actions" *ngIf="voucher.status === 'PENDING_APPROVAL'">
             <mat-divider style="margin: 12px 0;"></mat-divider>
             <button mat-raised-button color="primary" (click)="treasurerView()"
-                    *ngIf="!voucher.viewedByTreasurer && hasAnyRole(['SUPER_ADMIN', 'TREASURER'])">
+                    *ngIf="!voucher.viewedByTreasurer && hasPermission('VOUCHER_TREASURER_REVIEW')">
               <mat-icon>visibility</mat-icon> Mark as Viewed (Treasurer)
             </button>
             <button mat-raised-button color="accent" (click)="secretaryVerify()"
-                    *ngIf="!voucher.verifiedBySecretary && hasAnyRole(['SUPER_ADMIN', 'SECRETARY'])">
+                    *ngIf="!voucher.verifiedBySecretary && hasPermission('VOUCHER_SECRETARY_VERIFY')">
               <mat-icon>verified</mat-icon> Verify (Secretary)
             </button>
             <button mat-raised-button style="background: #2e7d32; color: white;" (click)="chairmanApprove()"
-                    *ngIf="!voucher.approvedByChairman && hasAnyRole(['SUPER_ADMIN', 'CHAIRMAN'])">
+                    *ngIf="!voucher.approvedByChairman && hasPermission('VOUCHER_CHAIRMAN_APPROVE')">
               <mat-icon>thumb_up</mat-icon> Approve (Chairman)
             </button>
           </div>
@@ -227,11 +227,11 @@ import { environment } from '@env/environment';
               <mat-icon>edit</mat-icon> Edit Voucher
             </a>
             <button mat-raised-button color="accent" (click)="submitForApproval()"
-                    *ngIf="voucher.status === 'DRAFT' && hasPermission('VOUCHER_CREATE')">
+                    *ngIf="voucher.status === 'DRAFT' && hasPermission('VOUCHER_SUBMIT')">
               <mat-icon>send</mat-icon> Submit for Approval
             </button>
             <button mat-raised-button color="warn" (click)="finalizeVoucher()"
-                    *ngIf="voucher.status !== 'FINAL' && hasAnyRole(['SUPER_ADMIN'])">
+                    *ngIf="voucher.status !== 'FINAL' && (hasRole('SUPER_ADMIN') || hasPermission('VOUCHER_FINALIZE'))">
               <mat-icon>check_circle</mat-icon> Force Finalize (Admin)
             </button>
             <button mat-raised-button color="warn" (click)="showCancelDialog = true"
@@ -476,6 +476,10 @@ export class VoucherDetailComponent implements OnInit {
 
   hasAnyRole(roles: string[]): boolean {
     return this.authService.hasAnyRole(roles);
+  }
+
+  hasRole(role: string): boolean {
+    return this.authService.hasRole(role);
   }
 
   hasPermission(permission: string): boolean {

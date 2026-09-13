@@ -48,7 +48,7 @@ public class VoucherController {
     }
 
     @PatchMapping("/{voucherId}/submit-for-approval")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'MANAGER', 'SECRETARY', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_SUBMIT')")
     public ResponseEntity<ApiResponse<VoucherDTO>> submitForApproval(
             @PathVariable Long voucherId, Authentication authentication) {
         String username = authentication.getName();
@@ -57,7 +57,7 @@ public class VoucherController {
     }
 
     @PatchMapping("/{voucherId}/treasurer-view")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'TREASURER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_TREASURER_REVIEW')")
     public ResponseEntity<ApiResponse<VoucherDTO>> treasurerView(
             @PathVariable Long voucherId, Authentication authentication) {
         String username = authentication.getName();
@@ -66,7 +66,7 @@ public class VoucherController {
     }
 
     @PatchMapping("/{voucherId}/secretary-verify")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'SECRETARY')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_SECRETARY_VERIFY')")
     public ResponseEntity<ApiResponse<VoucherDTO>> secretaryVerify(
             @PathVariable Long voucherId, Authentication authentication) {
         String username = authentication.getName();
@@ -75,7 +75,7 @@ public class VoucherController {
     }
 
     @PatchMapping("/{voucherId}/chairman-approve")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'CHAIRMAN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_CHAIRMAN_APPROVE')")
     public ResponseEntity<ApiResponse<VoucherDTO>> chairmanApprove(
             @PathVariable Long voucherId, Authentication authentication) {
         String username = authentication.getName();
@@ -84,7 +84,7 @@ public class VoucherController {
     }
 
     @PatchMapping("/{voucherId}/finalize")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('VOUCHER_FINALIZE')")
     public ResponseEntity<ApiResponse<VoucherDTO>> finalizeVoucher(@PathVariable Long voucherId) {
         VoucherDTO voucher = voucherService.finalizeVoucher(voucherId);
         return ResponseEntity.ok(ApiResponse.success("Voucher finalized successfully", voucher));
