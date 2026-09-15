@@ -149,7 +149,7 @@ import { environment } from '@env/environment';
       </mat-card>
 
       <!-- Approval Status Card -->
-      <mat-card style="margin-top: 16px" *ngIf="voucher.status === 'PENDING_APPROVAL' || voucher.status === 'FINAL'">
+      <mat-card style="margin-top: 16px" *ngIf="voucher.status === 'PENDING_APPROVAL' || voucher.status === 'DRAFT'">
         <mat-card-header>
           <mat-card-title>Approval Workflow</mat-card-title>
           <span class="status-badge" [ngClass]="voucher.status.toLowerCase()">{{ voucher.status }}</span>

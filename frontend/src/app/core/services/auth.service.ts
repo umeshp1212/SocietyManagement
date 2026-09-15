@@ -72,6 +72,21 @@ export class AuthService {
     return this.http.get<any>(`${this.apiUrl}/me`);
   }
 
+  /**
+   * Re-fetches the current user from the backend and refreshes the cached
+   * roles/permissions. Lets permission changes made in the Role & Permission
+   * module take effect on the next app load without a full logout/login.
+   */
+  refreshCurrentUser(): Observable<any> {
+    return this.getMe().pipe(
+      tap(res => {
+        if (res.success && res.data) {
+          this.storeAuth(res.data);
+        }
+      })
+    );
+  }
+
   // ===== Token Management =====
 
   getToken(): string | null {
