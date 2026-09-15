@@ -200,7 +200,7 @@ import { environment } from '@env/environment';
           </div>
 
           <!-- Approval Action Buttons -->
-          <div class="approval-actions" *ngIf="voucher.status === 'PENDING_APPROVAL'">
+          <div class="approval-actions" *ngIf="voucher.status === 'PENDING_APPROVAL' || voucher.status === 'DRAFT'">
             <mat-divider style="margin: 12px 0;"></mat-divider>
             <button mat-raised-button color="primary" (click)="treasurerView()"
                     *ngIf="!voucher.viewedByTreasurer && hasPermission('VOUCHER_TREASURER_REVIEW')">

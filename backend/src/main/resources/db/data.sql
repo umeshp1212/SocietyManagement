@@ -245,16 +245,21 @@ INSERT IGNORE INTO permissions (permission_id, permission_name, module, descript
 (44, 'MAINTENANCE_CONFIG', 'MAINTENANCE', 'Manage charge and water-charge configuration'),
 (45, 'MAINTENANCE_PENALTY', 'MAINTENANCE', 'Impose or cancel penalties'),
 (46, 'MAINTENANCE_SUSPENSE', 'MAINTENANCE', 'Manage suspense account entries (create/assign/reverse)'),
-(47, 'MAINTENANCE_OPENING_BALANCE', 'MAINTENANCE', 'Manage opening balances (legacy arrears)'),
--- Maintenance: reassign wrongly-attributed payment (was seeded only via DataInitializer; reconciled here)
-(48, 'MAINTENANCE_PAYMENT_REASSIGN', 'MAINTENANCE', 'Reassign a wrongly-attributed payment to the correct unit''s bill'),
--- Voucher approval workflow (fine-grained actions; replaces hardcoded role checks)
-(49, 'VOUCHER_SUBMIT', 'VOUCHER', 'Submit a voucher for approval'),
-(50, 'VOUCHER_TREASURER_REVIEW', 'VOUCHER', 'Treasurer review step in voucher approval'),
-(51, 'VOUCHER_SECRETARY_VERIFY', 'VOUCHER', 'Secretary verify step in voucher approval'),
-(52, 'VOUCHER_CHAIRMAN_APPROVE', 'VOUCHER', 'Chairman approve step in voucher approval'),
--- Voucher: manage TDS configuration
-(53, 'VOUCHER_TDS_CONFIG', 'VOUCHER', 'Manage TDS configuration for vouchers');
+(47, 'MAINTENANCE_OPENING_BALANCE', 'MAINTENANCE', 'Manage opening balances (legacy arrears)');
+
+-- ------------------------------------------------------------
+-- Voucher approval-workflow + TDS permissions.
+-- NOTE: These are inserted WITHOUT hardcoded ids on purpose. MAINTENANCE_PAYMENT_REASSIGN
+-- is created separately by DataInitializer.java with an auto-assigned id, so hardcoding
+-- ids here previously collided (primary-key clash) and INSERT IGNORE silently dropped
+-- these rows. Keying only on the unique permission_name avoids that entirely.
+-- ------------------------------------------------------------
+INSERT IGNORE INTO permissions (permission_name, module, description) VALUES
+('VOUCHER_SUBMIT', 'VOUCHER', 'Submit a voucher for approval'),
+('VOUCHER_TREASURER_REVIEW', 'VOUCHER', 'Treasurer review step in voucher approval'),
+('VOUCHER_SECRETARY_VERIFY', 'VOUCHER', 'Secretary verify step in voucher approval'),
+('VOUCHER_CHAIRMAN_APPROVE', 'VOUCHER', 'Chairman approve step in voucher approval'),
+('VOUCHER_TDS_CONFIG', 'VOUCHER', 'Manage TDS configuration for vouchers');
 
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
@@ -267,9 +272,7 @@ SELECT 1, permission_id FROM permissions;
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (2, 1), (2, 6), (2, 10), (2, 13), (2, 18), (2, 21), (2, 22), (2, 23),
 (2, 4), (2, 16), (2, 24), (2, 31), (2, 32),
-(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41), (2, 42),
--- payment reassign + chairman voucher-approve step
-(2, 48), (2, 52);
+(2, 33), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41), (2, 42);
 
 -- SECRETARY (full maintenance management)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -278,18 +281,14 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (3, 18), (3, 19), (3, 20), (3, 23), (3, 24), (3, 26), (3, 27), (3, 28),
 (3, 31), (3, 32),
 (3, 33), (3, 34), (3, 35), (3, 36), (3, 37), (3, 38), (3, 39), (3, 40), (3, 41), (3, 42),
-(3, 43), (3, 44), (3, 45), (3, 46), (3, 47),
--- payment reassign + voucher submit/secretary-verify + TDS config
-(3, 48), (3, 49), (3, 51), (3, 53);
+(3, 43), (3, 44), (3, 45), (3, 46), (3, 47);
 
 -- TREASURER (finance-focused: bills, payments, reversals, opening balance, suspense)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 (4, 1), (4, 6), (4, 10), (4, 13), (4, 18), (4, 19), (4, 20), (4, 21),
 (4, 22), (4, 23), (4, 24), (4, 31),
 (4, 33), (4, 36),
-(4, 34), (4, 35), (4, 43), (4, 46), (4, 47),
--- payment reassign + voucher submit/treasurer-review + TDS config
-(4, 48), (4, 49), (4, 50), (4, 53);
+(4, 34), (4, 35), (4, 43), (4, 46), (4, 47);
 
 -- COMMITTEE_MEMBER
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
@@ -309,9 +308,33 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 
 -- MANAGER (create/update/view vouchers, view vendors)
 INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
-(9, 10), (9, 18), (9, 19), (9, 20), (9, 23),
--- voucher submit-for-approval step
-(9, 49);
+(9, 10), (9, 18), (9, 19), (9, 20), (9, 23);
+
+-- ------------------------------------------------------------
+-- Voucher approval-workflow + TDS grants, mapped BY NAME so they work
+-- regardless of the auto-assigned permission ids (see note above).
+--   MANAGER/SECRETARY/TREASURER : VOUCHER_SUBMIT
+--   TREASURER                   : VOUCHER_TREASURER_REVIEW
+--   SECRETARY                   : VOUCHER_SECRETARY_VERIFY
+--   CHAIRMAN                    : VOUCHER_CHAIRMAN_APPROVE
+--   SECRETARY/TREASURER         : VOUCHER_TDS_CONFIG
+--   CHAIRMAN/SECRETARY/TREASURER: MAINTENANCE_PAYMENT_REASSIGN
+-- ------------------------------------------------------------
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT r.role_id, p.permission_id
+FROM roles r
+JOIN permissions p ON (
+       (r.role_name IN ('MANAGER', 'SECRETARY', 'TREASURER') AND p.permission_name = 'VOUCHER_SUBMIT')
+    OR (r.role_name = 'TREASURER'                            AND p.permission_name = 'VOUCHER_TREASURER_REVIEW')
+    OR (r.role_name = 'SECRETARY'                            AND p.permission_name = 'VOUCHER_SECRETARY_VERIFY')
+    OR (r.role_name = 'CHAIRMAN'                             AND p.permission_name = 'VOUCHER_CHAIRMAN_APPROVE')
+    OR (r.role_name IN ('SECRETARY', 'TREASURER')            AND p.permission_name = 'VOUCHER_TDS_CONFIG')
+    OR (r.role_name IN ('CHAIRMAN', 'SECRETARY', 'TREASURER') AND p.permission_name = 'MAINTENANCE_PAYMENT_REASSIGN')
+);
+
+-- SUPER_ADMIN gets ALL permissions (re-run to pick up the newly inserted ones)
+INSERT IGNORE INTO role_permissions (role_id, permission_id)
+SELECT 1, permission_id FROM permissions;
 
 -- ============================================================
 -- MAINTENANCE CHARGE CONFIGURATION
