@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, SecurityContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { DomSanitizer } from '@angular/platform-browser';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -14,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
+import { QuillModule } from 'ngx-quill';
 import { timeout } from 'rxjs/operators';
 import { OwnerService } from '@core/services/owner.service';
 import {
@@ -35,7 +37,8 @@ const SEND_TIMEOUT_MS = 30000;
     CommonModule, FormsModule, ReactiveFormsModule, RouterModule,
     MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule,
     MatRadioModule, MatCheckboxModule, MatTableModule, MatButtonModule,
-    MatIconModule, MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule
+    MatIconModule, MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule,
+    QuillModule
   ],
   template: `
     <div class="container">
@@ -129,21 +132,36 @@ const SEND_TIMEOUT_MS = 30000;
               </mat-error>
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Message body</mat-label>
-              <textarea matInput formControlName="body" rows="10" [maxlength]="bodyMax"
-                        placeholder="Enter your message"></textarea>
-              <mat-hint align="end">{{ form.value.body?.length || 0 }}/{{ bodyMax }}</mat-hint>
-              <mat-error *ngIf="form.get('body')?.hasError('required')">
+            <div class="body-field full-width">
+              <label class="body-label" id="body-editor-label">Message body</label>
+              <quill-editor formControlName="body"
+                            [modules]="quillModules"
+                            [styles]="{ minHeight: '200px' }"
+                            aria-label="Message body"
+                            aria-labelledby="body-editor-label"
+                            placeholder="Enter your message"
+                            (onEditorCreated)="onEditorCreated($event)"
+                            (onContentChanged)="onBodyChanged()">
+              </quill-editor>
+              <div class="body-hint" aria-live="polite">
+                {{ visibleLength }}/{{ bodyMax }} characters
+              </div>
+              <mat-error class="body-error" *ngIf="form.get('body')?.touched && form.get('body')?.hasError('emptyVisible')">
                 Please enter message content.
               </mat-error>
-              <mat-error *ngIf="form.get('body')?.hasError('whitespace')">
-                Please enter message content.
+              <mat-error class="body-error" *ngIf="form.get('body')?.touched && form.get('body')?.hasError('tooLongVisible')">
+                Message cannot exceed {{ bodyMax }} visible characters.
               </mat-error>
-              <mat-error *ngIf="form.get('body')?.hasError('maxlength')">
-                Message body cannot exceed {{ bodyMax }} characters.
-              </mat-error>
-            </mat-form-field>
+            </div>
+
+            <!-- Body preview: secondary-defence rendering only (Req 3.8). The editor
+                 HTML is passed through DomSanitizer.sanitize(SecurityContext.HTML, ...)
+                 so the preview can never execute untrusted markup. bypassSecurityTrustHtml
+                 is deliberately NOT used; the server-side sanitizer remains authoritative. -->
+            <div class="body-preview full-width" *ngIf="bodyPreviewHtml">
+              <label class="body-label">Preview</label>
+              <div class="preview-content" [innerHTML]="bodyPreviewHtml"></div>
+            </div>
           </form>
 
           <!-- Attachments (optional) -->
@@ -240,6 +258,20 @@ const SEND_TIMEOUT_MS = 30000;
     .selection-summary { margin-bottom: 8px; font-weight: 500; }
     .owner-table-wrapper { max-height: 360px; overflow: auto; }
     .full-width { width: 100%; }
+    .body-field { display: block; margin-bottom: 16px; }
+    .body-label { display: block; font-size: 12px; color: rgba(0,0,0,0.6); margin-bottom: 4px; }
+    .body-hint { text-align: right; font-size: 12px; color: rgba(0,0,0,0.6); margin-top: 4px; }
+    /* Visible focus indicator when keyboard focus lands on a toolbar control (Req 6.4). */
+    .body-field ::ng-deep .ql-toolbar button:focus-visible,
+    .body-field ::ng-deep .ql-toolbar .ql-picker-label:focus-visible,
+    .body-field ::ng-deep .ql-toolbar .ql-picker-item:focus-visible {
+      outline: 2px solid #1976d2;
+      outline-offset: 1px;
+      border-radius: 2px;
+    }
+    .body-error { display: block; font-size: 12px; margin-top: 4px; }
+    .body-preview { display: block; margin-bottom: 16px; }
+    .preview-content { border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; padding: 12px; background: #fafafa; }
     .actions { display: flex; gap: 8px; margin-top: 8px; }
     .btn-spinner { display: inline-block; margin-right: 4px; }
     .mail-warning { display: flex; align-items: center; gap: 8px; color: #e65100; margin-bottom: 12px; }
@@ -267,6 +299,17 @@ export class OwnerEmailComponent implements OnInit {
   readonly subjectMax = SUBJECT_MAX;
   readonly bodyMax = BODY_MAX;
 
+  /** Quill toolbar restricted to the Allowed_Formatting allow-list:
+   *  bold/italic/underline/strike, headings, ordered/bullet lists, link. */
+  readonly quillModules = {
+    toolbar: [
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ header: [1, 2, 3, false] }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      ['link']
+    ]
+  };
+
   recipientScope: RecipientScope = 'ALL';
   activeOwners: Owner[] = [];
   loadingOwners = false;
@@ -276,6 +319,35 @@ export class OwnerEmailComponent implements OnInit {
   form: FormGroup;
   sending = false;
   report: SendReport | null = null;
+
+  /** Visible-text length of the current body, shown in the length hint. */
+  visibleLength = 0;
+
+  /** The Quill instance, captured on editor creation, used for the accessibility
+   *  hardening pass (aria-labels, aria-pressed, keyboard operability). */
+  private quill: any;
+
+  /** Accessible names applied to each toolbar control, keyed by its Quill CSS class
+   *  or by the `<class, value>` pair for value-bearing controls (Req 6.2). */
+  private static readonly TOOLBAR_LABELS: Record<string, string> = {
+    'ql-bold': 'Bold',
+    'ql-italic': 'Italic',
+    'ql-underline': 'Underline',
+    'ql-strike': 'Strikethrough',
+    'ql-link': 'Insert link',
+    'ql-list[ordered]': 'Numbered list',
+    'ql-list[bullet]': 'Bulleted list',
+    'ql-header': 'Heading style'
+  };
+
+  /** Format controls whose active/inactive state is reflected via aria-pressed
+   *  on selection change (Req 6.3). Maps the Quill format name to its button class. */
+  private static readonly TOGGLE_FORMATS: Array<{ format: string; selector: string }> = [
+    { format: 'bold', selector: 'button.ql-bold' },
+    { format: 'italic', selector: 'button.ql-italic' },
+    { format: 'underline', selector: 'button.ql-underline' },
+    { format: 'strike', selector: 'button.ql-strike' }
+  ];
 
   /** Optional file attachments; empty when the user attaches nothing. */
   attachments: File[] = [];
@@ -292,11 +364,12 @@ export class OwnerEmailComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private ownerService: OwnerService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private sanitizer: DomSanitizer
   ) {
     this.form = this.fb.group({
       subject: ['', [Validators.required, this.notBlankValidator, Validators.maxLength(SUBJECT_MAX)]],
-      body: ['', [Validators.required, this.notBlankValidator, Validators.maxLength(BODY_MAX)]]
+      body: ['', [this.bodyVisibleValidator]]
     });
   }
 
@@ -327,6 +400,114 @@ export class OwnerEmailComponent implements OnInit {
       return { whitespace: true };
     }
     return null;
+  }
+
+  /** Visible-text length of editor HTML: strip tags via a detached element, decode
+   *  entities, and trim. Measures the actual visible content, not raw HTML length. */
+  private visibleTextLength(html: string): number {
+    const el = document.createElement('div');
+    el.innerHTML = html ?? '';
+    return (el.textContent ?? '').trim().length;
+  }
+
+  /** Reactive-form validator enforcing the 1..BODY_MAX visible-text bound (Req 4.1-4.3):
+   *  emptyVisible at length 0, tooLongVisible above BODY_MAX, otherwise valid. */
+  private bodyVisibleValidator = (control: AbstractControl): ValidationErrors | null => {
+    const len = this.visibleTextLength((control.value ?? '') as string);
+    if (len === 0) { return { emptyVisible: true }; }        // Req 4.2
+    if (len > BODY_MAX) { return { tooLongVisible: true }; } // Req 4.3
+    return null;
+  };
+
+  /** Keeps the visible-length hint in sync as the editor content changes. */
+  onBodyChanged(): void {
+    this.visibleLength = this.visibleTextLength((this.form.value.body ?? '') as string);
+  }
+
+  /** Accessibility hardening pass, run once the Quill editor exists (Req 6.1-6.3).
+   *  Quill's toolbar buttons are real, focusable <button> elements and Quill's
+   *  keyboard module already binds Ctrl/Cmd+B/I/U, so keyboard reachability and
+   *  operability come for free (Req 6.1); here we ensure it and add the ARIA
+   *  semantics Quill omits: accessible names and toggle state. */
+  onEditorCreated(quill: any): void {
+    this.quill = quill;
+
+    const toolbarModule = quill?.getModule?.('toolbar');
+    const toolbar: HTMLElement | null = toolbarModule?.container ?? null;
+    if (toolbar) {
+      this.labelToolbarControls(toolbar);   // Req 6.2
+      this.reflectToggleState(toolbar);     // Req 6.3 (initial state)
+    }
+
+    // Re-evaluate toggle-button state whenever the selection or applied formats
+    // change, so aria-pressed always mirrors Quill's current format state (Req 6.3).
+    quill?.on?.('selection-change', () => {
+      if (toolbar) {
+        this.reflectToggleState(toolbar);
+      }
+    });
+    quill?.on?.('editor-change', () => {
+      if (toolbar) {
+        this.reflectToggleState(toolbar);
+      }
+    });
+  }
+
+  /** Adds an aria-label to every toolbar control so screen readers announce its
+   *  purpose, and initialises aria-pressed on toggle buttons (Req 6.2). Plain
+   *  toggle buttons carry a single Quill class (e.g. ql-bold); value-bearing
+   *  buttons carry a `value` attribute (e.g. ql-list value="ordered"). */
+  private labelToolbarControls(toolbar: HTMLElement): void {
+    const labels = OwnerEmailComponent.TOOLBAR_LABELS;
+
+    toolbar.querySelectorAll('button').forEach((btn) => {
+      const el = btn as HTMLButtonElement;
+      const qlClass = Array.from(el.classList).find(c => c.startsWith('ql-'));
+      if (!qlClass) { return; }
+
+      const value = el.getAttribute('value');
+      const key = value ? `${qlClass}[${value}]` : qlClass;
+      const label = labels[key] ?? labels[qlClass];
+      if (label && !el.getAttribute('aria-label')) {
+        el.setAttribute('aria-label', label);
+      }
+    });
+
+    // Picker controls (e.g. the header dropdown) expose a focusable label span
+    // that lacks an accessible name; give it one and role/keyboard affordances.
+    toolbar.querySelectorAll('.ql-picker').forEach((picker) => {
+      const qlClass = Array.from((picker as HTMLElement).classList).find(c => c.startsWith('ql-'));
+      const label = qlClass ? labels[qlClass] : undefined;
+      const pickerLabel = picker.querySelector('.ql-picker-label') as HTMLElement | null;
+      if (pickerLabel && label && !pickerLabel.getAttribute('aria-label')) {
+        pickerLabel.setAttribute('aria-label', label);
+      }
+    });
+  }
+
+  /** Reflects Quill's current format state onto the toggle buttons as aria-pressed
+   *  so assistive technology announces active/inactive formatting (Req 6.3). */
+  private reflectToggleState(toolbar: HTMLElement): void {
+    const format = this.quill?.getFormat?.() ?? {};
+    for (const { format: name, selector } of OwnerEmailComponent.TOGGLE_FORMATS) {
+      const btn = toolbar.querySelector(selector) as HTMLElement | null;
+      if (btn) {
+        btn.setAttribute('aria-pressed', format[name] ? 'true' : 'false');
+      }
+    }
+  }
+
+  /** Secondary-defence preview of the editor body (Req 3.8). The raw editor HTML is
+   *  passed through Angular's DomSanitizer using sanitize(SecurityContext.HTML, ...),
+   *  which strips unsafe markup (scripts, event handlers, unsafe URLs) rather than
+   *  trusting it. bypassSecurityTrustHtml is intentionally never used here; the
+   *  server-side Server_Sanitizer remains the authoritative sanitization stage. */
+  get bodyPreviewHtml(): string | null {
+    const html = (this.form.value.body ?? '') as string;
+    if (!html.trim()) {
+      return null;
+    }
+    return this.sanitizer.sanitize(SecurityContext.HTML, html);
   }
 
   onScopeChange(): void {
@@ -381,12 +562,15 @@ export class OwnerEmailComponent implements OnInit {
       this.snackBar.open(`Subject cannot exceed ${SUBJECT_MAX} characters.`, 'Close', { duration: 4000 });
       return;
     }
-    if (!body.trim()) {
+    // Visible-text validation on the body (Req 4.2, 4.3). On block, submission is
+    // prevented while the composed content and recipient selection are retained.
+    const visibleLen = this.visibleTextLength(body);
+    if (visibleLen === 0) {
       this.snackBar.open('Please enter message content.', 'Close', { duration: 4000 });
       return;
     }
-    if (body.length > BODY_MAX) {
-      this.snackBar.open(`Message body cannot exceed ${BODY_MAX} characters.`, 'Close', { duration: 4000 });
+    if (visibleLen > BODY_MAX) {
+      this.snackBar.open(`Message cannot exceed ${BODY_MAX} visible characters.`, 'Close', { duration: 4000 });
       return;
     }
 

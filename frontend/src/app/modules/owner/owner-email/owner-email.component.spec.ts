@@ -187,12 +187,12 @@ describe('OwnerEmailComponent', () => {
     expect(component.form.get('subject')!.hasError('maxlength')).toBeTrue();
   });
 
-  it('marks the body control invalid when it exceeds the max length (Req 3.4)', () => {
+  it('marks the body control invalid when its visible text exceeds the max length (Req 3.4)', () => {
     setup();
     fixture.detectChanges();
 
     component.form.get('body')!.setValue('y'.repeat(10001));
-    expect(component.form.get('body')!.hasError('maxlength')).toBeTrue();
+    expect(component.form.get('body')!.hasError('tooLongVisible')).toBeTrue();
   });
 
   it('renders the results panel with sent/not-emailed counts and the not-emailed list (Req 7.4, 7.5)', () => {

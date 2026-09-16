@@ -1,0 +1,170 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Add backend dependencies and widen the body guard": [
+      {
+        "executionId": "bcc2e8c7-74b9-481e-a570-7d9339d33ecb",
+        "chatSessionId": "sess_48e5930d-e016-4d2b-9fb8-fb80b8706cd3",
+        "timestamp": 1789553421421
+      },
+      {
+        "executionId": "bcc2e8c7-74b9-481e-a570-7d9339d33ecb",
+        "chatSessionId": "sess_48e5930d-e016-4d2b-9fb8-fb80b8706cd3",
+        "timestamp": 1789553648962
+      }
+    ],
+    "1.2 Widen `SendOwnerEmailRequest.body` bean-validation guard": [
+      {
+        "executionId": "efc76389-37f5-4b86-9174-b1027b552823",
+        "chatSessionId": "sess_96b382f1-bccb-4e35-823a-4baa87175444",
+        "timestamp": 1789553730026
+      },
+      {
+        "executionId": "efc76389-37f5-4b86-9174-b1027b552823",
+        "chatSessionId": "sess_96b382f1-bccb-4e35-823a-4baa87175444",
+        "timestamp": 1789553821197
+      }
+    ],
+    "1.1 Add sanitization dependencies to `backend/pom.xml`": [
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789553879748
+      },
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554051662
+      }
+    ],
+    "6.1 Add the rich-text editor dependencies to `frontend/package.json`": [
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554067110
+      },
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554198163
+      }
+    ],
+    "2.1 Create `OwnerEmailSanitizer`": [
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554203874
+      },
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554341935
+      }
+    ],
+    "2.5 Create `OwnerEmailPlainTextRenderer`": [
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554203944
+      },
+      {
+        "executionId": "e95bb7b6-229a-45c6-854c-09ab5c77e688",
+        "chatSessionId": "sess_08971546-f086-4e8b-96bf-6fe081fc0a4d",
+        "timestamp": 1789554341981
+      }
+    ],
+    "3.1 Modify `OwnerEmailTemplateBuilder` to build an HTML document": [
+      {
+        "executionId": "c8346f50-5bc5-4c17-8b85-57eb3f1ae876",
+        "chatSessionId": "sess_49969dd1-d82e-41ec-a261-aa63178bd75f",
+        "timestamp": 1789554686625
+      },
+      {
+        "executionId": "c8346f50-5bc5-4c17-8b85-57eb3f1ae876",
+        "chatSessionId": "sess_49969dd1-d82e-41ec-a261-aa63178bd75f",
+        "timestamp": 1789554861641
+      }
+    ],
+    "3. Change the template builder to emit HTML": [
+      {
+        "executionId": "c8346f50-5bc5-4c17-8b85-57eb3f1ae876",
+        "chatSessionId": "sess_49969dd1-d82e-41ec-a261-aa63178bd75f",
+        "timestamp": 1789554861728
+      }
+    ],
+    "4.1 Modify `OwnerEmailServiceImpl` for sanitize-once and multipart/alternative": [
+      {
+        "executionId": "404ebfbc-c6e6-4c58-8ca6-2778265bde80",
+        "chatSessionId": "sess_6e2a31ea-7a67-4433-869f-ac22ea7a501d",
+        "timestamp": 1789555019725
+      },
+      {
+        "executionId": "404ebfbc-c6e6-4c58-8ca6-2778265bde80",
+        "chatSessionId": "sess_6e2a31ea-7a67-4433-869f-ac22ea7a501d",
+        "timestamp": 1789555149365
+      }
+    ],
+    "4. Wire sanitization and multipart send into the service": [
+      {
+        "executionId": "404ebfbc-c6e6-4c58-8ca6-2778265bde80",
+        "chatSessionId": "sess_6e2a31ea-7a67-4433-869f-ac22ea7a501d",
+        "timestamp": 1789555149467
+      }
+    ],
+    "6.2 Replace the body `<textarea>` with a Quill editor in `OwnerEmailComponent`": [
+      {
+        "executionId": "ee460ed2-c8ac-49d9-b260-a369d389c177",
+        "chatSessionId": "sess_d24fc892-52d6-407b-a9ec-7b03c6db20a2",
+        "timestamp": 1789555255110
+      },
+      {
+        "executionId": "ee460ed2-c8ac-49d9-b260-a369d389c177",
+        "chatSessionId": "sess_d24fc892-52d6-407b-a9ec-7b03c6db20a2",
+        "timestamp": 1789555405015
+      }
+    ],
+    "6.3 Switch body validation to visible-text length": [
+      {
+        "executionId": "88910af7-dd1b-4a83-9b4c-724af745bd09",
+        "chatSessionId": "sess_7adc276c-c5ed-4393-bd57-d1e0dac90454",
+        "timestamp": 1789555484442
+      },
+      {
+        "executionId": "88910af7-dd1b-4a83-9b4c-724af745bd09",
+        "chatSessionId": "sess_7adc276c-c5ed-4393-bd57-d1e0dac90454",
+        "timestamp": 1789555812706
+      }
+    ],
+    "6.4 Route preview rendering through `DomSanitizer`": [
+      {
+        "executionId": "5f7e6fb2-5d3f-43e0-8330-ee7d6c78c350",
+        "chatSessionId": "sess_13612ae9-0a30-423a-a96f-4643d28ab216",
+        "timestamp": 1789556030729
+      },
+      {
+        "executionId": "5f7e6fb2-5d3f-43e0-8330-ee7d6c78c350",
+        "chatSessionId": "sess_13612ae9-0a30-423a-a96f-4643d28ab216",
+        "timestamp": 1789556299102
+      }
+    ],
+    "6.5 Harden editor accessibility": [
+      {
+        "executionId": "8dffb830-f940-4b5d-bdde-cc64b299c97f",
+        "chatSessionId": "sess_7da730b2-24da-4bf9-be69-b44f95b00e07",
+        "timestamp": 1789556324600
+      },
+      {
+        "executionId": "8dffb830-f940-4b5d-bdde-cc64b299c97f",
+        "chatSessionId": "sess_7da730b2-24da-4bf9-be69-b44f95b00e07",
+        "timestamp": 1789556471367
+      }
+    ],
+    "6. Replace the body editor and validation on the frontend": [
+      {
+        "executionId": "8dffb830-f940-4b5d-bdde-cc64b299c97f",
+        "chatSessionId": "sess_7da730b2-24da-4bf9-be69-b44f95b00e07",
+        "timestamp": 1789556471467
+      }
+    ]
+  }
+}

@@ -4,6 +4,7 @@ import com.society.exception.BusinessException;
 import com.society.module.settings.entity.SocietySettings;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 
 /**
  * Assembles the fixed three-part owner email template: Society Header, Body, Footer.
@@ -18,7 +19,12 @@ import org.springframework.util.StringUtils;
  * header/footer settings field is missing/blank. The exception message identifies
  * the specific offending field.
  *
- * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
+ * <p>{@link #buildHtmlBody(SocietySettings, String, String)} assembles the same
+ * three-part structure as an HTML document: the header and footer settings values
+ * are HTML-escaped (plain data, never markup) while the already-sanitized body is
+ * inserted verbatim so its allowed formatting is preserved (Req 2.2, 2.3).
+ *
+ * Requirements: 2.2, 2.3, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7
  */
 @Component
 public class OwnerEmailTemplateBuilder {
@@ -52,6 +58,49 @@ public class OwnerEmailTemplateBuilder {
         content.append(SECTION_BREAK);
         content.append(buildFooter(settings));
         return content.toString();
+    }
+
+    /**
+     * Assembles the full email as an HTML document in the fixed order
+     * header -&gt; body -&gt; footer (Req 2.2).
+     *
+     * <p>Header and footer values come from {@link SocietySettings} and are
+     * HTML-escaped before insertion because they are plain data and must never be
+     * interpreted as markup. The subject is likewise escaped. The
+     * {@code sanitizedBody} is inserted verbatim: it is <b>already sanitized</b>
+     * upstream by the {@code OwnerEmailSanitizer} and therefore is not re-escaped,
+     * so every element of allowed formatting it carries is preserved (Req 2.3).
+     *
+     * @param settings      the society settings supplying header and footer content
+     * @param subject       the user-entered subject
+     * @param sanitizedBody the already-sanitized HTML body
+     * @return the assembled HTML email document
+     * @throws BusinessException if the subject is empty/whitespace (Req 4.6),
+     *                           or a required settings field is missing/blank (Req 4.7)
+     */
+    public String buildHtmlBody(SocietySettings settings, String subject, String sanitizedBody) {
+        // Validate everything before assembling anything so no content is produced on failure.
+        if (settings == null) {
+            throw new BusinessException("Society settings are missing");
+        }
+        validateHeaderSettings(settings);
+        validateFooterSettings(settings);
+        if (!StringUtils.hasText(subject)) {
+            throw new BusinessException("Subject is required");
+        }
+
+        StringBuilder html = new StringBuilder();
+        html.append("<div>");
+        html.append(buildHtmlHeader(settings));
+        html.append("<hr/>");
+        html.append("<div>");
+        html.append("<p><strong>Subject: ").append(esc(subject.trim())).append("</strong></p>");
+        html.append(sanitizedBody == null ? "" : sanitizedBody); // sanitized HTML, inserted verbatim
+        html.append("</div>");
+        html.append("<hr/>");
+        html.append(buildHtmlFooter(settings));
+        html.append("</div>");
+        return html.toString();
     }
 
     /**
@@ -167,5 +216,51 @@ public class OwnerEmailTemplateBuilder {
         footer.append(LINE).append("Secretary: ").append(settings.getSecretaryName().trim());
         footer.append(LINE).append("Treasurer: ").append(settings.getTreasurerName().trim());
         return footer.toString();
+    }
+
+    // ----- HTML Assembly -----
+
+    /**
+     * Renders the society header as an HTML block. Every settings value is
+     * HTML-escaped so it can never inject markup.
+     */
+    private String buildHtmlHeader(SocietySettings settings) {
+        StringBuilder header = new StringBuilder();
+        header.append("<div>");
+        header.append("<p><strong>").append(esc(settings.getSocietyName().trim())).append("</strong>");
+
+        String address = buildAddress(settings);
+        if (StringUtils.hasText(address)) {
+            header.append("<br/>").append(esc(address));
+        }
+        header.append("<br/>Reg. No: ").append(esc(settings.getRegistrationNumber().trim()));
+        header.append("<br/>Phone: ").append(esc(settings.getPhone().trim()));
+        header.append("<br/>Email: ").append(esc(settings.getEmail().trim()));
+        header.append("</p>");
+        header.append("</div>");
+        return header.toString();
+    }
+
+    /**
+     * Renders the society footer as an HTML block. Every settings value is
+     * HTML-escaped so it can never inject markup.
+     */
+    private String buildHtmlFooter(SocietySettings settings) {
+        StringBuilder footer = new StringBuilder();
+        footer.append("<div>");
+        footer.append("<p>Regards,");
+        footer.append("<br/>Chairman: ").append(esc(settings.getChairmanName().trim()));
+        footer.append("<br/>Secretary: ").append(esc(settings.getSecretaryName().trim()));
+        footer.append("<br/>Treasurer: ").append(esc(settings.getTreasurerName().trim()));
+        footer.append("</p>");
+        footer.append("</div>");
+        return footer.toString();
+    }
+
+    /**
+     * HTML entity-escapes plain text so settings-sourced values can never inject markup.
+     */
+    private String esc(String value) {
+        return HtmlUtils.htmlEscape(value);
     }
 }

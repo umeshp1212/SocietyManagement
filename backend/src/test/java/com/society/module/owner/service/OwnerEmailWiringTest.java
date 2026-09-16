@@ -78,10 +78,12 @@ class OwnerEmailWiringTest {
 
     @BeforeEach
     void setUp() {
-        // The template builder is a pure component; use the real one for a true
-        // end-to-end assembly path (settings -> builder -> transport).
+        // The template builder, sanitizer, and plain-text renderer are pure components;
+        // use the real ones for a true end-to-end assembly path
+        // (settings -> sanitize -> builder/renderer -> transport).
         service = new OwnerEmailServiceImpl(ownerRepository, societySettingsService,
-                new OwnerEmailTemplateBuilder());
+                new OwnerEmailTemplateBuilder(), new OwnerEmailSanitizer(),
+                new OwnerEmailPlainTextRenderer());
         // JavaMailSender is @Autowired(required=false) and fromEmail is @Value-injected;
         // set both directly since this is a plain Mockito unit test (no Spring context).
         ReflectionTestUtils.setField(service, "mailSender", mailSender);

@@ -60,10 +60,13 @@ class OwnerEmailMailAbsentPropertyTest {
         // Stub the pure template builder so template concerns do not affect this property.
         OwnerEmailTemplateBuilder templateBuilder = mock(OwnerEmailTemplateBuilder.class);
         when(templateBuilder.buildSubject(any())).thenReturn("Subject");
-        when(templateBuilder.buildBody(any(), any(), any())).thenReturn("Body");
+        when(templateBuilder.buildHtmlBody(any(), any(), any())).thenReturn("<p>Body</p>");
 
+        // The sanitizer and plain-text renderer are pure components; the real ones pass the
+        // plain-text body through unchanged so the send flow behaves exactly as before.
         OwnerEmailServiceImpl service =
-                new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder);
+                new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder,
+                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer());
         // mailSender is @Autowired(required=false); leaving it unset simulates the absent bean.
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");
 

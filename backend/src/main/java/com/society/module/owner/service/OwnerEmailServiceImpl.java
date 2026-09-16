@@ -1,6 +1,7 @@
 package com.society.module.owner.service;
 
 import com.society.enums.OwnerStatus;
+import com.society.exception.BusinessException;
 import com.society.module.owner.dto.NotEmailedEntry;
 import com.society.module.owner.dto.NotEmailedReason;
 import com.society.module.owner.dto.RecipientScope;
@@ -56,6 +57,8 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
     private final OwnerRepository ownerRepository;
     private final SocietySettingsService societySettingsService;
     private final OwnerEmailTemplateBuilder templateBuilder;
+    private final OwnerEmailSanitizer sanitizer;
+    private final OwnerEmailPlainTextRenderer plainTextRenderer;
 
     @Override
     public SendReportDTO sendOwnerEmail(SendOwnerEmailRequest request) {
@@ -71,11 +74,34 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
         List<Owner> recipients = resolveRecipients(request);
         int totalAttempted = recipients.size();
 
-        // Assemble the template up-front. A BusinessException (missing settings / empty
-        // user fields) propagates and is mapped by GlobalExceptionHandler (Req 4.6, 4.7).
+        // Authoritative server-side sanitization, once per request, before any template
+        // assembly or send. Only the Sanitized_Body is ever embedded; the raw
+        // Rich_Text_Body is never used past this point (Req 3.1, 3.6).
+        String sanitizedBody = sanitizer.sanitize(request.getBody());
+
+        // Visible-text validation on the sanitized body, whatever will actually be sent.
+        // A failing check throws a BusinessException that propagates before any send loop
+        // runs, so no email is sent and no partial record is kept (Req 3.7, 4.4, 4.5, 4.6).
+        String visible = sanitizer.visibleText(sanitizedBody);
+        if (visible.isEmpty()) {
+            throw new BusinessException("Message content is required"); // Req 4.4
+        }
+        if (visible.length() > 10_000) {
+            throw new BusinessException("Message exceeds the 10,000 character limit"); // Req 4.5
+        }
+        if (sanitizedBody.length() > 50_000) {
+            throw new BusinessException("Message body is too large"); // Req 4.6 (defence in depth)
+        }
+
+        // Assemble the template up-front from the SANITIZED body. A BusinessException
+        // (missing settings / empty user fields) propagates and is mapped by
+        // GlobalExceptionHandler (Req 4.6, 4.7). The HTML template preserves the allowed
+        // formatting (Req 2.2, 2.3) and the plain-text alternative is derived from the same
+        // sanitized content (Req 2.4, 7.1, 7.2, 7.3).
         SocietySettings settings = societySettingsService.getSettings();
         String assembledSubject = templateBuilder.buildSubject(request.getSubject());
-        String assembledBody = templateBuilder.buildBody(settings, request.getSubject(), request.getBody());
+        String assembledHtml = templateBuilder.buildHtmlBody(settings, request.getSubject(), sanitizedBody);
+        String plainText = plainTextRenderer.render(sanitizedBody, request.getSubject(), settings);
 
         // Mail transport absent: send nothing, report every attempted recipient as
         // MAIL_NOT_CONFIGURED, and return normally without an error (Req 8.1, 8.2).
@@ -109,7 +135,10 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
                 helper.setFrom(fromEmail);
                 helper.setTo(email.trim());
                 helper.setSubject(assembledSubject);
-                helper.setText(assembledBody, true);
+                // multipart/alternative: plain-text first, HTML second. JavaMail nests the
+                // multipart/alternative inside the outer multipart/mixed that carries the
+                // attachments, so both readable-in-any-client and attachments work (Req 7.1).
+                helper.setText(plainText, assembledHtml);
                 attachAll(helper, validAttachments);
                 mailSender.send(message);
                 sentCount++;

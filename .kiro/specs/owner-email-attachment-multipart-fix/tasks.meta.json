@@ -1,0 +1,84 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Write bug condition exploration test (BEFORE implementing the fix)": [
+      {
+        "executionId": "22606670-bae5-4b7e-a10f-a6037dc1102d",
+        "chatSessionId": "sess_49a7256f-d725-4fcf-a34a-f6b9b06a9d9f",
+        "timestamp": 1789556691662
+      },
+      {
+        "executionId": "22606670-bae5-4b7e-a10f-a6037dc1102d",
+        "chatSessionId": "sess_49a7256f-d725-4fcf-a34a-f6b9b06a9d9f",
+        "timestamp": 1789557289749
+      }
+    ],
+    "2. Write preservation property tests (BEFORE implementing the fix)": [
+      {
+        "executionId": "ff47004f-b0ae-47f6-a622-e623495a0348",
+        "chatSessionId": "sess_775264a8-19f5-423a-9212-a3df66a78b10",
+        "timestamp": 1789557311077
+      },
+      {
+        "executionId": "ff47004f-b0ae-47f6-a622-e623495a0348",
+        "chatSessionId": "sess_775264a8-19f5-423a-9212-a3df66a78b10",
+        "timestamp": 1789560261039
+      }
+    ],
+    "3.1 Implement the fix": [
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560308127
+      },
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560452111
+      }
+    ],
+    "3.2 Verify bug condition exploration test now passes (fix checking)": [
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560455608
+      },
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560557034
+      }
+    ],
+    "3.3 Verify preservation tests still pass (preservation checking)": [
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560560682
+      },
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560818173
+      }
+    ],
+    "3. Fix for multipart `request` part binding in OwnerEmailController": [
+      {
+        "executionId": "d8deac5f-79b7-4fcc-bbad-7e5ee43a3b28",
+        "chatSessionId": "sess_86e75b8d-5a26-4122-a1d0-173f3687b0c3",
+        "timestamp": 1789560818259
+      }
+    ],
+    "4. Add supporting unit, property-based, and integration tests": [
+      {
+        "executionId": "9c0e292e-9300-44eb-a42f-393711157813",
+        "chatSessionId": "sess_8929fc5b-bf11-4b2f-97a0-b16ddc16721f",
+        "timestamp": 1789561275018
+      },
+      {
+        "executionId": "9c0e292e-9300-44eb-a42f-393711157813",
+        "chatSessionId": "sess_8929fc5b-bf11-4b2f-97a0-b16ddc16721f",
+        "timestamp": 1789561893967
+      }
+    ]
+  }
+}

@@ -29,6 +29,6 @@ public class SendOwnerEmailRequest {
     private String subject;
 
     @NotBlank(message = "Body is required")
-    @Size(max = 10000, message = "Body must not exceed 10000 characters")
+    @Size(max = 50000, message = "Body must not exceed 50000 characters")
     private String body;
 }

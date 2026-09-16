@@ -166,7 +166,9 @@ describe('OwnerEmailComponent - Property 13: client-side validation rejects inva
   it('blocks every over-length body and indicates the max allowed length (Req 3.4)', () => {
     for (const body of overLengthBodies) {
       expect(body.length).toBeGreaterThan(BODY_MAX);
-      assertBlockedAndRetained(VALID_SUBJECT, body, `${BODY_MAX} characters`);
+      // Body length is now measured as visible text; the plain-text generators
+      // above have visible length == raw length, so they still exceed the bound.
+      assertBlockedAndRetained(VALID_SUBJECT, body, `${BODY_MAX} visible characters`);
     }
   });
 
