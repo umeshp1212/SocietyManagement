@@ -14,6 +14,13 @@ import java.util.List;
 @Repository
 public interface OwnerRepository extends JpaRepository<Owner, Long> {
 
+    // NOTE: Recipient resolution for the Owner Email feature relies on two entry points
+    // exposed by this repository:
+    //  - ALL scope: findByStatusOrderByFullNameAsc(OwnerStatus.ACTIVE) resolves the active-owner set
+    //    (same query already used by OwnerService.getActiveOwnersList()).
+    //  - SELECTED scope: findAllById(Iterable<Long>) resolves owners by id
+    //    (inherited from CrudRepository/JpaRepository; no explicit declaration needed).
+
     Page<Owner> findByStatus(OwnerStatus status, Pageable pageable);
 
     @Query("SELECT o FROM Owner o WHERE o.status = :status AND " +

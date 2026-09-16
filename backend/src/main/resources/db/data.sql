@@ -261,6 +261,14 @@ INSERT IGNORE INTO permissions (permission_name, module, description) VALUES
 ('VOUCHER_CHAIRMAN_APPROVE', 'VOUCHER', 'Chairman approve step in voucher approval'),
 ('VOUCHER_TDS_CONFIG', 'VOUCHER', 'Manage TDS configuration for vouchers');
 
+-- ------------------------------------------------------------
+-- Owner Email permission (Owner Email feature).
+-- Inserted WITHOUT a hardcoded id and granted BY NAME (see note above) so it
+-- never collides with auto-assigned ids created elsewhere (e.g. DataInitializer).
+-- ------------------------------------------------------------
+INSERT IGNORE INTO permissions (permission_name, module, description) VALUES
+('OWNER_EMAIL_SEND', 'OWNER', 'Send templated emails to owners');
+
 -- ============================================================
 -- ROLE-PERMISSION MAPPING
 -- ============================================================
@@ -330,6 +338,7 @@ JOIN permissions p ON (
     OR (r.role_name = 'CHAIRMAN'                             AND p.permission_name = 'VOUCHER_CHAIRMAN_APPROVE')
     OR (r.role_name IN ('SECRETARY', 'TREASURER')            AND p.permission_name = 'VOUCHER_TDS_CONFIG')
     OR (r.role_name IN ('CHAIRMAN', 'SECRETARY', 'TREASURER') AND p.permission_name = 'MAINTENANCE_PAYMENT_REASSIGN')
+    OR (r.role_name IN ('CHAIRMAN', 'SECRETARY', 'COMMITTEE_MEMBER') AND p.permission_name = 'OWNER_EMAIL_SEND')
 );
 
 -- SUPER_ADMIN gets ALL permissions (re-run to pick up the newly inserted ones)

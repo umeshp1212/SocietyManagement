@@ -99,3 +99,27 @@ export interface OwnershipTransferRequest {
   transferType: 'PURCHASE' | 'INHERITANCE' | 'GIFT' | 'COURT_ORDER';
   remarks?: string;
 }
+export type RecipientScope = 'ALL' | 'SELECTED';
+
+export type NotEmailedReason = 'MISSING_EMAIL' | 'SEND_FAILURE' | 'MAIL_NOT_CONFIGURED';
+
+export interface SendOwnerEmailRequest {
+  recipientScope: RecipientScope;
+  ownerIds?: number[];
+  subject: string;
+  body: string;
+}
+
+export interface NotEmailedEntry {
+  ownerId: number;
+  ownerName: string;
+  reason: NotEmailedReason;
+}
+
+export interface SendReport {
+  totalAttempted: number;
+  sentCount: number;
+  notEmailedCount: number;
+  mailConfigured: boolean;
+  notEmailed: NotEmailedEntry[];
+}

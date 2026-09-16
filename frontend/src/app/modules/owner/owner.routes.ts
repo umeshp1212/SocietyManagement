@@ -22,6 +22,10 @@ export const OWNER_ROUTES: Routes = [
     loadComponent: () => import('./owner-transfer/owner-transfer.component').then(m => m.OwnerTransferComponent)
   },
   {
+    path: 'email',
+    loadComponent: () => import('./owner-email/owner-email.component').then(m => m.OwnerEmailComponent)
+  },
+  {
     path: ':id',
     loadComponent: () => import('./owner-detail/owner-detail.component').then(m => m.OwnerDetailComponent)
   }

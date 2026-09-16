@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@env/environment';
 import { ApiResponse, PagedResponse } from '../models/api-response.model';
-import { Owner, OwnerCreateRequest, OwnerUpdateRequest, Unit, UnitCreateRequest, UnitOwner, AddCoOwnerRequest, OwnershipHistory, OwnershipTransferRequest } from '../models/owner.model';
+import { Owner, OwnerCreateRequest, OwnerUpdateRequest, Unit, UnitCreateRequest, UnitOwner, AddCoOwnerRequest, OwnershipHistory, OwnershipTransferRequest, SendOwnerEmailRequest, SendReport } from '../models/owner.model';
 
 @Injectable({ providedIn: 'root' })
 export class OwnerService {
@@ -35,6 +35,14 @@ export class OwnerService {
 
   getActiveOwnersList(): Observable<ApiResponse<Owner[]>> {
     return this.http.get<ApiResponse<Owner[]>>(`${this.apiUrl}/active-list`);
+  }
+
+  sendOwnerEmail(request: SendOwnerEmailRequest, attachments?: File[]): Observable<ApiResponse<SendReport>> {
+    const formData = new FormData();
+    // The request payload is sent as a JSON string part; the backend deserialises and validates it.
+    formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    (attachments || []).forEach(file => formData.append('attachments', file, file.name));
+    return this.http.post<ApiResponse<SendReport>>(`${this.apiUrl}/email/send`, formData);
   }
 
   transferOwnership(request: OwnershipTransferRequest): Observable<ApiResponse<OwnershipHistory>> {

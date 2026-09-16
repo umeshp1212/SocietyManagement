@@ -2,6 +2,8 @@ package com.society.exception;
 
 import com.society.common.ApiResponse;
 import jakarta.persistence.EntityNotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -15,6 +17,9 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /** Dedicated audit logger for authorization rejections (Req 6.4). */
+    private static final Logger AUDIT_LOG = LoggerFactory.getLogger("SECURITY_AUDIT");
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleEntityNotFound(EntityNotFoundException ex) {
@@ -39,6 +44,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        // Record the rejected request in the application audit log (Req 6.4).
+        AUDIT_LOG.warn("Authorization rejected: access denied - {}",
+                ex.getMessage() != null ? ex.getMessage() : "Access denied");
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(ex.getMessage() != null ? ex.getMessage() : "Access denied"));

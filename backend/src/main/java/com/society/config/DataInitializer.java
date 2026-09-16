@@ -33,6 +33,13 @@ public class DataInitializer implements CommandLineRunner {
     /** Authority that gates reassigning a wrongly-attributed payment to the correct unit's bill. */
     private static final String MAINTENANCE_PAYMENT_REASSIGN = "MAINTENANCE_PAYMENT_REASSIGN";
 
+    /** Authority that gates sending templated emails to owners (design: OWNER_EMAIL_SEND). */
+    private static final String OWNER_EMAIL_SEND = "OWNER_EMAIL_SEND";
+
+    /** Committee/admin-facing roles that may send templated emails to owners. */
+    private static final List<String> OWNER_EMAIL_ROLES = List.of(
+            "CHAIRMAN", "SECRETARY", "COMMITTEE_MEMBER");
+
     /**
      * Society-wide roles that view all transactions. They also receive the
      * {@code TRANSACTION_VIEW} permission so the endpoint's authority check
@@ -54,6 +61,7 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         seedTransactionViewPermission();
         seedPaymentReassignPermission();
+        seedOwnerEmailSendPermission();
 
         Optional<User> existingAdmin = userRepository.findByUsername("admin");
 
@@ -189,6 +197,46 @@ public class DataInitializer implements CommandLineRunner {
                 role.getPermissions().add(reassign);
                 roleRepository.save(role);
                 log.info("Granted {} to role {}.", MAINTENANCE_PAYMENT_REASSIGN, roleName);
+            }
+        }
+    }
+
+    /**
+     * Ensures the {@code OWNER_EMAIL_SEND} permission exists and is granted to the
+     * committee/admin roles (chairman/secretary/committee member) that may send
+     * templated emails to owners. SUPER_ADMIN bypasses the authority check via
+     * {@code hasRole('SUPER_ADMIN')}. Idempotent on every startup, guaranteeing the
+     * permission is present even when {@code data.sql} is not applied.
+     */
+    private void seedOwnerEmailSendPermission() {
+        Permission ownerEmailSend = permissionRepository.findByPermissionName(OWNER_EMAIL_SEND)
+                .orElseGet(() -> {
+                    Permission permission = Permission.builder()
+                            .permissionName(OWNER_EMAIL_SEND)
+                            .module("OWNER")
+                            .description("Send templated emails to owners")
+                            .build();
+                    log.info("Creating {} permission.", OWNER_EMAIL_SEND);
+                    return permissionRepository.save(permission);
+                });
+
+        for (String roleName : OWNER_EMAIL_ROLES) {
+            Role role = roleRepository.findByRoleName(roleName)
+                    .orElseGet(() -> {
+                        Role newRole = Role.builder()
+                                .roleName(roleName)
+                                .displayName(toDisplayName(roleName))
+                                .description("Auto-provisioned committee/admin role")
+                                .build();
+                        log.info("Creating {} role.", roleName);
+                        return roleRepository.save(newRole);
+                    });
+
+            if (role.getPermissions().stream()
+                    .noneMatch(p -> OWNER_EMAIL_SEND.equals(p.getPermissionName()))) {
+                role.getPermissions().add(ownerEmailSend);
+                roleRepository.save(role);
+                log.info("Granted {} to role {}.", OWNER_EMAIL_SEND, roleName);
             }
         }
     }

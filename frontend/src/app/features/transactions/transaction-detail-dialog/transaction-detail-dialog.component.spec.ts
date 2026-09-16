@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { of, throwError } from 'rxjs';
@@ -67,6 +68,10 @@ describe('TransactionDetailDialogComponent', () => {
       imports: [TransactionDetailDialogComponent],
       providers: [
         provideNoopAnimations(),
+        // AuthService (pulled in transitively by the standalone component) depends on
+        // HttpClient; provide a test HTTP backend so the injector can resolve it.
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: TransactionService, useValue: serviceSpy },
         { provide: MatDialogRef, useValue: { close: () => {} } },
         { provide: MAT_DIALOG_DATA, useValue: data },
