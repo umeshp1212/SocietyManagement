@@ -1,0 +1,519 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create `RecipientScope` and `NotEmailedReason` enums": [
+      {
+        "executionId": "9fa02fc4-a4bf-4149-b76c-c3072fc4d974",
+        "chatSessionId": "sess_1a6f693c-a66a-46be-8cb8-e840b760535a",
+        "timestamp": 1789540742903
+      },
+      {
+        "executionId": "9fa02fc4-a4bf-4149-b76c-c3072fc4d974",
+        "chatSessionId": "sess_1a6f693c-a66a-46be-8cb8-e840b760535a",
+        "timestamp": 1789541812640
+      }
+    ],
+    "1.2 Create request and report DTOs": [
+      {
+        "executionId": "9fa02fc4-a4bf-4149-b76c-c3072fc4d974",
+        "chatSessionId": "sess_1a6f693c-a66a-46be-8cb8-e840b760535a",
+        "timestamp": 1789541821687
+      },
+      {
+        "executionId": "9fa02fc4-a4bf-4149-b76c-c3072fc4d974",
+        "chatSessionId": "sess_1a6f693c-a66a-46be-8cb8-e840b760535a",
+        "timestamp": 1789541928048
+      }
+    ],
+    "1. Define backend data contracts (DTOs and enums)": [
+      {
+        "executionId": "9fa02fc4-a4bf-4149-b76c-c3072fc4d974",
+        "chatSessionId": "sess_1a6f693c-a66a-46be-8cb8-e840b760535a",
+        "timestamp": 1789541928117
+      }
+    ],
+    "2.1 Implement `OwnerEmailTemplateBuilder`": [
+      {
+        "executionId": "5d345d9d-0f3a-462f-af65-3587b696e344",
+        "chatSessionId": "sess_e6e84b19-8bf0-473f-8630-8d04c39bdd40",
+        "timestamp": 1789542122640
+      },
+      {
+        "executionId": "5d345d9d-0f3a-462f-af65-3587b696e344",
+        "chatSessionId": "sess_e6e84b19-8bf0-473f-8630-8d04c39bdd40",
+        "timestamp": 1789542274286
+      }
+    ],
+    "2. Implement the templated email assembly": [
+      {
+        "executionId": "5d345d9d-0f3a-462f-af65-3587b696e344",
+        "chatSessionId": "sess_e6e84b19-8bf0-473f-8630-8d04c39bdd40",
+        "timestamp": 1789542274385
+      }
+    ],
+    "3.1 Add active-owner and by-id resolution to `OwnerRepository`": [
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542418302
+      },
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542530453
+      }
+    ],
+    "3.2 Create `OwnerEmailService` interface": [
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542530521
+      },
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542701193
+      }
+    ],
+    "3.3 Implement `OwnerEmailServiceImpl`": [
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542701156
+      },
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542866640
+      }
+    ],
+    "3. Implement the owner email service": [
+      {
+        "executionId": "a2efe7ee-66a6-49e4-b6a3-38bd49da3744",
+        "chatSessionId": "sess_eaf24d17-01f1-4745-9f65-8c7fee161db5",
+        "timestamp": 1789542866700
+      }
+    ],
+    "4.1 Implement `OwnerEmailController`": [
+      {
+        "executionId": "6ea8aed9-eb91-407d-8367-030f616a2705",
+        "chatSessionId": "sess_a09c51e0-5ba9-4997-bbc9-8f0892b8e3dc",
+        "timestamp": 1789542966183
+      },
+      {
+        "executionId": "6ea8aed9-eb91-407d-8367-030f616a2705",
+        "chatSessionId": "sess_a09c51e0-5ba9-4997-bbc9-8f0892b8e3dc",
+        "timestamp": 1789543081078
+      }
+    ],
+    "4. Implement and secure the controller": [
+      {
+        "executionId": "6ea8aed9-eb91-407d-8367-030f616a2705",
+        "chatSessionId": "sess_a09c51e0-5ba9-4997-bbc9-8f0892b8e3dc",
+        "timestamp": 1789543081124
+      }
+    ],
+    "5.1 Seed permission and role grants in `data.sql`": [
+      {
+        "executionId": "54c0b9b4-520e-4c1d-8cba-64308854565f",
+        "chatSessionId": "sess_825719f0-57c4-46da-8bf8-02f5dac5fcea",
+        "timestamp": 1789543138109
+      },
+      {
+        "executionId": "54c0b9b4-520e-4c1d-8cba-64308854565f",
+        "chatSessionId": "sess_825719f0-57c4-46da-8bf8-02f5dac5fcea",
+        "timestamp": 1789543214564
+      }
+    ],
+    "5.2 Add idempotent `seedOwnerEmailSendPermission()` to `DataInitializer`": [
+      {
+        "executionId": "54c0b9b4-520e-4c1d-8cba-64308854565f",
+        "chatSessionId": "sess_825719f0-57c4-46da-8bf8-02f5dac5fcea",
+        "timestamp": 1789543219013
+      },
+      {
+        "executionId": "54c0b9b4-520e-4c1d-8cba-64308854565f",
+        "chatSessionId": "sess_825719f0-57c4-46da-8bf8-02f5dac5fcea",
+        "timestamp": 1789543299694
+      }
+    ],
+    "5. Provision the OWNER_EMAIL_SEND permission": [
+      {
+        "executionId": "54c0b9b4-520e-4c1d-8cba-64308854565f",
+        "chatSessionId": "sess_825719f0-57c4-46da-8bf8-02f5dac5fcea",
+        "timestamp": 1789543299746
+      }
+    ],
+    "7.1 Add owner-email models to `owner.model.ts`": [
+      {
+        "executionId": "40e3b3f9-7ea6-4995-a00b-00cf3f56563a",
+        "chatSessionId": "sess_3357802c-ef54-4e48-8d3c-3d03d23cc153",
+        "timestamp": 1789543511318
+      },
+      {
+        "executionId": "40e3b3f9-7ea6-4995-a00b-00cf3f56563a",
+        "chatSessionId": "sess_3357802c-ef54-4e48-8d3c-3d03d23cc153",
+        "timestamp": 1789543576906
+      }
+    ],
+    "7.2 Add `sendOwnerEmail` to `OwnerService`": [
+      {
+        "executionId": "40e3b3f9-7ea6-4995-a00b-00cf3f56563a",
+        "chatSessionId": "sess_3357802c-ef54-4e48-8d3c-3d03d23cc153",
+        "timestamp": 1789543584090
+      },
+      {
+        "executionId": "40e3b3f9-7ea6-4995-a00b-00cf3f56563a",
+        "chatSessionId": "sess_3357802c-ef54-4e48-8d3c-3d03d23cc153",
+        "timestamp": 1789543645077
+      }
+    ],
+    "7. Add frontend models and service method": [
+      {
+        "executionId": "40e3b3f9-7ea6-4995-a00b-00cf3f56563a",
+        "chatSessionId": "sess_3357802c-ef54-4e48-8d3c-3d03d23cc153",
+        "timestamp": 1789543645198
+      }
+    ],
+    "8.1 Implement `OwnerEmailComponent`": [
+      {
+        "executionId": "be5c6f13-c723-410f-b103-64b793fa9cf7",
+        "chatSessionId": "sess_84ecf89b-ed04-4a91-b7c2-098c4c23cfa0",
+        "timestamp": 1789543725435
+      },
+      {
+        "executionId": "be5c6f13-c723-410f-b103-64b793fa9cf7",
+        "chatSessionId": "sess_84ecf89b-ed04-4a91-b7c2-098c4c23cfa0",
+        "timestamp": 1789543887538
+      }
+    ],
+    "8.2 Add the `email` route in `owner.routes.ts`": [
+      {
+        "executionId": "be5c6f13-c723-410f-b103-64b793fa9cf7",
+        "chatSessionId": "sess_84ecf89b-ed04-4a91-b7c2-098c4c23cfa0",
+        "timestamp": 1789543893124
+      },
+      {
+        "executionId": "be5c6f13-c723-410f-b103-64b793fa9cf7",
+        "chatSessionId": "sess_84ecf89b-ed04-4a91-b7c2-098c4c23cfa0",
+        "timestamp": 1789544052936
+      }
+    ],
+    "8.3 Add the permission-gated Email button in `owner-list.component.ts`": [
+      {
+        "executionId": "be5c6f13-c723-410f-b103-64b793fa9cf7",
+        "chatSessionId": "sess_84ecf89b-ed04-4a91-b7c2-098c4c23cfa0",
+        "timestamp": 1789543893173
+      },
+      {
+        "executionId": "be5c6f13-c723-410f-b103-64b793fa9cf7",
+        "chatSessionId": "sess_84ecf89b-ed04-4a91-b7c2-098c4c23cfa0",
+        "timestamp": 1789544052983
+      }
+    ],
+    "9.1 Write security integration tests": [
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789544126317
+      },
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789545094649
+      },
+      {
+        "executionId": "648ede33-f9c0-4619-960f-aeea9174f6a7",
+        "chatSessionId": "sess_cba8c649-0040-40eb-b53b-053db3720e2d",
+        "timestamp": 1789550345910
+      },
+      {
+        "executionId": "648ede33-f9c0-4619-960f-aeea9174f6a7",
+        "chatSessionId": "sess_cba8c649-0040-40eb-b53b-053db3720e2d",
+        "timestamp": 1789550457716
+      }
+    ],
+    "9.2 Write permission-provisioning startup test": [
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789544126459
+      },
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789545095013
+      },
+      {
+        "executionId": "26a05e3c-5452-478a-b677-b3326d636228",
+        "chatSessionId": "sess_0f21f908-20af-4f97-9464-cda95b2275a6",
+        "timestamp": 1789550625988
+      },
+      {
+        "executionId": "26a05e3c-5452-478a-b677-b3326d636228",
+        "chatSessionId": "sess_0f21f908-20af-4f97-9464-cda95b2275a6",
+        "timestamp": 1789550725101
+      }
+    ],
+    "9.3 Write end-to-end wiring test": [
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789544126527
+      },
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789545094880
+      },
+      {
+        "executionId": "f7080da1-d25c-4adc-b863-55a7a4c890fd",
+        "chatSessionId": "sess_ab63d74a-5002-435b-8669-d39ad0221e94",
+        "timestamp": 1789550761866
+      },
+      {
+        "executionId": "f7080da1-d25c-4adc-b863-55a7a4c890fd",
+        "chatSessionId": "sess_ab63d74a-5002-435b-8669-d39ad0221e94",
+        "timestamp": 1789550865775
+      }
+    ],
+    "9. Integration and wiring tests": [
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789545095137
+      },
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789545095192
+      },
+      {
+        "executionId": "45887ec2-cb26-4247-8baa-b05285ea65d5",
+        "chatSessionId": "sess_7547bf99-9524-4040-bf19-c514a705fc6d",
+        "timestamp": 1789545095246
+      }
+    ],
+    "2.2 Write property test for template ordering": [
+      {
+        "executionId": "e437121e-ba39-483b-bf8d-a963b3cbd5be",
+        "chatSessionId": "sess_8e2614c0-6e29-4f25-966f-016a2a95eb73",
+        "timestamp": 1789545175788
+      },
+      {
+        "executionId": "e437121e-ba39-483b-bf8d-a963b3cbd5be",
+        "chatSessionId": "sess_8e2614c0-6e29-4f25-966f-016a2a95eb73",
+        "timestamp": 1789545432572
+      }
+    ],
+    "2.3 Write property test for header identity fields": [
+      {
+        "executionId": "37bb35dc-d012-4372-9006-1650d8f009c9",
+        "chatSessionId": "sess_3cdd6806-fcbb-4985-afc2-18174dfbf44c",
+        "timestamp": 1789545483313
+      },
+      {
+        "executionId": "37bb35dc-d012-4372-9006-1650d8f009c9",
+        "chatSessionId": "sess_3cdd6806-fcbb-4985-afc2-18174dfbf44c",
+        "timestamp": 1789545689533
+      }
+    ],
+    "2.4 Write property test for body content": [
+      {
+        "executionId": "511b3349-9c0f-48ef-8354-0ee449422c4f",
+        "chatSessionId": "sess_dcba89f2-956a-4f45-9f64-fa729d8568c8",
+        "timestamp": 1789545773609
+      },
+      {
+        "executionId": "511b3349-9c0f-48ef-8354-0ee449422c4f",
+        "chatSessionId": "sess_dcba89f2-956a-4f45-9f64-fa729d8568c8",
+        "timestamp": 1789545898770
+      }
+    ],
+    "2.5 Write property test for footer signatory names": [
+      {
+        "executionId": "512c6527-ede1-4d8c-9910-2ef425a41805",
+        "chatSessionId": "sess_5c5e49a4-a624-4cbb-a426-0d0f53b1f7ea",
+        "timestamp": 1789545970541
+      },
+      {
+        "executionId": "512c6527-ede1-4d8c-9910-2ef425a41805",
+        "chatSessionId": "sess_5c5e49a4-a624-4cbb-a426-0d0f53b1f7ea",
+        "timestamp": 1789546078445
+      }
+    ],
+    "3.4 Write property test for count reconciliation": [
+      {
+        "executionId": "1ad5cc31-df85-49a4-85aa-182b3d19e7ba",
+        "chatSessionId": "sess_c6be6010-5a6b-4e8c-9dd5-82320e58cf47",
+        "timestamp": 1789546183001
+      },
+      {
+        "executionId": "1ad5cc31-df85-49a4-85aa-182b3d19e7ba",
+        "chatSessionId": "sess_c6be6010-5a6b-4e8c-9dd5-82320e58cf47",
+        "timestamp": 1789546341029
+      }
+    ],
+    "3.5 Write property test for valid-only sending": [
+      {
+        "executionId": "79fb6d31-af28-4a4c-89a9-bedd284c9541",
+        "chatSessionId": "sess_1e2ef044-6957-4f27-abef-76eb1d89d169",
+        "timestamp": 1789546387164
+      },
+      {
+        "executionId": "79fb6d31-af28-4a4c-89a9-bedd284c9541",
+        "chatSessionId": "sess_1e2ef044-6957-4f27-abef-76eb1d89d169",
+        "timestamp": 1789546572551
+      }
+    ],
+    "3.6 Write property test for not-emailed entry completeness": [
+      {
+        "executionId": "f52f5a67-7d89-41ae-aeb7-f39be0139924",
+        "chatSessionId": "sess_3a8ac3c2-2815-401e-bc33-9ba67b879fa3",
+        "timestamp": 1789546704820
+      },
+      {
+        "executionId": "f52f5a67-7d89-41ae-aeb7-f39be0139924",
+        "chatSessionId": "sess_3a8ac3c2-2815-401e-bc33-9ba67b879fa3",
+        "timestamp": 1789546911607
+      }
+    ],
+    "3.7 Write property test for per-recipient failure isolation": [
+      {
+        "executionId": "c91187c7-a04e-45ec-9a14-4b2ae21e4eca",
+        "chatSessionId": "sess_515307c4-60c1-4f12-adac-df07a28ca6d7",
+        "timestamp": 1789547029126
+      },
+      {
+        "executionId": "c91187c7-a04e-45ec-9a14-4b2ae21e4eca",
+        "chatSessionId": "sess_515307c4-60c1-4f12-adac-df07a28ca6d7",
+        "timestamp": 1789547239002
+      }
+    ],
+    "3.8 Write property test for mail-absent behavior": [
+      {
+        "executionId": "b4cbcccb-807c-40bc-a908-582fa54f5190",
+        "chatSessionId": "sess_7afade24-2dbf-4aea-a1eb-13c93b7e8b97",
+        "timestamp": 1789547258837
+      },
+      {
+        "executionId": "b4cbcccb-807c-40bc-a908-582fa54f5190",
+        "chatSessionId": "sess_7afade24-2dbf-4aea-a1eb-13c93b7e8b97",
+        "timestamp": 1789547409944
+      }
+    ],
+    "3.9 Write property test for recipient scope resolution": [
+      {
+        "executionId": "2800d533-c21f-4017-9576-12e7f2197df6",
+        "chatSessionId": "sess_9269f795-554a-457a-8be8-43669bb18960",
+        "timestamp": 1789547428205
+      },
+      {
+        "executionId": "2800d533-c21f-4017-9576-12e7f2197df6",
+        "chatSessionId": "sess_9269f795-554a-457a-8be8-43669bb18960",
+        "timestamp": 1789547682199
+      }
+    ],
+    "3.10 Write unit tests for service edge cases": [
+      {
+        "executionId": "6f572401-2e99-4a2b-b3f2-0ecadf4dbef9",
+        "chatSessionId": "sess_61fa830d-27e9-4b4b-a0f9-8676629c88af",
+        "timestamp": 1789547722650
+      },
+      {
+        "executionId": "6f572401-2e99-4a2b-b3f2-0ecadf4dbef9",
+        "chatSessionId": "sess_61fa830d-27e9-4b4b-a0f9-8676629c88af",
+        "timestamp": 1789547934062
+      }
+    ],
+    "4.2 Write property test for server-side validation boundary": [
+      {
+        "executionId": "491a116b-12ce-453a-8e44-b77338323d12",
+        "chatSessionId": "sess_a9a4620e-c6aa-4a01-b1f9-4b1096049b77",
+        "timestamp": 1789547956375
+      },
+      {
+        "executionId": "491a116b-12ce-453a-8e44-b77338323d12",
+        "chatSessionId": "sess_a9a4620e-c6aa-4a01-b1f9-4b1096049b77",
+        "timestamp": 1789548215223
+      }
+    ],
+    "6. Checkpoint - Ensure all backend tests pass": [
+      {
+        "executionId": "4b3716ad-9fbc-4e20-9930-963e12ff5a88",
+        "chatSessionId": "sess_5fbb3146-215f-47b7-9db6-60b3155af15d",
+        "timestamp": 1789548242319
+      },
+      {
+        "executionId": "4b3716ad-9fbc-4e20-9930-963e12ff5a88",
+        "chatSessionId": "sess_5fbb3146-215f-47b7-9db6-60b3155af15d",
+        "timestamp": 1789548661773
+      }
+    ],
+    "8.4 Write component tests for entry point, selection, composition, and results": [
+      {
+        "executionId": "0cb09be1-80ba-4c8d-bab0-b7dacddb4b3b",
+        "chatSessionId": "sess_6a4799b8-1d2d-433d-af23-96ec086783f2",
+        "timestamp": 1789548783256
+      },
+      {
+        "executionId": "0cb09be1-80ba-4c8d-bab0-b7dacddb4b3b",
+        "chatSessionId": "sess_6a4799b8-1d2d-433d-af23-96ec086783f2",
+        "timestamp": 1789549778523
+      }
+    ],
+    "8.5 Write client-side validation property test": [
+      {
+        "executionId": "ebb7d945-6df8-4bbf-9224-870e5269ffe0",
+        "chatSessionId": "sess_ba9e23c4-933a-45e9-8697-b2095a20f480",
+        "timestamp": 1789549797442
+      },
+      {
+        "executionId": "ebb7d945-6df8-4bbf-9224-870e5269ffe0",
+        "chatSessionId": "sess_ba9e23c4-933a-45e9-8697-b2095a20f480",
+        "timestamp": 1789550192254
+      },
+      {
+        "executionId": "c128e2f2-4d59-4517-be78-8c93060a3ddc",
+        "chatSessionId": "sess_2e1d8929-a890-43de-9ff4-ac8a4a3af98b",
+        "timestamp": 1789550247575
+      },
+      {
+        "executionId": "c128e2f2-4d59-4517-be78-8c93060a3ddc",
+        "chatSessionId": "sess_2e1d8929-a890-43de-9ff4-ac8a4a3af98b",
+        "timestamp": 1789550326668
+      }
+    ],
+    "8. Build the composition view and wire the entry point": [
+      {
+        "executionId": "ebb7d945-6df8-4bbf-9224-870e5269ffe0",
+        "chatSessionId": "sess_ba9e23c4-933a-45e9-8697-b2095a20f480",
+        "timestamp": 1789550192350
+      }
+    ],
+    "2.6 Write property test for assembly rejection": [
+      {
+        "executionId": "b6dd7bdb-4404-4546-aade-4a52bb05059b",
+        "chatSessionId": "sess_c63679cf-4386-4b52-a593-281c2a7a5336",
+        "timestamp": 1789550954792
+      },
+      {
+        "executionId": "b6dd7bdb-4404-4546-aade-4a52bb05059b",
+        "chatSessionId": "sess_c63679cf-4386-4b52-a593-281c2a7a5336",
+        "timestamp": 1789551175610
+      }
+    ],
+    "10. Final checkpoint - Ensure all tests pass": [
+      {
+        "executionId": "6f8b9873-17ef-44dd-95cc-e43c55a764d3",
+        "chatSessionId": "sess_6b080b3e-c057-47f5-96b8-1055fa667651",
+        "timestamp": 1789551280135
+      },
+      {
+        "executionId": "6f8b9873-17ef-44dd-95cc-e43c55a764d3",
+        "chatSessionId": "sess_6b080b3e-c057-47f5-96b8-1055fa667651",
+        "timestamp": 1789551967834
+      }
+    ]
+  }
+}
