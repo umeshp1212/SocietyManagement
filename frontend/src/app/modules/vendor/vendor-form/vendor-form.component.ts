@@ -14,6 +14,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { VendorService } from '@core/services/vendor.service';
 import { VendorCategoryService } from '@core/services/vendor-category.service';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-vendor-form',
@@ -22,10 +23,11 @@ import { SearchableSelectComponent } from '@shared/components/searchable-select'
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule,
-    SearchableSelectComponent
+    SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/vendors" label="Back to Vendors"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ isEdit ? 'Update Vendor' : 'Add New Vendor' }}</mat-card-title>
@@ -217,13 +219,16 @@ export class VendorFormComponent implements OnInit {
     if (id) {
       this.isEdit = true;
       this.vendorId = +id;
-      this.loadVendor();
     }
 
-    // Load vendor categories from API
+    // Load vendor categories first, then the vendor, so the category dropdown has
+    // its options ready when the form is patched with the vendor's categoryId.
     this.vendorCategoryService.getActiveCategories().subscribe(res => {
       if (res.success) {
         this.categories = res.data.map(c => ({ value: c.categoryId, label: c.name }));
+      }
+      if (this.isEdit) {
+        this.loadVendor();
       }
     });
   }

@@ -16,6 +16,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 interface OpeningBalance {
   openingBalanceId: number;
@@ -44,10 +45,11 @@ interface UnitOption {
     CommonModule, FormsModule, MatCardModule, MatTableModule, MatButtonModule,
     MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule,
     MatDialogModule, MatSnackBarModule, MatChipsModule, MatTooltipModule,
-    SearchableSelectComponent
+    SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Opening Balances (Legacy Arrears)</h2>
         <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm" *ngIf="canManage()">

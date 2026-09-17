@@ -18,6 +18,7 @@ import { VoucherCategoryService } from '@core/services/voucher-category.service'
 import { Vendor } from '@core/models/vendor.model';
 import { VoucherCategory } from '@core/models/voucher-category.model';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 import { environment } from '@env/environment';
 
 @Component({
@@ -27,10 +28,11 @@ import { environment } from '@env/environment';
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule,
-    SearchableSelectComponent
+    SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/vouchers" label="Back to Vouchers"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ isEdit ? 'Update Voucher' : 'Create New Voucher' }}</mat-card-title>

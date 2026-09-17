@@ -8,16 +8,19 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { OwnerService } from '@core/services/owner.service';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-owner-form',
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
-    MatInputModule, MatButtonModule, MatCardModule, MatSnackBarModule
+    MatInputModule, MatButtonModule, MatCardModule, MatSnackBarModule,
+    BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/owners" label="Back to Owners"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ isEdit ? 'Update Owner' : 'Add New Owner' }}</mat-card-title>

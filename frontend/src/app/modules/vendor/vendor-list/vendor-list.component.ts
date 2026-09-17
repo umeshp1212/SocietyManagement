@@ -52,7 +52,7 @@ import { Vendor } from '@core/models/vendor.model';
       </div>
       <table mat-table [dataSource]="vendors" class="mat-elevation-z2">
         <ng-container matColumnDef="vendorName"><th mat-header-cell *matHeaderCellDef>Name</th><td mat-cell *matCellDef="let v">{{ v.vendorName }}</td></ng-container>
-        <ng-container matColumnDef="category"><th mat-header-cell *matHeaderCellDef>Category</th><td mat-cell *matCellDef="let v">{{ v.category }}</td></ng-container>
+        <ng-container matColumnDef="category"><th mat-header-cell *matHeaderCellDef>Category</th><td mat-cell *matCellDef="let v">{{ v.categoryName }}</td></ng-container>
         <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Phone</th><td mat-cell *matCellDef="let v">{{ v.phone }}</td></ng-container>
         <ng-container matColumnDef="contractedAmount"><th mat-header-cell *matHeaderCellDef>Amount</th><td mat-cell *matCellDef="let v">{{ v.contractedAmount | currency:'INR' }}</td></ng-container>
         <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let v"><span class="status-badge" [ngClass]="v.status.toLowerCase()">{{ v.status }}</span></td></ng-container>

@@ -14,6 +14,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { VendorService } from '@core/services/vendor.service';
 import { VendorLedger, LedgerEntry } from '@core/models/vendor.model';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-vendor-ledger',
@@ -21,15 +22,14 @@ import { VendorLedger, LedgerEntry } from '@core/models/vendor.model';
   imports: [
     CommonModule, RouterModule, FormsModule, MatTableModule, MatButtonModule,
     MatIconModule, MatCardModule, MatFormFieldModule, MatInputModule,
-    MatDatepickerModule, MatNativeDateModule, MatChipsModule, MatProgressSpinnerModule
+    MatDatepickerModule, MatNativeDateModule, MatChipsModule, MatProgressSpinnerModule,
+    BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/vendors" label="Back to Vendors"></app-back-button>
       <div class="page-header">
         <h2>Vendor Ledger</h2>
-        <a mat-raised-button routerLink="/vendors">
-          <mat-icon>arrow_back</mat-icon> Back to Vendors
-        </a>
       </div>
 
       <mat-card *ngIf="ledger" class="vendor-info-card">

@@ -9,19 +9,19 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MaintenanceService } from '@core/services/maintenance.service';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-payment-history',
   standalone: true,
   imports: [CommonModule, RouterModule, MatTableModule, MatPaginatorModule,
-    MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule],
+    MatCardModule, MatButtonModule, MatIconModule, MatChipsModule, MatTabsModule,
+    BackButtonComponent],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Payment History - Unit {{ unitId }}</h2>
-        <a mat-button routerLink="/maintenance">
-          <mat-icon>arrow_back</mat-icon> Back to Bills
-        </a>
       </div>
 
       <mat-tab-group>

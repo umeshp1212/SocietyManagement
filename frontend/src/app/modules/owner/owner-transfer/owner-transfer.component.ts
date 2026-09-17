@@ -13,6 +13,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { OwnerService } from '@core/services/owner.service';
 import { Owner, Unit } from '@core/models/owner.model';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-owner-transfer',
@@ -21,10 +22,11 @@ import { SearchableSelectComponent } from '@shared/components/searchable-select'
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatDatepickerModule, MatNativeDateModule, MatSnackBarModule,
-    SearchableSelectComponent
+    SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/owners" label="Back to Owners"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>Transfer Ownership</mat-card-title>

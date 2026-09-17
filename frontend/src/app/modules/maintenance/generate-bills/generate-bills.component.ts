@@ -11,19 +11,19 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { AuthService } from '@core/services/auth.service';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-generate-bills',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, MatCardModule, MatButtonModule,
-    MatIconModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatCheckboxModule],
+    MatIconModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatCheckboxModule,
+    BackButtonComponent],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Generate Maintenance Bills</h2>
-        <a mat-button routerLink="/maintenance">
-          <mat-icon>arrow_back</mat-icon> Back to Bills
-        </a>
       </div>
 
       <mat-card *ngIf="!canManage()" class="no-access-card">

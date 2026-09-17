@@ -15,6 +15,7 @@ import { VoucherService } from '@core/services/voucher.service';
 import { AuthService } from '@core/services/auth.service';
 import { Voucher, VoucherAudit } from '@core/models/voucher.model';
 import { environment } from '@env/environment';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-voucher-detail',
@@ -22,10 +23,11 @@ import { environment } from '@env/environment';
   imports: [
     CommonModule, FormsModule, RouterModule, MatCardModule, MatButtonModule,
     MatIconModule, MatTableModule, MatChipsModule, MatDividerModule,
-    MatTooltipModule, MatSnackBarModule
+    MatTooltipModule, MatSnackBarModule, BackButtonComponent
   ],
   template: `
     <div class="container" *ngIf="voucher">
+      <app-back-button link="/vouchers" label="Back to Vouchers"></app-back-button>
       <div class="page-header">
         <h2>Voucher: {{ voucher.voucherNumber }}</h2>
         <div class="header-actions">
@@ -41,7 +43,6 @@ import { environment } from '@env/environment';
                   *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>print</mat-icon> Print Voucher
           </button>
-          <a mat-button routerLink="/vouchers">Back to List</a>
         </div>
       </div>
 

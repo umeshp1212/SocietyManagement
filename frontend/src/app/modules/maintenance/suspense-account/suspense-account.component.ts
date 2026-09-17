@@ -18,6 +18,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 interface SuspenseEntry {
   suspenseId: number;
@@ -52,10 +53,12 @@ interface UnitOption {
     CommonModule, FormsModule, MatCardModule, MatTableModule, MatPaginatorModule,
     MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatSelectModule, MatCheckboxModule, MatChipsModule, MatDividerModule,
-    MatTooltipModule, MatSnackBarModule, SearchableSelectComponent
+    MatTooltipModule, MatSnackBarModule, SearchableSelectComponent,
+    BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Suspense Account</h2>
         <button mat-raised-button color="primary" (click)="showCreateForm = !showCreateForm" *ngIf="canManage()">

@@ -165,9 +165,10 @@ export class SearchableSelectComponent<T = unknown> implements ControlValueAcces
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['options']) {
       this.filteredOptions = [...(this.options ?? [])];
-      // If a value was written before options arrived, resolve its display text now.
-      if (this.selectedOption == null && this.pendingValue !== undefined) {
-        this.writeValue(this.pendingValue);
+      // If a value was written before its matching option existed, resolve its
+      // display text now that the options have (re)loaded.
+      if (this.selectedOption == null && this.pendingValue != null) {
+        this.resolvePendingValue(false);
       }
     }
   }
@@ -183,10 +184,35 @@ export class SearchableSelectComponent<T = unknown> implements ControlValueAcces
       this.searchCtrl.setValue('', { emitEvent: false });
       return;
     }
+    this.resolvePendingValue();
+  }
+
+  /**
+   * Resolves {@link pendingValue} against the current options and sets the display
+   * text. If no match is found yet (options not loaded), it schedules a retry on the
+   * next tick so the label appears as soon as the options arrive. This makes the
+   * component robust to any order in which the value and the options are provided.
+   */
+  private resolvePendingValue(retry = true): void {
+    const value = this.pendingValue;
+    if (value == null) {
+      return;
+    }
     const match = this.findOptionByValue(value);
-    this.selectedOption = match;
-    // Set the input text to the matched option's label (or blank until options load).
-    this.searchCtrl.setValue(match ? this.labelWith(match) : '', { emitEvent: false });
+    if (match) {
+      this.selectedOption = match;
+      // Store the matched OPTION OBJECT (not its label string). MatAutocomplete's
+      // [displayWith]="displayFn" turns the control value into display text, so the
+      // control must hold what displayFn expects (an option), otherwise displayFn
+      // would run labelWith() on a raw string and render blank.
+      this.searchCtrl.setValue(match as unknown as string, { emitEvent: false });
+      return;
+    }
+    // No match yet: retry once on the next tick, by which time late-arriving
+    // options may have been bound.
+    if (retry) {
+      Promise.resolve().then(() => this.resolvePendingValue(false));
+    }
   }
 
   registerOnChange(fn: (value: unknown) => void): void {
@@ -248,8 +274,11 @@ export class SearchableSelectComponent<T = unknown> implements ControlValueAcces
 
   // ---- Helpers ----
 
-  private applyFilter(text: string): void {
-    const q = (text ?? '').toLowerCase().trim();
+  private applyFilter(text: unknown): void {
+    // The bound control may hold either the search string (while typing) or the
+    // selected option object (after selection / programmatic set). Only a string is
+    // a real search query; anything else means "show the full list".
+    const q = typeof text === 'string' ? text.toLowerCase().trim() : '';
     const all = this.options ?? [];
     this.filteredOptions = q
       ? all.filter((o) => this.labelWith(o).toLowerCase().includes(q))
@@ -257,11 +286,13 @@ export class SearchableSelectComponent<T = unknown> implements ControlValueAcces
   }
 
   private isPlaceholderText(): boolean {
-    // When an option is selected, the input holds its label; focusing should still
-    // reveal the whole list, so treat a fully-matching label as "show all".
-    return (
-      !!this.selectedOption && this.labelWith(this.selectedOption) === this.searchCtrl.value
-    );
+    // When an option is selected, the control holds the option object (not text), so
+    // focusing should reveal the whole list rather than filter by a bogus query.
+    const current = this.searchCtrl.value;
+    if (typeof current !== 'string') {
+      return true;
+    }
+    return !!this.selectedOption && this.labelWith(this.selectedOption) === current;
   }
 
   private toModelValue(option: T | null): unknown {
@@ -277,8 +308,26 @@ export class SearchableSelectComponent<T = unknown> implements ControlValueAcces
   private findOptionByValue(value: unknown): T | null {
     const all = this.options ?? [];
     if (this.valueKey) {
-      return all.find((o) => (o as Record<string, unknown>)[this.valueKey!] === value) ?? null;
+      return (
+        all.find((o) => this.looseEquals((o as Record<string, unknown>)[this.valueKey!], value)) ??
+        null
+      );
     }
-    return all.find((o) => o === value) ?? null;
+    return all.find((o) => this.looseEquals(o, value)) ?? null;
+  }
+
+  /**
+   * Compares two option values tolerantly. Falls back to string comparison so a
+   * numeric option id (e.g. 15) still matches a value written as a string ("15"),
+   * which can happen when values pass through route params or serialization.
+   */
+  private looseEquals(a: unknown, b: unknown): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (a == null || b == null) {
+      return false;
+    }
+    return String(a) === String(b);
   }
 }

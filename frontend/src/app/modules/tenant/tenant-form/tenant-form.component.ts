@@ -16,6 +16,7 @@ import { TenantService } from '@core/services/tenant.service';
 import { OwnerService } from '@core/services/owner.service';
 import { Unit } from '@core/models/owner.model';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-tenant-form',
@@ -24,10 +25,12 @@ import { SearchableSelectComponent } from '@shared/components/searchable-select'
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatDatepickerModule, MatNativeDateModule, MatIconModule,
-    MatDividerModule, MatSnackBarModule, SearchableSelectComponent
+    MatDividerModule, MatSnackBarModule, SearchableSelectComponent,
+    BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/tenants" label="Back to Tenants"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ isEdit ? 'Update Tenant' : 'Register New Tenant' }}</mat-card-title>

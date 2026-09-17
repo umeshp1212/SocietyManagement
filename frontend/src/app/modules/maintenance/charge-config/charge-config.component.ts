@@ -13,15 +13,17 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { AuthService } from '@core/services/auth.service';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-charge-config',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, MatCardModule, MatButtonModule,
     MatIconModule, MatTableModule, MatFormFieldModule, MatInputModule, MatSelectModule,
-    MatSlideToggleModule, MatDialogModule],
+    MatSlideToggleModule, MatDialogModule, BackButtonComponent],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Maintenance Charge Configuration</h2>
         <div style="display: flex; gap: 8px;">

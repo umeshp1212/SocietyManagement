@@ -8,20 +8,21 @@ import { MatTableModule } from '@angular/material/table';
 import { MatChipsModule } from '@angular/material/chips';
 import { OwnerService } from '@core/services/owner.service';
 import { Owner, Unit, OwnershipHistory } from '@core/models/owner.model';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-owner-detail',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatCardModule, MatButtonModule, MatIconModule, MatTableModule, MatChipsModule],
+  imports: [CommonModule, RouterModule, MatCardModule, MatButtonModule, MatIconModule, MatTableModule, MatChipsModule, BackButtonComponent],
   template: `
     <div class="container" *ngIf="owner">
+      <app-back-button link="/owners" label="Back to Owners"></app-back-button>
       <div class="page-header">
         <h2>{{ owner.fullName }}</h2>
         <div>
           <a mat-raised-button [routerLink]="['/owners/edit', owner.ownerId]">
             <mat-icon>edit</mat-icon> Edit
           </a>
-          <a mat-button routerLink="/owners">Back to List</a>
         </div>
       </div>
 

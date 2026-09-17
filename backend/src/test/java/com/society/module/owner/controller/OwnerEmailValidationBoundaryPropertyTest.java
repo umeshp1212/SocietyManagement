@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p><b>Feature: owner-email, Property 12: Server-side validation rejects invalid
  * subject/body without side effects.</b> For any subject that is empty/whitespace or
- * exceeds 200 characters, or any body that is empty/whitespace or exceeds 10,000
+ * exceeds 200 characters, or any body that is empty/whitespace or exceeds 50,000
  * characters, the controller SHALL reject the request with a validation error and SHALL
  * NOT initiate any send (no partial record) — i.e. {@link OwnerEmailService} is never
  * invoked.</p>
@@ -52,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Generation is constrained to the invalid input space and covers every rejection
  * path required by the task: empty and whitespace-only subjects, subjects longer than
- * 200 characters, empty and whitespace-only bodies, and bodies longer than 10,000
+ * 200 characters, empty and whitespace-only bodies, and bodies longer than 50,000
  * characters, in combinations where at least one of subject/body is invalid while the
  * other is either valid or also invalid. As a companion soundness check, each trial also
  * confirms that a fully valid subject/body pair does reach the service, so the property
@@ -174,7 +174,7 @@ class OwnerEmailValidationBoundaryPropertyTest {
         assertThat(sawOverLengthSubject).as("generator should exercise a subject over 200 chars").isTrue();
         assertThat(sawEmptyBody).as("generator should exercise an empty body").isTrue();
         assertThat(sawBlankBody).as("generator should exercise a whitespace-only body").isTrue();
-        assertThat(sawOverLengthBody).as("generator should exercise a body over 10000 chars").isTrue();
+        assertThat(sawOverLengthBody).as("generator should exercise a body over 50000 chars").isTrue();
     }
 
     // ------------------------------------------------------------------
@@ -196,11 +196,11 @@ class OwnerEmailValidationBoundaryPropertyTest {
      * VALID, EMPTY (""), BLANK (whitespace-only) or OVER_LENGTH (> the {@code @Size} max),
      * then combinations are filtered so at least one field is invalid — the precondition of
      * the property. Subject bounds: {@code @NotBlank @Size(max=200)}; body bounds:
-     * {@code @NotBlank @Size(max=10000)}.
+     * {@code @NotBlank @Size(max=50000)}.
      */
     private Arbitrary<Scenario> scenarios() {
         Arbitrary<Object[]> subjects = fieldOf(200);
-        Arbitrary<Object[]> bodies = fieldOf(10_000);
+        Arbitrary<Object[]> bodies = fieldOf(50_000);
 
         return Combinators.combine(subjects, bodies)
                 .as((s, b) -> new Scenario(

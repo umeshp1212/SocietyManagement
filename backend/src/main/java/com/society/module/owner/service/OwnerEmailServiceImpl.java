@@ -77,12 +77,22 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
         // Authoritative server-side sanitization, once per request, before any template
         // assembly or send. Only the Sanitized_Body is ever embedded; the raw
         // Rich_Text_Body is never used past this point (Req 3.1, 3.6).
-        String sanitizedBody = sanitizer.sanitize(request.getBody());
+        // If sanitization cannot be completed, reject the request with a client-facing
+        // error and initiate no send: the BusinessException propagates before the send
+        // loop and is mapped to a 400 by GlobalExceptionHandler (Req 3.7).
+        String sanitizedBody;
+        String visible;
+        try {
+            sanitizedBody = sanitizer.sanitize(request.getBody());
+            visible = sanitizer.visibleText(sanitizedBody);
+        } catch (Exception e) {
+            log.error("Failed to sanitize owner email body: {}", e.getMessage());
+            throw new BusinessException("Message content could not be processed"); // Req 3.7
+        }
 
         // Visible-text validation on the sanitized body, whatever will actually be sent.
         // A failing check throws a BusinessException that propagates before any send loop
         // runs, so no email is sent and no partial record is kept (Req 3.7, 4.4, 4.5, 4.6).
-        String visible = sanitizer.visibleText(sanitizedBody);
         if (visible.isEmpty()) {
             throw new BusinessException("Message content is required"); // Req 4.4
         }
@@ -101,7 +111,19 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
         SocietySettings settings = societySettingsService.getSettings();
         String assembledSubject = templateBuilder.buildSubject(request.getSubject());
         String assembledHtml = templateBuilder.buildHtmlBody(settings, request.getSubject(), sanitizedBody);
-        String plainText = plainTextRenderer.render(sanitizedBody, request.getSubject(), settings);
+        // Derive the plain-text alternative from the sanitized body. A BusinessException
+        // (thrown by the template builder for missing settings / empty user fields) already
+        // maps to a client-facing 400; any other derivation failure is likewise turned into
+        // a client-facing rejection so no send is initiated (Req 3.7).
+        String plainText;
+        try {
+            plainText = plainTextRenderer.render(sanitizedBody, request.getSubject(), settings);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to derive plain-text alternative for owner email: {}", e.getMessage());
+            throw new BusinessException("Message content could not be processed"); // Req 3.7
+        }
 
         // Mail transport absent: send nothing, report every attempted recipient as
         // MAIL_NOT_CONFIGURED, and return normally without an error (Req 8.1, 8.2).

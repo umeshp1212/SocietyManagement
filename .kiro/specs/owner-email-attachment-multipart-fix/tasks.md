@@ -73,6 +73,6 @@
   - **Integration tests**: full multipart send with attachments end-to-end via `MockMvc` returns `200` with a `SendReportDTO` and delegates to the service with the attachments (2.2); full multipart send with no attachments behaves identically to the JSON endpoint (3.2, 3.4); unauthorised caller is rejected across both content types (3.3)
   - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [~] 5. Checkpoint - Ensure all tests pass
+- [-] 5. Checkpoint - Ensure all tests pass
   - Run the full backend test suite (`mvn test` in `backend`) and confirm the exploration test now passes, the preservation tests still pass, and the supporting unit/property/integration tests pass with no regressions
   - Ensure all tests pass; ask the user if questions arise

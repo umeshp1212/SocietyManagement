@@ -18,24 +18,24 @@ import { MaintenanceService } from '@core/services/maintenance.service';
 import { AuthService } from '@core/services/auth.service';
 import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse-payment-dialog.component';
 import { ReassignPaymentDialogComponent, ReassignPaymentResult } from '../reassign-payment-dialog/reassign-payment-dialog.component';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-bill-detail',
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, MatCardModule, MatButtonModule,
     MatIconModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatTableModule,
-    MatChipsModule, MatDividerModule, MatTooltipModule, MatDialogModule, MatSnackBarModule],
+    MatChipsModule, MatDividerModule, MatTooltipModule, MatDialogModule, MatSnackBarModule,
+    BackButtonComponent],
   template: `
     <div class="container" *ngIf="bill">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Maintenance Bill - {{ bill.billPeriod || (bill.billMonth + '/' + bill.billYear) }}</h2>
         <div class="header-actions">
           <button mat-raised-button color="accent" (click)="downloadPdf()">
             <mat-icon>download</mat-icon> Download PDF
           </button>
-          <a mat-button routerLink="/maintenance">
-            <mat-icon>arrow_back</mat-icon> Back to Bills
-          </a>
         </div>
       </div>
 

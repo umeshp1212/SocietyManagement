@@ -11,6 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { VendorService } from '@core/services/vendor.service';
 import { Vendor, VendorDocument } from '@core/models/vendor.model';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-vendor-detail',
@@ -18,10 +19,11 @@ import { Vendor, VendorDocument } from '@core/models/vendor.model';
   imports: [
     CommonModule, RouterModule, MatCardModule, MatButtonModule,
     MatIconModule, MatChipsModule, MatDividerModule, MatTableModule,
-    MatProgressSpinnerModule, MatTooltipModule
+    MatProgressSpinnerModule, MatTooltipModule, BackButtonComponent
   ],
   template: `
     <div class="container" *ngIf="vendor; else loading">
+      <app-back-button link="/vendors" label="Back to Vendors"></app-back-button>
       <!-- Header -->
       <div class="page-header">
         <div class="header-left">
@@ -36,9 +38,6 @@ import { Vendor, VendorDocument } from '@core/models/vendor.model';
           </a>
           <a mat-raised-button color="primary" [routerLink]="['/vendors/edit', vendor.vendorId]">
             <mat-icon>edit</mat-icon> Edit
-          </a>
-          <a mat-button routerLink="/vendors">
-            <mat-icon>arrow_back</mat-icon> Back
           </a>
         </div>
       </div>

@@ -11,6 +11,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '@env/environment';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-user-form',
@@ -18,10 +19,11 @@ import { environment } from '@env/environment';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatCheckboxModule, MatSnackBarModule
+    MatCheckboxModule, MatSnackBarModule, BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/users" label="Back to Users"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ isEdit ? 'Edit User' : 'Create New User' }}</mat-card-title>

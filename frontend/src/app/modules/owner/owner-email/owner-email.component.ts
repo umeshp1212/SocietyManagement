@@ -25,6 +25,7 @@ import {
   SendReport,
   NotEmailedReason
 } from '@core/models/owner.model';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 const SUBJECT_MAX = 200;
 const BODY_MAX = 10000;
@@ -38,13 +39,13 @@ const SEND_TIMEOUT_MS = 30000;
     MatCardModule, MatFormFieldModule, MatInputModule, MatSelectModule,
     MatRadioModule, MatCheckboxModule, MatTableModule, MatButtonModule,
     MatIconModule, MatProgressSpinnerModule, MatSnackBarModule, MatDividerModule,
-    QuillModule
+    QuillModule, BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/owners" label="Back to Owners"></app-back-button>
       <div class="page-header">
         <h2>Email Owners</h2>
-        <a mat-button routerLink="/owners">Back to Owners</a>
       </div>
 
       <!-- Recipient selection -->
@@ -118,7 +119,7 @@ const SEND_TIMEOUT_MS = 30000;
           <form [formGroup]="form">
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Subject</mat-label>
-              <input matInput formControlName="subject" [maxlength]="subjectMax"
+              <input matInput id="owner-email-subject" formControlName="subject" [maxlength]="subjectMax"
                      placeholder="Enter email subject">
               <mat-hint align="end">{{ form.value.subject?.length || 0 }}/{{ subjectMax }}</mat-hint>
               <mat-error *ngIf="form.get('subject')?.hasError('required')">
@@ -133,10 +134,10 @@ const SEND_TIMEOUT_MS = 30000;
             </mat-form-field>
 
             <div class="body-field full-width">
-              <label class="body-label" id="body-editor-label">Message body</label>
+              <span class="body-label" id="body-editor-label">Message body</span>
               <quill-editor formControlName="body"
                             [modules]="quillModules"
-                            [styles]="{ minHeight: '200px' }"
+                            [styles]="editorStyles"
                             aria-label="Message body"
                             aria-labelledby="body-editor-label"
                             placeholder="Enter your message"
@@ -159,7 +160,7 @@ const SEND_TIMEOUT_MS = 30000;
                  so the preview can never execute untrusted markup. bypassSecurityTrustHtml
                  is deliberately NOT used; the server-side sanitizer remains authoritative. -->
             <div class="body-preview full-width" *ngIf="bodyPreviewHtml">
-              <label class="body-label">Preview</label>
+              <span class="body-label">Preview</span>
               <div class="preview-content" [innerHTML]="bodyPreviewHtml"></div>
             </div>
           </form>
@@ -310,6 +311,12 @@ export class OwnerEmailComponent implements OnInit {
     ]
   };
 
+  /** Stable style object for the editor. Bound by reference (not an inline object
+   *  literal) so ngx-quill's ngOnChanges does not re-run on every change-detection
+   *  cycle; a fresh literal each cycle caused the editor to re-apply styles and
+   *  reclaim DOM focus, routing keystrokes meant for the subject field into the body. */
+  readonly editorStyles = { minHeight: '200px' };
+
   recipientScope: RecipientScope = 'ALL';
   activeOwners: Owner[] = [];
   loadingOwners = false;
@@ -424,6 +431,15 @@ export class OwnerEmailComponent implements OnInit {
     this.visibleLength = this.visibleTextLength((this.form.value.body ?? '') as string);
   }
 
+  /** Removes the caret/selection and DOM focus from the Quill editor. */
+  private blurEditor(): void {
+    const q = this.quill;
+    if (!q) { return; }
+    q.setSelection?.(null);
+    q.blur?.();
+    (q.root as HTMLElement | undefined)?.blur?.();
+  }
+
   /** Accessibility hardening pass, run once the Quill editor exists (Req 6.1-6.3).
    *  Quill's toolbar buttons are real, focusable <button> elements and Quill's
    *  keyboard module already binds Ctrl/Cmd+B/I/U, so keyboard reachability and
@@ -431,6 +447,12 @@ export class OwnerEmailComponent implements OnInit {
    *  semantics Quill omits: accessible names and toggle state. */
   onEditorCreated(quill: any): void {
     this.quill = quill;
+
+    // Quill 2 auto-focuses its contenteditable when the editor is created, which
+    // lands the caret in the body on page load. Blur it once, after creation, so
+    // the page opens with no control focused. This is the only focus intervention;
+    // normal click/tab focus into the subject input then behaves like any field.
+    setTimeout(() => this.blurEditor(), 0);
 
     const toolbarModule = quill?.getModule?.('toolbar');
     const toolbar: HTMLElement | null = toolbarModule?.container ?? null;

@@ -14,6 +14,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MaintenanceService } from '@core/services/maintenance.service';
 import { AuthService } from '@core/services/auth.service';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-water-charge-config',
@@ -22,15 +23,13 @@ import { AuthService } from '@core/services/auth.service';
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatIconModule, MatTableModule, MatSnackBarModule, MatDividerModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule, BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance/charge-config" label="Back to Charges"></app-back-button>
       <div class="page-header">
         <h2>Water Charge Configuration</h2>
-        <a mat-raised-button routerLink="/maintenance/charge-config">
-          <mat-icon>arrow_back</mat-icon> Back to Charges
-        </a>
       </div>
 
       <mat-card>

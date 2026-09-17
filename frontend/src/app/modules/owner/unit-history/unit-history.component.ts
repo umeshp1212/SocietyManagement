@@ -11,19 +11,21 @@ import { OwnerService } from '@core/services/owner.service';
 import { TenantService } from '@core/services/tenant.service';
 import { Unit, OwnershipHistory } from '@core/models/owner.model';
 import { Tenant } from '@core/models/tenant.model';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-unit-history',
   standalone: true,
   imports: [
     CommonModule, RouterModule, MatCardModule, MatButtonModule,
-    MatIconModule, MatTableModule, MatTabsModule, MatChipsModule
+    MatIconModule, MatTableModule, MatTabsModule, MatChipsModule,
+    BackButtonComponent
   ],
   template: `
     <div class="container" *ngIf="unit">
+      <app-back-button link="/units" label="Back to Units"></app-back-button>
       <div class="page-header">
         <h2>History - Unit {{ unit.unitNumber }}</h2>
-        <a mat-button routerLink="/units">Back to Units</a>
       </div>
 
       <!-- Unit Summary -->

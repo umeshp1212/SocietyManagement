@@ -10,6 +10,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { OwnerService } from '@core/services/owner.service';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-unit-form',
@@ -17,10 +18,11 @@ import { OwnerService } from '@core/services/owner.service';
   imports: [
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
-    MatSnackBarModule, MatDividerModule
+    MatSnackBarModule, MatDividerModule, BackButtonComponent
   ],
   template: `
     <div class="form-container">
+      <app-back-button link="/units" label="Back to Units"></app-back-button>
       <mat-card>
         <mat-card-header>
           <mat-card-title>{{ isEdit ? 'Update Unit' : 'Add New Unit' }}</mat-card-title>

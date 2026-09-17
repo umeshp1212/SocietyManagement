@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { environment } from '@env/environment';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 interface BulkUploadResult {
   totalRecords: number;
@@ -22,13 +23,14 @@ interface BulkUploadResult {
   standalone: true,
   imports: [
     CommonModule, RouterModule, MatCardModule, MatButtonModule,
-    MatIconModule, MatProgressBarModule, MatSnackBarModule
+    MatIconModule, MatProgressBarModule, MatSnackBarModule,
+    BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/tenants" label="Back to Tenants"></app-back-button>
       <div class="page-header">
         <h2>Bulk Upload Tenants</h2>
-        <a mat-button routerLink="/tenants">Back to Tenants</a>
       </div>
 
       <mat-card>

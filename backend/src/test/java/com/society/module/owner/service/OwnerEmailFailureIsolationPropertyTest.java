@@ -36,24 +36,28 @@ import static org.mockito.Mockito.when;
 /**
  * Property test for {@link OwnerEmailServiceImpl#sendOwnerEmail}.
  *
- * <p><b>Feature: owner-email, Property 10: A per-recipient send failure does not halt
- * processing of the others.</b> For any recipient set where an arbitrary subset of sends
- * throws, the service still attempts delivery to every remaining valid recipient, records
- * each failed recipient with a {@link NotEmailedReason#SEND_FAILURE} reason, and preserves
- * the count invariant ({@code sentCount + notEmailedCount == totalAttempted}).</p>
+ * <p><b>Feature: owner-email-rich-text, Property 10: A per-recipient send failure does not
+ * halt the others.</b> The rich-text change (sanitize-once-per-request plus
+ * multipart/alternative send) must not alter the best-effort per-recipient delivery. For any
+ * recipient set where an arbitrary subset of sends throws, the service still attempts delivery
+ * to every remaining valid recipient, records each failed recipient with a
+ * {@link NotEmailedReason#SEND_FAILURE} reason, and preserves the count invariant
+ * ({@code sentCount + notEmailedCount == totalAttempted}) (Req 5.4).</p>
  *
  * <p>Every generated owner is given a distinct, valid email so the only not-emailed reason
  * possible is {@code SEND_FAILURE}. A generated subset of those owners is chosen to fail;
  * the mocked {@link JavaMailSender} throws when (and only when) the outgoing message's
  * recipient address matches a failing owner. Because a real {@link jakarta.mail.internet.MimeMessage}
  * is used, the "To" header written by the service is readable back, letting the stub decide
- * failure per recipient and letting the test verify that every valid recipient was attempted.</p>
+ * failure per recipient and letting the test verify that every valid recipient was attempted.
+ * The sanitizer and plain-text renderer are the real (pure) components and the request body
+ * carries HTML, so the flow behaves exactly as in production.</p>
  *
- * <p><b>Validates: Requirements 8.3, 8.5</b></p>
+ * <p><b>Validates: Requirements 5.4</b></p>
  */
 class OwnerEmailFailureIsolationPropertyTest {
 
-    // Feature: owner-email, Property 10: A per-recipient send failure does not halt processing of the others
+    // Feature: owner-email-rich-text, Property 10: A per-recipient send failure does not halt the others
     @Property(tries = 100)
     void perRecipientSendFailureDoesNotHaltTheOthers(
             @ForAll("failureScenarios") FailureScenario scenario) {
@@ -73,7 +77,7 @@ class OwnerEmailFailureIsolationPropertyTest {
             MimeMessage message = invocation.getArgument(0);
             String to = extractRecipient(message);
             attemptedRecipients.add(to);
-            // Only the chosen subset throws; the rest "succeed" (Req 8.3).
+            // Only the chosen subset throws; the rest "succeed" (Req 5.4).
             if (failingEmails.contains(to)) {
                 throw new MailSendException("simulated transport failure for " + to);
             }
@@ -104,12 +108,12 @@ class OwnerEmailFailureIsolationPropertyTest {
         SendOwnerEmailRequest request = new SendOwnerEmailRequest();
         request.setRecipientScope(RecipientScope.ALL);
         request.setSubject("Hello owners");
-        request.setBody("This is the message body");
+        request.setBody("<p>This is the message body</p>");
 
         // --- Act ---
         SendReportDTO report = service.sendOwnerEmail(request);
 
-        // --- Assert: every valid recipient was still attempted, even past failures (Req 8.5) ---
+        // --- Assert: every valid recipient was still attempted, even past failures (Req 5.4) ---
         List<String> expectedAttempts = recipients.stream()
                 .map(o -> o.getEmail().trim())
                 .toList();
@@ -117,7 +121,7 @@ class OwnerEmailFailureIsolationPropertyTest {
                 .as("every valid recipient is attempted regardless of intervening failures")
                 .containsExactlyInAnyOrderElementsOf(expectedAttempts);
 
-        // --- Assert: each failed recipient is recorded with SEND_FAILURE (Req 8.3) ---
+        // --- Assert: each failed recipient is recorded with SEND_FAILURE (Req 5.4) ---
         List<NotEmailedEntry> notEmailed = report.getNotEmailed();
         assertThat(notEmailed).as("notEmailed list is never null").isNotNull();
 
@@ -137,7 +141,7 @@ class OwnerEmailFailureIsolationPropertyTest {
                 .as("exactly the failing recipients are recorded as SEND_FAILURE")
                 .isEqualTo(failedOwnerIds);
 
-        // --- Assert: the count invariant is preserved (Req 8.4 supporting 8.3/8.5) ---
+        // --- Assert: the count invariant is preserved (Req 5.4) ---
         int expectedFailures = failedOwnerIds.size();
         int expectedSent = recipients.size() - expectedFailures;
 

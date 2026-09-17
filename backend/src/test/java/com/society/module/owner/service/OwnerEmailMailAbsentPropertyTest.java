@@ -28,23 +28,26 @@ import static org.mockito.Mockito.when;
 /**
  * Property test for {@link OwnerEmailServiceImpl#sendOwnerEmail}.
  *
- * <p><b>Feature: owner-email, Property 9: Mail-absent yields a graceful, zero-sent report
- * with no error.</b> When the {@link org.springframework.mail.javamail.JavaMailSender} bean
- * is absent (mail not configured), for any resolved recipient set the service sends nothing,
- * returns normally (no error propagated to the caller), and produces a {@link SendReportDTO}
- * with {@code sentCount == 0}, {@code mailConfigured == false}, and
- * {@code notEmailedCount == totalAttempted}.</p>
+ * <p><b>Feature: owner-email-rich-text, Property 9: Mail-absent yields a graceful, zero-sent
+ * report.</b> The rich-text change (sanitize-once-per-request plus multipart/alternative send)
+ * must not alter the mail-not-configured behavior. When the
+ * {@link org.springframework.mail.javamail.JavaMailSender} bean is absent (mail not configured),
+ * for any resolved recipient set the service sends nothing, returns normally (no error
+ * propagated to the caller), and produces a {@link SendReportDTO} with {@code sentCount == 0},
+ * {@code mailConfigured == false}, and {@code notEmailedCount == totalAttempted}.</p>
  *
  * <p>The {@code mailSender} field is left unset (null) to simulate the
  * {@code @Autowired(required = false)} bean being absent. The recipient set mixes valid and
  * invalid emails to confirm that, when mail is absent, every attempted recipient is uniformly
- * reported regardless of email validity.</p>
+ * reported regardless of email validity. The sanitizer and plain-text renderer are the real
+ * (pure) components and the request body carries HTML, so the flow behaves exactly as in
+ * production.</p>
  *
- * <p><b>Validates: Requirements 8.1, 8.2</b></p>
+ * <p><b>Validates: Requirements 5.3</b></p>
  */
 class OwnerEmailMailAbsentPropertyTest {
 
-    // Feature: owner-email, Property 9: Mail-absent yields a graceful, zero-sent report with no error
+    // Feature: owner-email-rich-text, Property 9: Mail-absent yields a graceful zero-sent report
     @Property(tries = 100)
     void mailAbsentYieldsGracefulZeroSentReportWithNoError(
             @ForAll("recipientSets") List<Owner> recipients) {
@@ -73,9 +76,9 @@ class OwnerEmailMailAbsentPropertyTest {
         SendOwnerEmailRequest request = new SendOwnerEmailRequest();
         request.setRecipientScope(RecipientScope.ALL);
         request.setSubject("Hello owners");
-        request.setBody("This is the message body");
+        request.setBody("<p>This is the message body</p>");
 
-        // --- Act & Assert: the call returns normally, propagating no error (Req 8.2). ---
+        // --- Act & Assert: the call returns normally, propagating no error (Req 5.3). ---
         SendReportDTO[] captured = new SendReportDTO[1];
         assertThatCode(() -> captured[0] = service.sendOwnerEmail(request))
                 .as("mail-absent send completes without raising an error to the caller")
@@ -84,7 +87,7 @@ class OwnerEmailMailAbsentPropertyTest {
         SendReportDTO report = captured[0];
         assertThat(report).as("report is returned in a completed state").isNotNull();
 
-        // --- Assert: zero-sent, mail-not-configured report (Req 8.1). ---
+        // --- Assert: zero-sent, mail-not-configured report (Req 5.3). ---
         assertThat(report.getSentCount())
                 .as("sentCount == 0 when mail is not configured")
                 .isEqualTo(0);

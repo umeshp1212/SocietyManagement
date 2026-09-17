@@ -15,6 +15,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { OwnerService } from '@core/services/owner.service';
 import { Owner, Unit, UnitOwner } from '@core/models/owner.model';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-unit-owners',
@@ -23,13 +24,13 @@ import { SearchableSelectComponent } from '@shared/components/searchable-select'
     CommonModule, FormsModule, RouterModule, MatCardModule, MatButtonModule,
     MatIconModule, MatTableModule, MatFormFieldModule, MatSelectModule,
     MatInputModule, MatCheckboxModule, MatSnackBarModule, MatDividerModule,
-    SearchableSelectComponent
+    SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="container" *ngIf="unit">
+      <app-back-button link="/units" label="Back to Units"></app-back-button>
       <div class="page-header">
         <h2>Manage Owners - Unit {{ unit.unitNumber }}</h2>
-        <a mat-button routerLink="/units">Back to Units</a>
       </div>
 
       <!-- Unit Info -->

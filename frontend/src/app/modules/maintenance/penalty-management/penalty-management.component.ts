@@ -16,6 +16,7 @@ import { MaintenanceService } from '@core/services/maintenance.service';
 import { OwnerService } from '@core/services/owner.service';
 import { AuthService } from '@core/services/auth.service';
 import { SearchableSelectComponent } from '@shared/components/searchable-select';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-penalty-management',
@@ -24,15 +25,13 @@ import { SearchableSelectComponent } from '@shared/components/searchable-select'
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatIconModule, MatTableModule, MatChipsModule, MatSnackBarModule, MatTooltipModule,
-    SearchableSelectComponent
+    SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="container">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
       <div class="page-header">
         <h2>Penalty / Fine Management</h2>
-        <a mat-raised-button routerLink="/maintenance">
-          <mat-icon>arrow_back</mat-icon> Back to Bills
-        </a>
       </div>
 
       <!-- Add Penalty Form (only for roles that can manage penalties) -->

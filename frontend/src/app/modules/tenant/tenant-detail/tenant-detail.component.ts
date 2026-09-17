@@ -12,16 +12,19 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { TenantService } from '@core/services/tenant.service';
 import { AuthService } from '@core/services/auth.service';
 import { Tenant } from '@core/models/tenant.model';
+import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
   selector: 'app-tenant-detail',
   standalone: true,
   imports: [
     CommonModule, FormsModule, RouterModule, MatCardModule, MatButtonModule,
-    MatIconModule, MatTableModule, MatChipsModule, MatDividerModule, MatSnackBarModule
+    MatIconModule, MatTableModule, MatChipsModule, MatDividerModule, MatSnackBarModule,
+    BackButtonComponent
   ],
   template: `
     <div class="container" *ngIf="tenant">
+      <app-back-button link="/tenants" label="Back to Tenants"></app-back-button>
       <div class="page-header">
         <h2>{{ tenant.tenantName }}</h2>
         <div class="header-actions">
@@ -30,7 +33,6 @@ import { Tenant } from '@core/models/tenant.model';
              *ngIf="tenant.status !== 'VACATED' && hasPermission('TENANT_UPDATE')">
             <mat-icon>edit</mat-icon> Edit
           </a>
-          <a mat-button routerLink="/tenants">Back to List</a>
         </div>
       </div>
 
