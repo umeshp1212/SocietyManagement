@@ -206,3 +206,20 @@ html, body {
   }
 }
 
+
+/* ==================== NGX-QUILL ==================== */
+/* ngx-quill's <quill-editor> custom element has no user-agent display value, so
+   it computes to display:inline. An inline host does not reserve block height, so
+   its toolbar and .ql-container (min-height) paint over the preceding element and
+   intercept clicks meant for it (e.g. an adjacent mat-form-field input). Forcing
+   the host to a block that claims its own height keeps it in normal flow below
+   sibling fields. Declared globally so it applies regardless of the component's
+   view-encapsulation scoping. */
+quill-editor {
+  display: block;
+  position: relative;
+}
+
+quill-editor .ql-container {
+  min-height: 200px;
+}

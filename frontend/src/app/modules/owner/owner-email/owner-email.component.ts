@@ -119,7 +119,8 @@ const SEND_TIMEOUT_MS = 30000;
           <form [formGroup]="form">
             <mat-form-field appearance="outline" class="full-width">
               <mat-label>Subject</mat-label>
-              <input matInput id="owner-email-subject" formControlName="subject" [maxlength]="subjectMax"
+              <input matInput id="owner-email-subject" #subjectInput formControlName="subject" [maxlength]="subjectMax"
+                     (focus)="onSubjectFocus(subjectInput)"
                      placeholder="Enter email subject">
               <mat-hint align="end">{{ form.value.subject?.length || 0 }}/{{ subjectMax }}</mat-hint>
               <mat-error *ngIf="form.get('subject')?.hasError('required')">
@@ -260,7 +261,15 @@ const SEND_TIMEOUT_MS = 30000;
     .owner-table-wrapper { max-height: 360px; overflow: auto; }
     .full-width { width: 100%; }
     .body-field { display: block; margin-bottom: 16px; }
-    .body-label { display: block; font-size: 12px; color: rgba(0,0,0,0.6); margin-bottom: 4px; }
+    /* ngx-quill's <quill-editor> host defaults to display:inline, which collapses
+       its layout box so the toolbar/editing area overlap the field above it and
+       intercept clicks meant for the subject input. Force it to a block that
+       establishes its own height so it sits below the subject field. */
+    .body-field quill-editor {
+      display: block;
+      position: relative;
+    }
+    .body-field ::ng-deep .ql-container { min-height: 200px; }
     .body-hint { text-align: right; font-size: 12px; color: rgba(0,0,0,0.6); margin-top: 4px; }
     /* Visible focus indicator when keyboard focus lands on a toolbar control (Req 6.4). */
     .body-field ::ng-deep .ql-toolbar button:focus-visible,
@@ -440,6 +449,62 @@ export class OwnerEmailComponent implements OnInit {
     (q.root as HTMLElement | undefined)?.blur?.();
   }
 
+  /** Was the user's most recent pointer-down inside the editor? Only then may the
+   *  editor legitimately take focus; otherwise a focusin on the editor root is
+   *  Quill trying to reclaim focus (e.g. from the subject input) and is rejected. */
+  private pointerInsideEditor = false;
+
+  /** Stops Quill 2's contenteditable from stealing focus from other controls.
+   *  The focus log proved the sequence on a subject click is:
+   *    subject INPUT (focusin) -> ql-editor DIV (focusin)   // editor steals it back
+   *  We track whether the pointer went down inside the editor. When the editor root
+   *  gains focus WITHOUT such a pointer interaction, we bounce focus back to the
+   *  last non-editor element (the subject input), so keystrokes stay where the user
+   *  clicked. Genuine clicks into the editor set the flag and are allowed through. */
+  private installFocusArbiter(quill: any): void {
+    const root = quill?.root as HTMLElement | undefined;
+    const container = quill?.container as HTMLElement | undefined;
+    if (!root) { return; }
+
+    const isInsideEditor = (node: EventTarget | null): boolean =>
+      !!node && (root.contains(node as Node) || !!container?.contains(node as Node));
+
+    // Record pointer intent in the capture phase, before focus moves.
+    const markPointer = (e: Event) => { this.pointerInsideEditor = isInsideEditor(e.target); };
+    document.addEventListener('mousedown', markPointer, true);
+    document.addEventListener('touchstart', markPointer, true);
+
+    // Remember the last focused control that is NOT the editor, so we can restore it.
+    document.addEventListener('focusin', (e) => {
+      if (!isInsideEditor(e.target)) {
+        this.lastNonEditorFocus = e.target as HTMLElement;
+      }
+    }, true);
+
+    // When the editor root gains focus without a deliberate pointer-down inside it,
+    // reject the steal and hand focus back to the previous control.
+    root.addEventListener('focusin', () => {
+      if (!this.pointerInsideEditor) {
+        quill.blur?.();
+        root.blur();
+        const target = this.lastNonEditorFocus;
+        if (target && typeof target.focus === 'function') {
+          // Defer so we win against Quill's own deferred selection/focus handling.
+          setTimeout(() => target.focus(), 0);
+        }
+      }
+    });
+  }
+
+  /** The most recent focused element outside the editor, used to restore focus when
+   *  the editor tries to steal it without a deliberate click. */
+  private lastNonEditorFocus: HTMLElement | null = null;
+
+  onSubjectFocus(_input: HTMLInputElement): void {
+    // Focus arbitration is handled by the editor-root focusin guard installed in
+    // onEditorCreated; nothing to do here. Kept as a no-op hook for the template.
+  }
+
   /** Accessibility hardening pass, run once the Quill editor exists (Req 6.1-6.3).
    *  Quill's toolbar buttons are real, focusable <button> elements and Quill's
    *  keyboard module already binds Ctrl/Cmd+B/I/U, so keyboard reachability and
@@ -450,9 +515,10 @@ export class OwnerEmailComponent implements OnInit {
 
     // Quill 2 auto-focuses its contenteditable when the editor is created, which
     // lands the caret in the body on page load. Blur it once, after creation, so
-    // the page opens with no control focused. This is the only focus intervention;
-    // normal click/tab focus into the subject input then behaves like any field.
+    // the page opens with no control focused.
     setTimeout(() => this.blurEditor(), 0);
+
+    this.installFocusArbiter(quill);
 
     const toolbarModule = quill?.getModule?.('toolbar');
     const toolbar: HTMLElement | null = toolbarModule?.container ?? null;
