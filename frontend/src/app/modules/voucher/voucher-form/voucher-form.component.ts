@@ -39,6 +39,14 @@ import { environment } from '@env/environment';
           <span *ngIf="isEdit && voucherNumber" class="voucher-number">{{ voucherNumber }}</span>
         </mat-card-header>
         <mat-card-content>
+          <div *ngIf="isEdit && voucherStatus === 'FINAL'" class="final-notice">
+            <mat-icon>lock</mat-icon>
+            <span>
+              This voucher is <strong>FINAL</strong>. Amount and vendor are locked to protect the
+              accounting record. To correct a mistake, cancel this voucher and create a new one.
+            </span>
+          </div>
+
           <form [formGroup]="voucherForm" (ngSubmit)="onSubmit()">
 
             <!-- Voucher Type & Date -->
@@ -200,6 +208,8 @@ import { environment } from '@env/environment';
   `,
   styles: [`
     .full-width { width: 100%; }
+    .final-notice { display: flex; align-items: flex-start; gap: 8px; background: #fff4e5; color: #663c00; border: 1px solid #ffcc80; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; }
+    .final-notice mat-icon { font-size: 20px; height: 20px; width: 20px; }
     h4 { color: #1976d2; margin: 20px 0 10px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; }
     .voucher-number { font-size: 14px; color: #666; font-weight: 500; }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; }
@@ -218,6 +228,7 @@ export class VoucherFormComponent implements OnInit {
   isEdit = false;
   voucherId?: number;
   voucherNumber = '';
+  voucherStatus = '';
   vendors: Vendor[] = [];
 
   /** Display label for a vendor option in the searchable dropdown. */
@@ -286,6 +297,7 @@ export class VoucherFormComponent implements OnInit {
       if (res.success) {
         const v = res.data;
         this.voucherNumber = v.voucherNumber;
+        this.voucherStatus = v.status;
         this.voucherForm.patchValue({
           voucherType: v.voucherType,
           voucherDate: v.voucherDate,
@@ -299,9 +311,11 @@ export class VoucherFormComponent implements OnInit {
           description: v.description
         });
 
-        // If voucher is FINAL, amount cannot be changed
+        // If voucher is FINAL, amount and vendor cannot be changed (backend enforces this).
+        // To correct a FINAL voucher, cancel it and create a new one.
         if (v.status === 'FINAL') {
           this.voucherForm.get('amount')?.disable();
+          this.voucherForm.get('vendorId')?.disable();
         }
 
         // Load existing documents in edit mode

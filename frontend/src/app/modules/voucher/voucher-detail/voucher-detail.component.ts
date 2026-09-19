@@ -236,7 +236,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
               <mat-icon>check_circle</mat-icon> Force Finalize (Admin)
             </button>
             <button mat-raised-button color="warn" (click)="showCancelDialog = true"
-                    *ngIf="voucher.status !== 'FINAL' && hasPermission('VOUCHER_CANCEL')">
+                    *ngIf="hasPermission('VOUCHER_CANCEL')">
               <mat-icon>cancel</mat-icon> Cancel Voucher
             </button>
           </div>
@@ -248,6 +248,12 @@ import { BackButtonComponent } from '@shared/components/back-button';
         <mat-card-header><mat-card-title>Cancel Voucher</mat-card-title></mat-card-header>
         <mat-card-content>
           <p>Are you sure you want to cancel voucher <strong>{{ voucher.voucherNumber }}</strong>?</p>
+          <p *ngIf="voucher.status === 'FINAL'" class="final-cancel-warning">
+            <mat-icon>warning</mat-icon>
+            This voucher is <strong>FINAL</strong>. Cancelling reverses a posted accounting record.
+            This cannot be undone, and the reason below is stored in the audit trail. To replace it,
+            create a new corrected voucher.
+          </p>
           <textarea [(ngModel)]="cancelReason" placeholder="Enter cancellation reason (mandatory)"
                     rows="3" style="width: 100%; padding: 8px; margin-bottom: 12px;"></textarea>
           <div class="action-buttons">
@@ -304,6 +310,8 @@ import { BackButtonComponent } from '@shared/components/back-button';
     .description-section { padding: 16px 0; }
     .description-section p { margin: 8px 0 0; color: #333; }
     .cancelled-section { background: #fff3f3; padding: 12px; border-radius: 4px; margin-top: 12px; }
+    .final-cancel-warning { display: flex; align-items: flex-start; gap: 8px; background: #fff4e5; color: #663c00; border: 1px solid #ffcc80; border-radius: 8px; padding: 12px; font-size: 13px; }
+    .final-cancel-warning mat-icon { font-size: 20px; height: 20px; width: 20px; flex-shrink: 0; }
     .tds-section { padding: 12px 0; }
     .tds-title { color: #1976d2; margin: 12px 0 8px; font-size: 14px; }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; }
