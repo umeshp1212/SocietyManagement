@@ -90,15 +90,21 @@ public class OwnerEmailTemplateBuilder {
         }
 
         StringBuilder html = new StringBuilder();
-        html.append("<div>");
+        // Outer wrapper: constrains width and centres the letterhead in the client viewport.
+        html.append("<div style=\"margin:0;padding:24px 0;background-color:#f4f6f8;\">");
+        html.append("<div style=\"max-width:640px;margin:0 auto;background-color:#ffffff;")
+            .append("border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;")
+            .append("font-family:Arial,Helvetica,sans-serif;color:#333333;\">");
         html.append(buildHtmlHeader(settings));
-        html.append("<hr/>");
-        html.append("<div>");
-        html.append("<p><strong>Subject: ").append(esc(subject.trim())).append("</strong></p>");
+        html.append("<div style=\"padding:24px;\">");
+        html.append("<p style=\"margin:0 0 16px 0;font-size:16px;color:#1a237e;\">")
+            .append("<strong>Subject: ").append(esc(subject.trim())).append("</strong></p>");
+        html.append("<div style=\"font-size:14px;line-height:1.6;color:#333333;\">");
         html.append(sanitizedBody == null ? "" : sanitizedBody); // sanitized HTML, inserted verbatim
         html.append("</div>");
-        html.append("<hr/>");
+        html.append("</div>");
         html.append(buildHtmlFooter(settings));
+        html.append("</div>");
         html.append("</div>");
         return html.toString();
     }
@@ -226,17 +232,22 @@ public class OwnerEmailTemplateBuilder {
      */
     private String buildHtmlHeader(SocietySettings settings) {
         StringBuilder header = new StringBuilder();
-        header.append("<div>");
-        header.append("<p><strong>").append(esc(settings.getSocietyName().trim())).append("</strong>");
+        // Letterhead header band with a solid background colour (Req: header background).
+        header.append("<div style=\"background-color:#1a237e;color:#ffffff;")
+              .append("padding:20px 24px;text-align:center;\">");
+        header.append("<div style=\"font-size:22px;font-weight:bold;letter-spacing:0.5px;\">")
+              .append(esc(settings.getSocietyName().trim())).append("</div>");
 
         String address = buildAddress(settings);
         if (StringUtils.hasText(address)) {
-            header.append("<br/>").append(esc(address));
+            header.append("<div style=\"font-size:13px;margin-top:6px;color:#e8eaf6;\">")
+                  .append(esc(address)).append("</div>");
         }
-        header.append("<br/>Reg. No: ").append(esc(settings.getRegistrationNumber().trim()));
-        header.append("<br/>Phone: ").append(esc(settings.getPhone().trim()));
-        header.append("<br/>Email: ").append(esc(settings.getEmail().trim()));
-        header.append("</p>");
+        header.append("<div style=\"font-size:12px;margin-top:6px;color:#c5cae9;\">")
+              .append("Reg. No: ").append(esc(settings.getRegistrationNumber().trim()))
+              .append(" &nbsp;|&nbsp; Phone: ").append(esc(settings.getPhone().trim()))
+              .append(" &nbsp;|&nbsp; Email: ").append(esc(settings.getEmail().trim()))
+              .append("</div>");
         header.append("</div>");
         return header.toString();
     }
@@ -247,12 +258,31 @@ public class OwnerEmailTemplateBuilder {
      */
     private String buildHtmlFooter(SocietySettings settings) {
         StringBuilder footer = new StringBuilder();
-        footer.append("<div>");
-        footer.append("<p>Regards,");
-        footer.append("<br/>Chairman: ").append(esc(settings.getChairmanName().trim()));
-        footer.append("<br/>Secretary: ").append(esc(settings.getSecretaryName().trim()));
-        footer.append("<br/>Treasurer: ").append(esc(settings.getTreasurerName().trim()));
-        footer.append("</p>");
+        // Letterhead footer band with a solid background colour (Req: footer background).
+        footer.append("<div style=\"background-color:#1a237e;color:#ffffff;padding:20px 24px;\">");
+        footer.append("<div style=\"font-size:13px;margin-bottom:12px;color:#e8eaf6;\">Regards,</div>");
+
+        // Signatories on a single line: Chairman (left), Secretary (center), Treasurer (right).
+        // A table is used for reliable column alignment across email clients.
+        footer.append("<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ")
+              .append("style=\"width:100%;border-collapse:collapse;\"><tr>");
+
+        footer.append("<td style=\"text-align:left;vertical-align:top;font-size:13px;color:#ffffff;\">")
+              .append("<strong>Chairman</strong><br/>")
+              .append("<span style=\"color:#c5cae9;\">").append(esc(settings.getChairmanName().trim()))
+              .append("</span></td>");
+
+        footer.append("<td style=\"text-align:center;vertical-align:top;font-size:13px;color:#ffffff;\">")
+              .append("<strong>Secretary</strong><br/>")
+              .append("<span style=\"color:#c5cae9;\">").append(esc(settings.getSecretaryName().trim()))
+              .append("</span></td>");
+
+        footer.append("<td style=\"text-align:right;vertical-align:top;font-size:13px;color:#ffffff;\">")
+              .append("<strong>Treasurer</strong><br/>")
+              .append("<span style=\"color:#c5cae9;\">").append(esc(settings.getTreasurerName().trim()))
+              .append("</span></td>");
+
+        footer.append("</tr></table>");
         footer.append("</div>");
         return footer.toString();
     }

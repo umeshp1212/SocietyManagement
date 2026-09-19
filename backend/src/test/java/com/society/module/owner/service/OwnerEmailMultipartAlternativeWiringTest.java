@@ -162,7 +162,7 @@ class OwnerEmailMultipartAlternativeWiringTest {
         assertThat(htmlContent)
                 .contains("Green Meadows Society")   // header
                 .contains("<strong>Sunday</strong>") // preserved bold formatting from the body
-                .contains("Chairman: Alice Chair");   // footer
+                .contains("Alice Chair");             // footer signatory (chairman)
 
         // The plain-text alternative conveys the same content without markup.
         String plainContent = partAsString(plain);
