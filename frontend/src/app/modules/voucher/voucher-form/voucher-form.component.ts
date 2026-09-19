@@ -299,10 +299,9 @@ export class VoucherFormComponent implements OnInit {
           description: v.description
         });
 
-        // If voucher is FINAL, amount and vendor cannot be changed
+        // If voucher is FINAL, amount cannot be changed
         if (v.status === 'FINAL') {
           this.voucherForm.get('amount')?.disable();
-          this.voucherForm.get('vendorId')?.disable();
         }
 
         // Load existing documents in edit mode
