@@ -510,3 +510,22 @@ ALTER TABLE tenants
 -- production-verified fix. Do not re-add a conflicting utf8mb4_unicode_ci
 -- conversion here.
 -- ============================================================
+
+-- ============================================================
+-- SCHEMA MIGRATION: widen vouchers.status ENUM
+-- ============================================================
+-- The Java VoucherStatus enum added PENDING_APPROVAL (for the voucher
+-- submit-for-approval workflow). The vouchers.status column was originally
+-- created as ENUM('DRAFT','FINAL','CANCELLED'), and Hibernate's ddl-auto=update
+-- does NOT alter existing ENUM definitions, so writing 'PENDING_APPROVAL' fails
+-- with "Data truncated for column 'status'". This MODIFY is idempotent
+-- (re-applying the same definition is a no-op) and only ADDS the value, so
+-- existing rows are preserved. Guarded so it only runs when the column is an
+-- ENUM missing PENDING_APPROVAL (skips VARCHAR-typed columns harmlessly).
+SET @is_enum_missing := (SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE() AND table_name = 'vouchers'
+      AND column_name = 'status' AND column_type LIKE 'enum(%' AND column_type NOT LIKE '%PENDING_APPROVAL%');
+SET @ddl := IF(@is_enum_missing > 0,
+    'ALTER TABLE vouchers MODIFY COLUMN status ENUM(''DRAFT'',''PENDING_APPROVAL'',''FINAL'',''CANCELLED'') NOT NULL DEFAULT ''DRAFT''',
+    'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;

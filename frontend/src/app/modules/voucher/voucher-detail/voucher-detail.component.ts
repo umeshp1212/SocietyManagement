@@ -224,7 +224,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
         <mat-card-content>
           <div class="action-buttons" style="justify-content: flex-start;">
             <a mat-raised-button color="primary" [routerLink]="['/vouchers/edit', voucher.voucherId]"
-               *ngIf="voucher.status === 'DRAFT' && hasPermission('VOUCHER_UPDATE')">
+               *ngIf="(voucher.status === 'DRAFT' || voucher.status === 'PENDING_APPROVAL' || voucher.status === 'FINAL')  && hasPermission('VOUCHER_UPDATE')">
               <mat-icon>edit</mat-icon> Edit Voucher
             </a>
             <button mat-raised-button color="accent" (click)="submitForApproval()"
