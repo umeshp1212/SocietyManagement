@@ -36,6 +36,11 @@ import { Owner } from '@core/models/owner.model';
              *ngIf="hasPermission('OWNER_EMAIL_SEND')">
             <mat-icon>email</mat-icon> Email
           </a>
+          <a mat-raised-button color="warn" routerLink="/owners/transfer"
+             matTooltip="Transfer a unit to a new owner"
+             *ngIf="hasPermission('OWNER_TRANSFER')">
+            <mat-icon>swap_horiz</mat-icon> Transfer Ownership
+          </a>
           <a mat-raised-button color="accent" routerLink="/owners/bulk-upload"
              *ngIf="hasPermission('OWNER_BULK_UPLOAD')">
             <mat-icon>upload_file</mat-icon> Bulk Upload

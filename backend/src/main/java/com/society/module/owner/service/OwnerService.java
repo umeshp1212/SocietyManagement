@@ -139,6 +139,31 @@ public class OwnerService {
                 .findCurrentOwnershipByUnitId(unit.getUnitId())
                 .orElse(null);
 
+        // Fallback for units that were assigned an owner before ownership-history
+        // was recorded on assignment: reconstruct a closed history row for the
+        // existing primary owner so the old owner still appears in the history.
+        if (currentHistory == null) {
+            UnitOwner currentPrimary = unitOwnerRepository.findPrimaryOwnerByUnitId(unit.getUnitId())
+                    .orElseGet(() -> unitOwnerRepository.findByUnit_UnitId(unit.getUnitId())
+                            .stream().findFirst().orElse(null));
+
+            if (currentPrimary != null) {
+                currentHistory = OwnershipHistory.builder()
+                        .unit(unit)
+                        .owner(currentPrimary.getOwner())
+                        .ownershipStartDate(currentPrimary.getAddedOn() != null
+                                ? currentPrimary.getAddedOn().toLocalDate()
+                                : request.getTransferDate())
+                        .ownershipEndDate(null)
+                        .transferType(com.society.enums.TransferType.PURCHASE)
+                        .remarks("Initial ownership (recorded at transfer)")
+                        .recordedBy("SYSTEM")
+                        .recordedOn(LocalDateTime.now())
+                        .build();
+                currentHistory = ownershipHistoryRepository.save(currentHistory);
+            }
+        }
+
         if (currentHistory != null) {
             currentHistory.setOwnershipEndDate(request.getTransferDate());
             ownershipHistoryRepository.save(currentHistory);

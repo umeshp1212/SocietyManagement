@@ -10,12 +10,17 @@ import com.society.module.owner.dto.AddCoOwnerRequest;
 import com.society.module.owner.dto.UnitCreateRequest;
 import com.society.module.owner.dto.UnitDTO;
 import com.society.module.owner.dto.UnitOwnerDTO;
+import com.society.enums.TransferType;
 import com.society.module.owner.entity.Owner;
+import com.society.module.owner.entity.OwnershipHistory;
 import com.society.module.owner.entity.Unit;
 import com.society.module.owner.entity.UnitOwner;
 import com.society.module.owner.repository.OwnerRepository;
+import com.society.module.owner.repository.OwnershipHistoryRepository;
 import com.society.module.owner.repository.UnitOwnerRepository;
 import com.society.module.owner.repository.UnitRepository;
+
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,6 +41,7 @@ public class UnitService {
     private final UnitRepository unitRepository;
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
+    private final OwnershipHistoryRepository ownershipHistoryRepository;
 
     private static final int MAX_OWNERS_PER_UNIT = 4;
 
@@ -199,6 +205,23 @@ public class UnitService {
                 .build();
 
         unitOwnerRepository.save(unitOwner);
+
+        // Record an initial ownership-history row for the primary owner so that the
+        // unit has an "active" history entry. Without this, a later transfer has no
+        // prior record to close, and the history would only ever show the new owner.
+        if (makePrimary && ownershipHistoryRepository.findCurrentOwnershipByUnitId(unit.getUnitId()).isEmpty()) {
+            OwnershipHistory initialHistory = OwnershipHistory.builder()
+                    .unit(unit)
+                    .owner(owner)
+                    .ownershipStartDate(LocalDate.now())
+                    .ownershipEndDate(null)
+                    .transferType(TransferType.PURCHASE)
+                    .remarks("Initial ownership")
+                    .recordedBy("SYSTEM")
+                    .recordedOn(LocalDateTime.now())
+                    .build();
+            ownershipHistoryRepository.save(initialHistory);
+        }
 
         // Update unit occupancy if it was vacant
         if (unit.getOccupancyStatus() == OccupancyStatus.VACANT) {
