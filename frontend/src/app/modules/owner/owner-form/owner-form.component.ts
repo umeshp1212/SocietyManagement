@@ -38,7 +38,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 <mat-label>Contact Number</mat-label>
                 <input matInput formControlName="contactNumber" maxlength="10" inputmode="numeric">
              <!--   <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('required')">Contact number is required</mat-error> -->
-                <!--  <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error> -->
+                <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
               </mat-form-field>
             </div>
 
@@ -121,7 +121,8 @@ export class OwnerFormComponent implements OnInit {
     const mobilePattern = /^[6-9]\d{9}$/;
     this.ownerForm = this.fb.group({
       fullName: ['', [Validators.required, Validators.maxLength(150)]],
-      contactNumber: ['', [Validators.required, Validators.pattern(mobilePattern)]],
+      // contactNumber: ['', [Validators.required, Validators.pattern(mobilePattern)]],
+      contactNumber: ['', [Validators.pattern(mobilePattern)]],
       alternateNumber: ['', [Validators.pattern(mobilePattern)]],
       email: ['', [Validators.email]],
       aadharNumber: [''],
