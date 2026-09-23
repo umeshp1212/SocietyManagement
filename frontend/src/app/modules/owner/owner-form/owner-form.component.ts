@@ -35,10 +35,10 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 <mat-error *ngIf="ownerForm.get('fullName')?.hasError('maxlength')">Full name cannot exceed 150 characters</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Contact Number *</mat-label>
+                <mat-label>Contact Number</mat-label>
                 <input matInput formControlName="contactNumber" maxlength="10" inputmode="numeric">
              <!--   <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('required')">Contact number is required</mat-error> -->
-                <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error>
+                <!--  <mat-error *ngIf="ownerForm.get('contactNumber')?.hasError('pattern')">Enter a valid 10-digit mobile number starting with 6-9</mat-error> -->
               </mat-form-field>
             </div>
 
