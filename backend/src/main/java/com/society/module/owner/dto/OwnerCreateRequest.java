@@ -17,7 +17,7 @@ public class OwnerCreateRequest {
     @Size(max = 150, message = "Full name must not exceed 150 characters")
     private String fullName;
 
-    @NotBlank(message = "Contact number is required")
+    // @NotBlank(message = "Contact number is required")
     @Size(max = 15, message = "Contact number must not exceed 15 characters")
     private String contactNumber;
 
