@@ -48,9 +48,16 @@ import { AuthService, LoginResponse } from '../services/auth.service';
           </a>
 
           <a mat-list-item routerLink="/vendors" routerLinkActive="active"
+             [routerLinkActiveOptions]="{ exact: true }"
              *ngIf="hasPermission('VENDOR_VIEW')" (click)="closeSidenavOnMobile()">
             <mat-icon matListItemIcon>store</mat-icon>
             <span matListItemTitle>Vendors</span>
+          </a>
+
+          <a mat-list-item routerLink="/vendors/tds" routerLinkActive="active"
+             *ngIf="hasPermission('VENDOR_VIEW')" (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>request_quote</mat-icon>
+            <span matListItemTitle>TDS</span>
           </a>
 
           <a mat-list-item routerLink="/tenants" routerLinkActive="active"

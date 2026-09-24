@@ -1,0 +1,375 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Add `TdsRemittanceStatus` enum": [
+      {
+        "executionId": "bf9889da-2fae-4230-903c-9341f7f449d2",
+        "chatSessionId": "sess_533e6dac-a409-4f57-b27d-b43d663f8614",
+        "timestamp": 1790224557040
+      },
+      {
+        "executionId": "bf9889da-2fae-4230-903c-9341f7f449d2",
+        "chatSessionId": "sess_533e6dac-a409-4f57-b27d-b43d663f8614",
+        "timestamp": 1790225060057
+      }
+    ],
+    "2.1 Implement `TdsRemittance` (batch) entity": [
+      {
+        "executionId": "f2006d1d-51bb-4133-a7d6-d608906c19ba",
+        "chatSessionId": "sess_157c88c5-0b5f-4a78-be1b-d4379bc5ba97",
+        "timestamp": 1790225128906
+      },
+      {
+        "executionId": "f2006d1d-51bb-4133-a7d6-d608906c19ba",
+        "chatSessionId": "sess_157c88c5-0b5f-4a78-be1b-d4379bc5ba97",
+        "timestamp": 1790225289527
+      }
+    ],
+    "2.2 Implement `TdsRemittanceLine` (voucher link) entity": [
+      {
+        "executionId": "f2006d1d-51bb-4133-a7d6-d608906c19ba",
+        "chatSessionId": "sess_157c88c5-0b5f-4a78-be1b-d4379bc5ba97",
+        "timestamp": 1790225129042
+      },
+      {
+        "executionId": "f2006d1d-51bb-4133-a7d6-d608906c19ba",
+        "chatSessionId": "sess_157c88c5-0b5f-4a78-be1b-d4379bc5ba97",
+        "timestamp": 1790225289775
+      }
+    ],
+    "3. Create DB migration and `TdsLineView` read model": [
+      {
+        "executionId": "9021578d-f088-444a-b041-b1e118eaadf1",
+        "chatSessionId": "sess_07ce0380-422c-4b0e-89ef-adb211cafb4e",
+        "timestamp": 1790225502484
+      },
+      {
+        "executionId": "9021578d-f088-444a-b041-b1e118eaadf1",
+        "chatSessionId": "sess_07ce0380-422c-4b0e-89ef-adb211cafb4e",
+        "timestamp": 1790225678125
+      }
+    ],
+    "3.1 Add migration for tables and view": [
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226283611
+      },
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226460313
+      }
+    ],
+    "3.2 Implement `TdsLineView` `@Immutable` entity": [
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226464200
+      },
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226539381
+      }
+    ],
+    "4.1 Implement `TdsLineViewRepository`": [
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226544840
+      },
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226825935
+      }
+    ],
+    "4.2 Implement `TdsRemittanceRepository`": [
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226545028
+      },
+      {
+        "executionId": "007c08b9-fe0c-4f04-8c35-f47d61199a24",
+        "chatSessionId": "sess_df35619a-84dc-4af1-aa76-1cf640d8f466",
+        "timestamp": 1790226826113
+      }
+    ],
+    "5. Implement `TdsSpecificationBuilder`": [
+      {
+        "executionId": "b5bb1415-a60c-40d9-b9e2-76a7d73fff56",
+        "chatSessionId": "sess_db4ab681-f241-4c7d-b886-1936f25c0690",
+        "timestamp": 1790226983322
+      },
+      {
+        "executionId": "b5bb1415-a60c-40d9-b9e2-76a7d73fff56",
+        "chatSessionId": "sess_db4ab681-f241-4c7d-b886-1936f25c0690",
+        "timestamp": 1790227183024
+      }
+    ],
+    "6.1 Add request/response DTOs": [
+      {
+        "executionId": "e29d7a7e-e968-4a55-9b9b-be0debbbb969",
+        "chatSessionId": "sess_5c08e81f-9e32-49a5-8def-43bff91cae85",
+        "timestamp": 1790227281320
+      },
+      {
+        "executionId": "e29d7a7e-e968-4a55-9b9b-be0debbbb969",
+        "chatSessionId": "sess_5c08e81f-9e32-49a5-8def-43bff91cae85",
+        "timestamp": 1790227461352
+      }
+    ],
+    "6.2 Add mapping from `TdsLineView`/`TdsRemittance` to DTOs": [
+      {
+        "executionId": "e29d7a7e-e968-4a55-9b9b-be0debbbb969",
+        "chatSessionId": "sess_5c08e81f-9e32-49a5-8def-43bff91cae85",
+        "timestamp": 1790227465538
+      },
+      {
+        "executionId": "e29d7a7e-e968-4a55-9b9b-be0debbbb969",
+        "chatSessionId": "sess_5c08e81f-9e32-49a5-8def-43bff91cae85",
+        "timestamp": 1790227577019
+      }
+    ],
+    "6. Create DTOs and mappers": [
+      {
+        "executionId": "e29d7a7e-e968-4a55-9b9b-be0debbbb969",
+        "chatSessionId": "sess_5c08e81f-9e32-49a5-8def-43bff91cae85",
+        "timestamp": 1790227577356
+      }
+    ],
+    "7.1 Implement `listTdsLines`": [
+      {
+        "executionId": "beaff94a-ec57-4813-9fb5-dadc5f08abd3",
+        "chatSessionId": "sess_62e09179-83f9-40cf-a1d5-77a86e8a8670",
+        "timestamp": 1790228490492
+      },
+      {
+        "executionId": "beaff94a-ec57-4813-9fb5-dadc5f08abd3",
+        "chatSessionId": "sess_62e09179-83f9-40cf-a1d5-77a86e8a8670",
+        "timestamp": 1790230009033
+      }
+    ],
+    "7.2 Implement `summarize`": [
+      {
+        "executionId": "beaff94a-ec57-4813-9fb5-dadc5f08abd3",
+        "chatSessionId": "sess_62e09179-83f9-40cf-a1d5-77a86e8a8670",
+        "timestamp": 1790230014904
+      },
+      {
+        "executionId": "beaff94a-ec57-4813-9fb5-dadc5f08abd3",
+        "chatSessionId": "sess_62e09179-83f9-40cf-a1d5-77a86e8a8670",
+        "timestamp": 1790230117878
+      }
+    ],
+    "7. Implement `TdsService` (read model + summary)": [
+      {
+        "executionId": "beaff94a-ec57-4813-9fb5-dadc5f08abd3",
+        "chatSessionId": "sess_62e09179-83f9-40cf-a1d5-77a86e8a8670",
+        "timestamp": 1790230118119
+      }
+    ],
+    "8.1 Implement `createBatch` (stage 1) with validations": [
+      {
+        "executionId": "af44ad97-62ab-430e-9beb-268750d8d41c",
+        "chatSessionId": "sess_3dc05366-61db-4379-86b5-cf7d5e5ae80a",
+        "timestamp": 1790230689445
+      },
+      {
+        "executionId": "af44ad97-62ab-430e-9beb-268750d8d41c",
+        "chatSessionId": "sess_3dc05366-61db-4379-86b5-cf7d5e5ae80a",
+        "timestamp": 1790230905472
+      }
+    ],
+    "8.2 Implement `recordItRemittance` (stage 2) with forward-only guard": [
+      {
+        "executionId": "af44ad97-62ab-430e-9beb-268750d8d41c",
+        "chatSessionId": "sess_3dc05366-61db-4379-86b5-cf7d5e5ae80a",
+        "timestamp": 1790230914150
+      },
+      {
+        "executionId": "af44ad97-62ab-430e-9beb-268750d8d41c",
+        "chatSessionId": "sess_3dc05366-61db-4379-86b5-cf7d5e5ae80a",
+        "timestamp": 1790231213184
+      }
+    ],
+    "8.3 Implement `getBatch` and `listBatches`": [
+      {
+        "executionId": "af44ad97-62ab-430e-9beb-268750d8d41c",
+        "chatSessionId": "sess_3dc05366-61db-4379-86b5-cf7d5e5ae80a",
+        "timestamp": 1790230914400
+      },
+      {
+        "executionId": "af44ad97-62ab-430e-9beb-268750d8d41c",
+        "chatSessionId": "sess_3dc05366-61db-4379-86b5-cf7d5e5ae80a",
+        "timestamp": 1790231213444
+      }
+    ],
+    "9. Implement `TdsController`": [
+      {
+        "executionId": "a60cb5f8-12da-4d9d-bcae-8e70cb051de1",
+        "chatSessionId": "sess_5a07118d-9a9d-47c9-afdd-6dad51d9af2c",
+        "timestamp": 1790233456626
+      },
+      {
+        "executionId": "a60cb5f8-12da-4d9d-bcae-8e70cb051de1",
+        "chatSessionId": "sess_5a07118d-9a9d-47c9-afdd-6dad51d9af2c",
+        "timestamp": 1790233596666
+      }
+    ],
+    "10. Implement `TdsReportPdfService` and PDF endpoint": [
+      {
+        "executionId": "dd2b4ba7-0592-46a0-9962-dbd2f442ebdf",
+        "chatSessionId": "sess_3a6a25b7-8170-4900-8278-9ad7b0c4cd61",
+        "timestamp": 1790234493358
+      },
+      {
+        "executionId": "dd2b4ba7-0592-46a0-9962-dbd2f442ebdf",
+        "chatSessionId": "sess_3a6a25b7-8170-4900-8278-9ad7b0c4cd61",
+        "timestamp": 1790239852781
+      }
+    ],
+    "14. Implement Angular `TdsService`": [
+      {
+        "executionId": "13d8ffcf-1070-40e5-ba15-f68322b740fa",
+        "chatSessionId": "sess_844414e4-ca5c-466e-9416-a7fda1ec2d96",
+        "timestamp": 1790240063702
+      },
+      {
+        "executionId": "13d8ffcf-1070-40e5-ba15-f68322b740fa",
+        "chatSessionId": "sess_844414e4-ca5c-466e-9416-a7fda1ec2d96",
+        "timestamp": 1790241149691
+      }
+    ],
+    "11. Checkpoint - backend compiles and unit tests pass": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241242454
+      }
+    ],
+    "15.1 `TdsStatusBadgeComponent`": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241242554
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241310809
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241451883
+      }
+    ],
+    "15.2 `TdsSummaryCardsComponent`": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241242675
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241310948
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241452227
+      }
+    ],
+    "15.3 `TdsListComponent`": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241242822
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241713492
+      },
+      {
+        "executionId": "9f2bd23b-d197-4421-b959-050a60e6c4f1",
+        "chatSessionId": "sess_06d883b1-9d90-4513-9cb6-10041af1cfa7",
+        "timestamp": 1790242798003
+      },
+      {
+        "executionId": "9f2bd23b-d197-4421-b959-050a60e6c4f1",
+        "chatSessionId": "sess_06d883b1-9d90-4513-9cb6-10041af1cfa7",
+        "timestamp": 1790242995791
+      }
+    ],
+    "15.4 `CreateRemittanceDialogComponent`": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241242920
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241459554
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241713396
+      }
+    ],
+    "15.5 `RecordItRemittanceDialogComponent`": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241243053
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241459757
+      },
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241713262
+      }
+    ],
+    "16. Wire Vendor-module navigation and route to TDS screen": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241243243
+      },
+      {
+        "executionId": "459f76bd-f159-4031-aa53-9bd461762de8",
+        "chatSessionId": "sess_3dc7b22d-f66a-44bb-9bf4-5d009a0b456d",
+        "timestamp": 1790243092752
+      },
+      {
+        "executionId": "459f76bd-f159-4031-aa53-9bd461762de8",
+        "chatSessionId": "sess_3dc7b22d-f66a-44bb-9bf4-5d009a0b456d",
+        "timestamp": 1790243308505
+      }
+    ],
+    "17. Final checkpoint - all tests pass": [
+      {
+        "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
+        "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
+        "timestamp": 1790241243386
+      }
+    ],
+    "15. Implement TDS Angular components": [
+      {
+        "executionId": "9f2bd23b-d197-4421-b959-050a60e6c4f1",
+        "chatSessionId": "sess_06d883b1-9d90-4513-9cb6-10041af1cfa7",
+        "timestamp": 1790242996336
+      }
+    ]
+  }
+}
