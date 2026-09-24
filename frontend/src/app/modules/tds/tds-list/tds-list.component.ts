@@ -16,6 +16,7 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import { TdsService } from '@core/services/tds.service';
 import { VendorService } from '@core/services/vendor.service';
@@ -29,6 +30,8 @@ import {
 import { Vendor } from '@core/models/vendor.model';
 import { TdsStatusBadgeComponent } from '../tds-status-badge/tds-status-badge.component';
 import { TdsSummaryCardsComponent } from '../tds-summary-cards/tds-summary-cards.component';
+import { CreateRemittanceDialogComponent } from '../create-remittance-dialog/create-remittance-dialog.component';
+import { RecordItRemittanceDialogComponent } from '../record-it-remittance-dialog/record-it-remittance-dialog.component';
 
 /** Milliseconds to wait for the TDS data before showing the error state (Requirement 10.4). */
 const LOAD_TIMEOUT_MS = 10_000;
@@ -64,7 +67,7 @@ interface StatusOption {
     MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSelectModule,
     MatDatepickerModule, MatNativeDateModule,
-    MatProgressSpinnerModule, MatTooltipModule,
+    MatProgressSpinnerModule, MatTooltipModule, MatDialogModule,
     CurrencyPipe, DatePipe,
     TdsStatusBadgeComponent, TdsSummaryCardsComponent
   ],
@@ -72,6 +75,12 @@ interface StatusOption {
     <div class="container">
       <div class="page-header">
         <h2>TDS Management</h2>
+        <button *ngIf="authorized" mat-raised-button color="primary"
+                (click)="openCreateRemittance()"
+                [disabled]="loading || !hasDeductedLines"
+                matTooltip="Record deducted TDS as paid to the accountant">
+          <mat-icon>account_balance</mat-icon> Record Remittance to Accountant
+        </button>
       </div>
 
       <!-- Not-authorized indication (Requirement 10.3). Shown instead of the
@@ -220,6 +229,20 @@ interface StatusOption {
             <td mat-cell *matCellDef="let l">{{ l.challanNumber || '—' }}</td>
           </ng-container>
 
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let l">
+              <button *ngIf="l.status === 'PAID_TO_ACCOUNTANT' && l.remittanceId"
+                      mat-stroked-button color="primary"
+                      (click)="openRecordItRemittance(l)"
+                      matTooltip="Record remittance to IT department">
+                <mat-icon>receipt_long</mat-icon> Record IT Remittance
+              </button>
+              <span *ngIf="!(l.status === 'PAID_TO_ACCOUNTANT' && l.remittanceId)"
+                    class="no-action">—</span>
+            </td>
+          </ng-container>
+
           <tr mat-header-row *matHeaderRowDef="isMobile ? mobileColumns : displayedColumns"></tr>
           <tr mat-row *matRowDef="let row; columns: isMobile ? mobileColumns : displayedColumns;"></tr>
         </table>
@@ -251,6 +274,7 @@ interface StatusOption {
 
     .tds-table { width: 100%; }
     .tds-table .num { text-align: right; }
+    .no-action { color: #999; }
     td.mat-cell, th.mat-header-cell { padding: 8px 12px; }
 
     .state-block {
@@ -304,9 +328,9 @@ export class TdsListComponent implements OnInit {
 
   readonly displayedColumns = [
     'voucherNumber', 'vendorName', 'tdsSection', 'tdsRate',
-    'tdsAmount', 'deductionDate', 'status', 'challanNumber'
+    'tdsAmount', 'deductionDate', 'status', 'challanNumber', 'actions'
   ];
-  readonly mobileColumns = ['voucherNumber', 'vendorName', 'tdsAmount', 'status'];
+  readonly mobileColumns = ['voucherNumber', 'vendorName', 'tdsAmount', 'status', 'actions'];
 
   isMobile = false;
 
@@ -317,7 +341,8 @@ export class TdsListComponent implements OnInit {
     private tdsService: TdsService,
     private vendorService: VendorService,
     private authService: AuthService,
-    private breakpointObserver: BreakpointObserver
+    private breakpointObserver: BreakpointObserver,
+    private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -415,6 +440,47 @@ export class TdsListComponent implements OnInit {
 
   retry(): void {
     this.load();
+  }
+
+  /** Whether any currently-loaded line is still in the DEDUCTED stage. */
+  get hasDeductedLines(): boolean {
+    return this.lines.some(l => l.status === 'DEDUCTED');
+  }
+
+  /**
+   * Stage 1: open the create-remittance dialog to move DEDUCTED lines to
+   * PAID_TO_ACCOUNTANT. Reloads the list when a remittance is created.
+   */
+  openCreateRemittance(): void {
+    const ref = this.dialog.open(CreateRemittanceDialogComponent, {
+      width: '820px',
+      data: { lines: this.lines }
+    });
+    ref.afterClosed().subscribe(result => {
+      if (result) {
+        this.load();
+      }
+    });
+  }
+
+  /**
+   * Stage 2: open the record-IT-remittance dialog to move a
+   * PAID_TO_ACCOUNTANT remittance to PAID_TO_IT_DEPARTMENT. Reloads the list
+   * when the remittance is updated.
+   */
+  openRecordItRemittance(line: TdsLineDTO): void {
+    if (!line.remittanceId) {
+      return;
+    }
+    const ref = this.dialog.open(RecordItRemittanceDialogComponent, {
+      width: '480px',
+      data: { remittanceId: line.remittanceId }
+    });
+    ref.afterClosed().subscribe(result => {
+      if (result) {
+        this.load();
+      }
+    });
   }
 
   onPageChange(event: PageEvent): void {
