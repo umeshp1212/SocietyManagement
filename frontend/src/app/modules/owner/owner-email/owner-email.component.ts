@@ -77,11 +77,24 @@ const SEND_TIMEOUT_MS = 30000;
             </div>
 
             <div *ngIf="!loadingOwners && activeOwners.length > 0">
+              <!-- Search input -->
+              <mat-form-field appearance="outline" class="search-field">
+                <mat-label>Search owners</mat-label>
+                <input matInput 
+                       [(ngModel)]="searchQuery" 
+                       (input)="onSearchChange()"
+                       placeholder="Search by unit numbers or name">
+                <mat-icon matSuffix>search</mat-icon>
+              </mat-form-field>
+
               <div class="selection-summary">
                 {{ selectedCount }} of {{ activeOwners.length }} selected
+                <span *ngIf="filteredOwners.length !== activeOwners.length" class="filtered-count">
+                  ({{ filteredOwners.length }} shown)
+                </span>
               </div>
               <div class="owner-table-wrapper">
-                <table mat-table [dataSource]="activeOwners" class="mat-elevation-z1">
+                <table mat-table [dataSource]="filteredOwners" class="mat-elevation-z1">
                   <ng-container matColumnDef="select">
                     <th mat-header-cell *matHeaderCellDef></th>
                     <td mat-cell *matCellDef="let o">
@@ -257,7 +270,9 @@ const SEND_TIMEOUT_MS = 30000;
   styles: [`
     .scope-group { display: flex; gap: 24px; margin-bottom: 12px; }
     .scope-hint, .empty-hint, .loading-inline { display: flex; align-items: center; gap: 8px; color: #666; }
+    .search-field { width: 100%; max-width: 400px; margin-bottom: 16px; }
     .selection-summary { margin-bottom: 8px; font-weight: 500; }
+    .filtered-count { color: #666; font-weight: 400; font-size: 0.9em; }
     .owner-table-wrapper { max-height: 360px; overflow: auto; }
     .full-width { width: 100%; }
     .body-field { display: block; margin-bottom: 16px; }
@@ -328,6 +343,8 @@ export class OwnerEmailComponent implements OnInit {
 
   recipientScope: RecipientScope = 'ALL';
   activeOwners: Owner[] = [];
+  filteredOwners: Owner[] = [];
+  searchQuery = '';
   loadingOwners = false;
   selected: Record<number, boolean> = {};
   selectedCount = 0;
@@ -400,6 +417,7 @@ export class OwnerEmailComponent implements OnInit {
         this.loadingOwners = false;
         if (res.success) {
           this.activeOwners = res.data || [];
+          this.filteredOwners = [...this.activeOwners];
         }
       },
       error: () => {
@@ -604,6 +622,20 @@ export class OwnerEmailComponent implements OnInit {
 
   onSelectionChange(): void {
     this.selectedCount = this.getSelectedIds().length;
+  }
+
+  onSearchChange(): void {
+    if (!this.searchQuery.trim()) {
+      this.filteredOwners = [...this.activeOwners];
+    } else {
+      const query = this.searchQuery.toLowerCase().trim();
+      this.filteredOwners = this.activeOwners.filter(owner => {
+        // Search by unit numbers (if available) or full name
+        const unitMatch = owner.unitNumbers?.toLowerCase().includes(query);
+        const nameMatch = owner.fullName?.toLowerCase().includes(query);
+        return unitMatch || nameMatch;
+      });
+    }
   }
 
   private getSelectedIds(): number[] {

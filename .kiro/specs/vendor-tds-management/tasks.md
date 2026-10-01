@@ -61,11 +61,11 @@ Incremental, bottom-up build of the `com.society.module.tds` backend (enum → e
     - Aggregate over the same spec: `totalDeducted`, `totalPaidToAccountant`, `totalPaidToItDept`, `totalPending = deducted - paidToIt`, `lineCount`; `HALF_UP` scale 2; zeros on empty set; pending ≥ 0.00
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 4.10_
 
-  - [ ]* 7.3 Write unit tests for summary math and filter mapping
+  - [x] 7.3 Write unit tests for summary math and filter mapping
     - HALF_UP boundary (`0.005`), empty set zeros, single line, blank-field no-predicate
     - _Requirements: 4.8, 4.9, 2.2_
 
-- [ ] 8. Implement `TdsRemittanceService` (lifecycle write model)
+- [x] 8. Implement `TdsRemittanceService` (lifecycle write model)
   - [x] 8.1 Implement `createBatch` (stage 1) with validations
     - Validate 1–500 voucher ids, non-empty list, each eligible Source_Voucher, none already lined, single financial year, accountant name 1–100, paid-to-accountant date not future; create batch `PAID_TO_ACCOUNTANT`, one line per voucher snapshotting `tdsAmount`, `totalAmount` = HALF_UP scale-2 sum, derive FY, record actor/reference, assign unique `batchReference`
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.9, 5.10, 5.11, 5.12, 7.5, 7.6_
@@ -78,7 +78,7 @@ Incremental, bottom-up build of the `com.society.module.tds` backend (enum → e
     - `getBatch` returns batch + lines or `ResourceNotFoundException`; empty line collection allowed; `listBatches` paginated over filter spec with defaults page 0 / size 20
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-  - [ ]* 8.4 Write unit tests for transition guard and eligibility rejections
+  - [x] 8.4 Write unit tests for transition guard and eligibility rejections
     - Each valid + forbidden transition, each `createBatch` rejection reason, mixed-FY rejection
     - _Requirements: 5.4, 5.5, 5.6, 6.5, 7.2, 7.3, 7.4_
 
@@ -90,31 +90,31 @@ Incremental, bottom-up build of the `com.society.module.tds` backend (enum → e
   - Follow `VendorLedgerPdfService` pattern: render filtered lines (same order as list) + summary; empty-filter produces zero-line PDF with 0 totals and "no records" indication; fail cleanly without partial output; add `GET /tds/lines/pdf` returning `ResponseEntity<byte[]>`
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 11. Checkpoint - backend compiles and unit tests pass
+- [x] 11. Checkpoint - backend compiles and unit tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ]* 12. Write property tests (jqwik, ≥100 iterations, tag `Feature: vendor-tds-management, Property N`)
-  - [ ]* 12.1 Property 1 - forward-only transitions
+- [x] 12. Write property tests (jqwik, ≥100 iterations, tag `Feature: vendor-tds-management, Property N`)
+  - [x] 12.1 Property 1 - forward-only transitions
     - **Property 1: Status transitions only move forward**
     - **Validates: Requirements 7.1, 7.2, 7.3**
 
-  - [ ]* 12.2 Property 2 - money conserved
+  - [x] 12.2 Property 2 - money conserved
     - **Property 2: Money is conserved (remitted + pending = deducted)**
     - **Validates: Requirements 4.2, 4.3, 4.4, 4.5**
 
-  - [ ]* 12.3 Property 3 - filters never widen
+  - [x] 12.3 Property 3 - filters never widen
     - **Property 3: Filters never widen the result set**
     - **Validates: Requirements 2.1, 2.2, 2.13**
 
-  - [ ]* 12.4 Property 4 - voucher remitted at most once
+  - [x] 12.4 Property 4 - voucher remitted at most once
     - **Property 4: A voucher is remitted at most once**
     - **Validates: Requirements 7.4, 5.5**
 
-  - [ ]* 12.5 Property 5 - batch total = HALF_UP sum of lines
+  - [x] 12.5 Property 5 - batch total = HALF_UP sum of lines
     - **Property 5: Batch total equals sum of its lines**
     - **Validates: Requirements 5.7**
 
-  - [ ]* 12.6 Property 6 - summary agrees with filtered list
+  - [x] 12.6 Property 6 - summary agrees with filtered list
     - **Property 6: Summary agrees with the list under identical filters**
     - **Validates: Requirements 4.1, 4.6, 4.7**
 

@@ -1,5 +1,14 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "12.1 Property 1 - forward-only transitions": {
+      "status": "passed",
+      "lastRunTimestamp": 1790852665407
+    },
+    "12.2 Property 2 - money conserved": {
+      "status": "passed",
+      "lastRunTimestamp": 1790854502957
+    }
+  },
   "executionHistory": {
     "1. Add `TdsRemittanceStatus` enum": [
       {
@@ -248,6 +257,16 @@
         "executionId": "83a26c1c-6b02-4ff3-86b7-e1d3c2b5932a",
         "chatSessionId": "sess_9492050e-008c-4409-b4c9-760611675ec0",
         "timestamp": 1790241242454
+      },
+      {
+        "executionId": "d1c7fabd-6d76-41c5-9a99-9d740a8e6ddc",
+        "chatSessionId": "sess_ea6edd52-997c-4382-9979-f2ed2b9b6d37",
+        "timestamp": 1790850629367
+      },
+      {
+        "executionId": "d1c7fabd-6d76-41c5-9a99-9d740a8e6ddc",
+        "chatSessionId": "sess_ea6edd52-997c-4382-9979-f2ed2b9b6d37",
+        "timestamp": 1790851397520
       }
     ],
     "15.1 `TdsStatusBadgeComponent`": [
@@ -369,6 +388,121 @@
         "executionId": "9f2bd23b-d197-4421-b959-050a60e6c4f1",
         "chatSessionId": "sess_06d883b1-9d90-4513-9cb6-10041af1cfa7",
         "timestamp": 1790242996336
+      }
+    ],
+    "7.3 Write unit tests for summary math and filter mapping": [
+      {
+        "executionId": "6e15de7f-e06b-4640-9d0f-bcc6f53ca7e0",
+        "chatSessionId": "sess_f579afcc-5fad-439a-b598-fbc47bfe659f",
+        "timestamp": 1790844580634
+      }
+    ],
+    "8.4 Write unit tests for transition guard and eligibility rejections": [
+      {
+        "executionId": "ce02d23b-25d8-4056-ad04-d46586833b1e",
+        "chatSessionId": "sess_d3571585-18b6-459e-b71f-1ce1f86b4924",
+        "timestamp": 1790845220440
+      },
+      {
+        "executionId": "0a218eb8-9184-4d21-8724-c829d9bc991a",
+        "chatSessionId": "sess_c4d8e332-e95f-43da-adac-49ff7d62d805",
+        "timestamp": 1790849636205
+      },
+      {
+        "executionId": "0a218eb8-9184-4d21-8724-c829d9bc991a",
+        "chatSessionId": "sess_c4d8e332-e95f-43da-adac-49ff7d62d805",
+        "timestamp": 1790850587917
+      }
+    ],
+    "8. Implement `TdsRemittanceService` (lifecycle write model)": [
+      {
+        "executionId": "0a218eb8-9184-4d21-8724-c829d9bc991a",
+        "chatSessionId": "sess_c4d8e332-e95f-43da-adac-49ff7d62d805",
+        "timestamp": 1790850588301
+      }
+    ],
+    "12.1 Property 1 - forward-only transitions": [
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790851495939
+      },
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790852704629
+      }
+    ],
+    "12.2 Property 2 - money conserved": [
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790852717936
+      },
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790854694959
+      }
+    ],
+    "12.3 Property 3 - filters never widen": [
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790854708188
+      },
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790855203538
+      }
+    ],
+    "12.4 Property 4 - voucher remitted at most once": [
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790855208562
+      },
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790855290929
+      }
+    ],
+    "12.5 Property 5 - batch total = HALF_UP sum of lines": [
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790855295976
+      },
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790856760101
+      }
+    ],
+    "12.6 Property 6 - summary agrees with filtered list": [
+      {
+        "executionId": "2f3b04b0-f29b-4d71-8342-fc5f28383d33",
+        "chatSessionId": "sess_f14088d2-e346-484f-8c01-d4d38be73343",
+        "timestamp": 1790856764683
+      },
+      {
+        "executionId": "2851fcf5-8437-4113-a8e9-0bf52dbca811",
+        "chatSessionId": "sess_5cc9724d-1bf2-4717-b68a-60fb672c1cc8",
+        "timestamp": 1790857525073
+      },
+      {
+        "executionId": "2851fcf5-8437-4113-a8e9-0bf52dbca811",
+        "chatSessionId": "sess_5cc9724d-1bf2-4717-b68a-60fb672c1cc8",
+        "timestamp": 1790858686418
+      }
+    ],
+    "12. Write property tests (jqwik, ≥100 iterations, tag `Feature: vendor-tds-management, Property N`)": [
+      {
+        "executionId": "2851fcf5-8437-4113-a8e9-0bf52dbca811",
+        "chatSessionId": "sess_5cc9724d-1bf2-4717-b68a-60fb672c1cc8",
+        "timestamp": 1790858686553
       }
     ]
   }
