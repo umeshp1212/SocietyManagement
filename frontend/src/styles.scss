@@ -36,6 +36,12 @@ html, body {
   width: 100%;
 }
 
+/* Muted text for secondary information */
+.text-muted {
+  color: #757575;
+  font-style: italic;
+}
+
 .status-badge {
   padding: 4px 8px;
   border-radius: 4px;

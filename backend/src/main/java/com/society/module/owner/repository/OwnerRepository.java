@@ -23,13 +23,20 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
 
     Page<Owner> findByStatus(OwnerStatus status, Pageable pageable);
 
-    @Query("SELECT o FROM Owner o WHERE o.status = :status AND " +
+    // Only owners who currently own at least one unit (have entries in unit_owners table)
+    @Query("SELECT DISTINCT o FROM Owner o JOIN UnitOwner uo ON uo.owner.ownerId = o.ownerId WHERE o.status = :status AND " +
            "(LOWER(o.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "o.contactNumber LIKE CONCAT('%', :search, '%') OR " +
            "LOWER(o.email) LIKE LOWER(CONCAT('%', :search, '%')))")
-    Page<Owner> searchOwners(@Param("status") OwnerStatus status,
-                             @Param("search") String search,
-                             Pageable pageable);
+    Page<Owner> searchOwnersWithUnits(@Param("status") OwnerStatus status,
+                                      @Param("search") String search,
+                                      Pageable pageable);
+
+    @Query("SELECT DISTINCT o FROM Owner o JOIN UnitOwner uo ON uo.owner.ownerId = o.ownerId WHERE " +
+           "LOWER(o.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "o.contactNumber LIKE CONCAT('%', :search, '%') OR " +
+           "LOWER(o.email) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Owner> searchAllOwnersWithUnits(@Param("search") String search, Pageable pageable);
 
     @Query("SELECT o FROM Owner o WHERE " +
            "LOWER(o.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +

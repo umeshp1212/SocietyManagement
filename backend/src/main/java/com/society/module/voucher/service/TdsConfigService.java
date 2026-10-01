@@ -49,9 +49,22 @@ public class TdsConfigService {
     /**
      * Calculate TDS amount for a given vendor category and bill amount.
      * Returns null if TDS is not applicable (inactive or below threshold).
+     * 
+     * @param vendorCategory - Can be category code (e.g., "FIRE_SAFETY") or name (e.g., "Fire Safety")
      */
     public TdsCalculation calculateTds(String vendorCategory, BigDecimal amount) {
+        if (vendorCategory == null || vendorCategory.isEmpty()) return null;
+
+        // First try exact match (code)
         TdsConfig config = getTdsConfigForCategory(vendorCategory);
+        
+        // If not found, try with underscore conversion for backwards compatibility
+        // (handles cases where name with spaces was passed: "Fire Safety" → "FIRE_SAFETY")
+        if (config == null) {
+            String categoryCode = vendorCategory.toUpperCase().replace(" ", "_");
+            config = getTdsConfigForCategory(categoryCode);
+        }
+        
         if (config == null) return null;
 
         // Check threshold
@@ -64,6 +77,42 @@ public class TdsConfigService {
         BigDecimal netPayable = amount.subtract(tdsAmount);
 
         return new TdsCalculation(config.getTdsSection(), config.getTdsRate(), tdsAmount, netPayable);
+    }
+
+    /**
+     * Recalculate TDS for a specific voucher based on its vendor's category code.
+     * This can be used to backfill TDS for existing vouchers.
+     */
+    @Transactional
+    public Voucher recalculateTdsForVoucher(Voucher voucher) {
+        Vendor vendor = voucher.getVendor();
+        if (vendor == null || vendor.getCategory() == null) {
+            voucher.setTdsApplicable(false);
+            voucher.setTdsAmount(null);
+            voucher.setTdsRate(null);
+            voucher.setTdsSection(null);
+            voucher.setNetPayable(voucher.getAmount());
+            return voucher;
+        }
+
+        String categoryCode = vendor.getCategory().getCode();
+        TdsCalculation tds = calculateTds(categoryCode, voucher.getAmount());
+
+        if (tds != null) {
+            voucher.setTdsApplicable(true);
+            voucher.setTdsSection(tds.tdsSection());
+            voucher.setTdsRate(tds.tdsRate());
+            voucher.setTdsAmount(tds.tdsAmount());
+            voucher.setNetPayable(tds.netPayable());
+        } else {
+            voucher.setTdsApplicable(false);
+            voucher.setTdsAmount(null);
+            voucher.setTdsRate(null);
+            voucher.setTdsSection(null);
+            voucher.setNetPayable(voucher.getAmount());
+        }
+
+        return voucher;
     }
 
     @Transactional

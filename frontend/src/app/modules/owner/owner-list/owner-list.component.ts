@@ -59,15 +59,6 @@ import { Owner } from '@core/models/owner.model';
                  placeholder="Name, Phone, Email">
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label>Status</mat-label>
-          <mat-select [(ngModel)]="statusFilter" (selectionChange)="loadOwners()">
-            <mat-option value="">All</mat-option>
-            <mat-option value="ACTIVE">Active</mat-option>
-            <mat-option value="TRANSFERRED">Transferred</mat-option>
-          </mat-select>
-        </mat-form-field>
       </div>
 
       <table mat-table [dataSource]="owners" class="mat-elevation-z2">
@@ -83,7 +74,7 @@ import { Owner } from '@core/models/owner.model';
 
         <ng-container matColumnDef="unitNumbers">
           <th mat-header-cell *matHeaderCellDef>Unit No</th>
-          <td mat-cell *matCellDef="let owner">{{ owner.unitNumbers || '-' }}</td>
+          <td mat-cell *matCellDef="let owner">{{ owner.unitNumbers }}</td>
         </ng-container>
 
         <ng-container matColumnDef="email">

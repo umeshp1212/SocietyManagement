@@ -89,14 +89,14 @@ public class OwnerService {
 
         if (search != null && !search.isBlank()) {
             if (status != null && !status.isBlank()) {
-                ownerPage = ownerRepository.searchOwners(OwnerStatus.valueOf(status), search, pageable);
+                ownerPage = ownerRepository.searchOwnersWithUnits(OwnerStatus.valueOf(status), search, pageable);
             } else {
-                ownerPage = ownerRepository.searchAllOwners(search, pageable);
+                ownerPage = ownerRepository.searchAllOwnersWithUnits(search, pageable);
             }
         } else if (status != null && !status.isBlank()) {
-            ownerPage = ownerRepository.findByStatus(OwnerStatus.valueOf(status), pageable);
+            ownerPage = ownerRepository.searchOwnersWithUnits(OwnerStatus.valueOf(status), "", pageable);
         } else {
-            ownerPage = ownerRepository.findAll(pageable);
+            ownerPage = ownerRepository.searchAllOwnersWithUnits("", pageable);
         }
 
         List<OwnerDTO> content = ownerPage.getContent().stream()
@@ -134,55 +134,58 @@ public class OwnerService {
             throw new BusinessException("New owner must have ACTIVE status for transfer");
         }
 
-        // Close current ownership history record
-        OwnershipHistory currentHistory = ownershipHistoryRepository
-                .findCurrentOwnershipByUnitId(unit.getUnitId())
-                .orElse(null);
+        // Close current ownership history record(s) for ALL owners of this unit
+        List<UnitOwner> existingUnitOwners = unitOwnerRepository.findByUnit_UnitId(unit.getUnitId());
+        List<OwnershipHistory> currentHistories = ownershipHistoryRepository
+                .findCurrentOwnershipByUnitId(unit.getUnitId());
 
-        // Fallback for units that were assigned an owner before ownership-history
-        // was recorded on assignment: reconstruct a closed history row for the
-        // existing primary owner so the old owner still appears in the history.
-        if (currentHistory == null) {
+        // Mark ALL existing owners as TRANSFERRED (if they don't own any other units)
+        for (UnitOwner unitOwner : existingUnitOwners) {
+            Owner existingOwner = unitOwner.getOwner();
+            List<Unit> otherUnits = unitRepository.findByOwnerId(existingOwner.getOwnerId());
+            long otherUnitCount = otherUnits.stream()
+                    .filter(u -> !u.getUnitId().equals(unit.getUnitId()))
+                    .count();
+            if (otherUnitCount == 0) {
+                existingOwner.setStatus(OwnerStatus.TRANSFERRED);
+                ownerRepository.save(existingOwner);
+            }
+        }
+
+        // Close all current ownership history records for this unit
+        if (currentHistories != null && !currentHistories.isEmpty()) {
+            for (OwnershipHistory history : currentHistories) {
+                history.setOwnershipEndDate(request.getTransferDate());
+                ownershipHistoryRepository.save(history);
+            }
+        } else {
+            // Fallback for units that were assigned an owner before ownership-history
+            // was recorded on assignment: reconstruct a closed history row for the
+            // existing primary owner so the old owner still appears in the history.
             UnitOwner currentPrimary = unitOwnerRepository.findPrimaryOwnerByUnitId(unit.getUnitId())
-                    .orElseGet(() -> unitOwnerRepository.findByUnit_UnitId(unit.getUnitId())
-                            .stream().findFirst().orElse(null));
+                    .orElseGet(() -> existingUnitOwners.stream().findFirst().orElse(null));
 
             if (currentPrimary != null) {
-                currentHistory = OwnershipHistory.builder()
+                OwnershipHistory history = OwnershipHistory.builder()
                         .unit(unit)
                         .owner(currentPrimary.getOwner())
                         .ownershipStartDate(currentPrimary.getAddedOn() != null
                                 ? currentPrimary.getAddedOn().toLocalDate()
                                 : request.getTransferDate())
-                        .ownershipEndDate(null)
+                        .ownershipEndDate(request.getTransferDate())
                         .transferType(com.society.enums.TransferType.PURCHASE)
                         .remarks("Initial ownership (recorded at transfer)")
                         .recordedBy("SYSTEM")
                         .recordedOn(LocalDateTime.now())
                         .build();
-                currentHistory = ownershipHistoryRepository.save(currentHistory);
-            }
-        }
-
-        if (currentHistory != null) {
-            currentHistory.setOwnershipEndDate(request.getTransferDate());
-            ownershipHistoryRepository.save(currentHistory);
-
-            // Mark old owner as TRANSFERRED if they don't own any other units
-            Owner oldOwner = currentHistory.getOwner();
-            List<Unit> otherUnits = unitRepository.findByOwnerId(oldOwner.getOwnerId());
-            long otherUnitCount = otherUnits.stream()
-                    .filter(u -> !u.getUnitId().equals(unit.getUnitId()))
-                    .count();
-            if (otherUnitCount == 0) {
-                oldOwner.setStatus(OwnerStatus.TRANSFERRED);
-                ownerRepository.save(oldOwner);
+                ownershipHistoryRepository.save(history);
             }
         }
 
         // Remove all existing owners from the unit (transfer clears all co-owners)
-        List<UnitOwner> existingOwners = unitOwnerRepository.findByUnit_UnitId(unit.getUnitId());
-        unitOwnerRepository.deleteAll(existingOwners);
+        if (!existingUnitOwners.isEmpty()) {
+            unitOwnerRepository.deleteAll(existingUnitOwners);
+        }
 
         // Add new owner as primary with 100% ownership
         UnitOwner newUnitOwner = UnitOwner.builder()
