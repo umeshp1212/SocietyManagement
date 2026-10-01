@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -136,8 +137,11 @@ public class OwnerService {
 
         // Close current ownership history record(s) for ALL owners of this unit
         List<UnitOwner> existingUnitOwners = unitOwnerRepository.findByUnit_UnitId(unit.getUnitId());
-        List<OwnershipHistory> currentHistories = ownershipHistoryRepository
+        Optional<OwnershipHistory> currentHistoryOpt = ownershipHistoryRepository
                 .findCurrentOwnershipByUnitId(unit.getUnitId());
+        List<OwnershipHistory> currentHistories = currentHistoryOpt
+                .map(List::of)
+                .orElse(List.of());
 
         // Mark ALL existing owners as TRANSFERRED (if they don't own any other units)
         for (UnitOwner unitOwner : existingUnitOwners) {
