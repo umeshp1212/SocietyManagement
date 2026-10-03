@@ -12,7 +12,13 @@ public interface TdsConfigRepository extends JpaRepository<TdsConfig, Long> {
 
     Optional<TdsConfig> findByVendorCategoryAndIsActiveTrue(String vendorCategory);
 
+    Optional<TdsConfig> findByVoucherCategoryAndIsActiveTrue(String voucherCategory);
+
     List<TdsConfig> findAllByOrderByVendorCategoryAsc();
 
     List<TdsConfig> findByIsActiveTrueOrderByVendorCategoryAsc();
+
+    List<TdsConfig> findByIsActiveTrueOrderByVoucherCategoryAsc();
+
+    List<TdsConfig> findByIsActiveTrueOrderByVoucherCategoryAscVendorCategoryAsc();
 }

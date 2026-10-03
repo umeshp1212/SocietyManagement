@@ -380,22 +380,36 @@ INSERT IGNORE INTO maintenance_charge_config (charge_config_id, charge_code, cha
 -- Section 194C: Contracts (1% individual/HUF, 2% others)
 -- Section 194J: Professional/Technical services (10%)
 -- Threshold: Rs 30,000 per transaction for 194C
+-- 
+-- PRIORITY: voucher_category takes precedence over vendor_category
+-- - voucher_category: Based on voucher expense category (NEW - primary method)
+-- - vendor_category: Based on vendor category (DEPRECATED - kept for backward compatibility)
 -- ============================================================
-INSERT IGNORE INTO tds_config (tds_config_id, vendor_category, tds_section, tds_rate, threshold_amount, description, is_active) VALUES
-(1, 'SECURITY', '194C', 2.00, 30000.00, 'Security services - TDS on contract payments', 1),
-(2, 'HOUSEKEEPING', '194C', 2.00, 30000.00, 'Housekeeping services - TDS on contract payments', 1),
-(3, 'GARDENING', '194C', 2.00, 30000.00, 'Gardening/landscaping services - TDS on contract', 1),
-(4, 'LIFT_MAINTENANCE', '194C', 2.00, 30000.00, 'Lift AMC - TDS on contract payments', 1),
-(5, 'PLUMBING', '194C', 1.00, 30000.00, 'Plumbing works - TDS on contract (individual)', 1),
-(6, 'ELECTRICAL', '194C', 1.00, 30000.00, 'Electrical works - TDS on contract (individual)', 1),
-(7, 'PEST_CONTROL', '194C', 2.00, 30000.00, 'Pest control services - TDS on contract', 1),
-(8, 'FIRE_SAFETY', '194C', 2.00, 30000.00, 'Fire safety AMC - TDS on contract', 1),
-(9, 'CCTV_INTERCOM', '194C', 2.00, 30000.00, 'CCTV/Intercom services - TDS on contract', 1),
-(10, 'WATER_TANK_CLEANING', '194C', 2.00, 30000.00, 'Water tank cleaning - TDS on contract', 1),
-(11, 'PAINTING_CIVIL', '194C', 2.00, 30000.00, 'Painting/Civil works - TDS on contract', 1),
-(12, 'LEGAL_AUDIT', '194J', 10.00, 30000.00, 'Legal/Audit professional fees - TDS on professional services', 1),
-(13, 'SOFTWARE_IT', '194J', 10.00, 30000.00, 'Software/IT services - TDS on technical services', 1),
-(14, 'OTHER', '194C', 2.00, 30000.00, 'Other services - TDS on contract payments', 0);
+INSERT IGNORE INTO tds_config (tds_config_id, voucher_category, vendor_category, tds_section, tds_rate, threshold_amount, description, is_active) VALUES
+(1, 'SECURITY', 'SECURITY', '194C', 2.00, 30000.00, 'Security services - TDS on contract payments', 1),
+(2, 'HOUSEKEEPING', 'HOUSEKEEPING', '194C', 2.00, 30000.00, 'Housekeeping services - TDS on contract payments', 1),
+(3, 'GARDENING', 'GARDENING', '194C', 2.00, 30000.00, 'Gardening/landscaping services - TDS on contract', 1),
+(4, 'LIFT_MAINTENANCE', 'LIFT_MAINTENANCE', '194C', 2.00, 30000.00, 'Lift AMC - TDS on contract payments', 1),
+(5, 'PLUMBING', 'PLUMBING', '194C', 1.00, 30000.00, 'Plumbing works - TDS on contract (individual)', 1),
+(6, 'ELECTRICAL', 'ELECTRICAL', '194C', 1.00, 30000.00, 'Electrical works - TDS on contract (individual)', 1),
+(7, 'PEST_CONTROL', 'PEST_CONTROL', '194C', 2.00, 30000.00, 'Pest control services - TDS on contract', 1),
+(8, 'FIRE_SAFETY', 'FIRE_SAFETY', '194C', 2.00, 30000.00, 'Fire safety AMC - TDS on contract', 1),
+(9, 'CCTV_INTERCOM', 'CCTV_INTERCOM', '194C', 2.00, 30000.00, 'CCTV/Intercom services - TDS on contract', 1),
+(10, 'WATER_TANK_CLEANING', 'WATER_TANK_CLEANING', '194C', 2.00, 30000.00, 'Water tank cleaning - TDS on contract', 1),
+(11, 'PAINTING_CIVIL', 'PAINTING_CIVIL', '194C', 2.00, 30000.00, 'Painting/Civil works - TDS on contract', 1),
+(12, 'LEGAL_AUDIT', 'LEGAL_AUDIT', '194J', 10.00, 30000.00, 'Legal/Audit professional fees - TDS on professional services', 1),
+(13, 'SOFTWARE_IT', 'SOFTWARE_IT', '194J', 10.00, 30000.00, 'Software/IT services - TDS on technical services', 1),
+(14, 'OTHER', 'OTHER', '194C', 2.00, 30000.00, 'Other services - TDS on contract payments', 0);
+
+
+-- ============================================================
+-- Backfill: Ensure voucher_category is populated for existing rows
+-- This ensures backward compatibility for existing TDS configs
+-- ============================================================
+UPDATE tds_config 
+SET voucher_category = vendor_category 
+WHERE voucher_category IS NULL 
+  AND vendor_category IS NOT NULL;
 
 
 -- ============================================================

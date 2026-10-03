@@ -72,20 +72,22 @@ public class VoucherService {
                 .financialYear(financialYear)
                 .build();
 
-        // Auto-calculate TDS if vendor has a category with active TDS config
-        if (vendor != null && vendor.getCategory() != null) {
-            String categoryCode = vendor.getCategory().getCode();
-            TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(categoryCode, request.getAmount());
-            if (tds != null) {
-                voucher.setTdsApplicable(true);
-                voucher.setTdsSection(tds.tdsSection());
-                voucher.setTdsRate(tds.tdsRate());
-                voucher.setTdsAmount(tds.tdsAmount());
-                voucher.setNetPayable(tds.netPayable());
-            } else {
-                voucher.setTdsApplicable(false);
-                voucher.setNetPayable(request.getAmount());
-            }
+        // Auto-calculate TDS using voucher category (primary) with vendor category fallback
+        // Priority: voucher category > vendor category
+        String vendorCategoryCode = vendor != null && vendor.getCategory() != null ? vendor.getCategory().getCode() : null;
+        String voucherCategoryCode = request.getCategory();  // Voucher category as primary
+        
+        TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(
+                vendorCategoryCode,  // Fallback
+                voucherCategoryCode,  // Primary
+                request.getAmount());
+        
+        if (tds != null) {
+            voucher.setTdsApplicable(true);
+            voucher.setTdsSection(tds.tdsSection());
+            voucher.setTdsRate(tds.tdsRate());
+            voucher.setTdsAmount(tds.tdsAmount());
+            voucher.setNetPayable(tds.netPayable());
         } else {
             voucher.setTdsApplicable(false);
             voucher.setNetPayable(request.getAmount());
@@ -141,23 +143,22 @@ public class VoucherService {
         }
 
         // Recalculate TDS when amount or vendor changes
+        // Priority: voucher category > vendor category
         Vendor currentVendor = voucher.getVendor();
-        if (currentVendor != null && currentVendor.getCategory() != null) {
-            String categoryCode = currentVendor.getCategory().getCode();
-            TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(categoryCode, voucher.getAmount());
-            if (tds != null) {
-                voucher.setTdsApplicable(true);
-                voucher.setTdsSection(tds.tdsSection());
-                voucher.setTdsRate(tds.tdsRate());
-                voucher.setTdsAmount(tds.tdsAmount());
-                voucher.setNetPayable(tds.netPayable());
-            } else {
-                voucher.setTdsApplicable(false);
-                voucher.setTdsAmount(null);
-                voucher.setTdsRate(null);
-                voucher.setTdsSection(null);
-                voucher.setNetPayable(voucher.getAmount());
-            }
+        String vendorCategoryCode = currentVendor != null && currentVendor.getCategory() != null ? currentVendor.getCategory().getCode() : null;
+        String voucherCategoryCode = voucher.getCategory();  // Voucher category as primary
+        
+        TdsConfigService.TdsCalculation tds = tdsConfigService.calculateTds(
+                vendorCategoryCode,  // Fallback
+                voucherCategoryCode,  // Primary
+                voucher.getAmount());
+        
+        if (tds != null) {
+            voucher.setTdsApplicable(true);
+            voucher.setTdsSection(tds.tdsSection());
+            voucher.setTdsRate(tds.tdsRate());
+            voucher.setTdsAmount(tds.tdsAmount());
+            voucher.setNetPayable(tds.netPayable());
         } else {
             voucher.setTdsApplicable(false);
             voucher.setTdsAmount(null);

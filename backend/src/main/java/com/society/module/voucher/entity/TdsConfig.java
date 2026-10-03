@@ -19,8 +19,13 @@ public class TdsConfig {
     @Column(name = "tds_config_id")
     private Long tdsConfigId;
 
-    @Column(name = "vendor_category", nullable = false, unique = true, length = 50)
+    // Deprecated: kept for backward compatibility with existing production data
+    @Column(name = "vendor_category", length = 50)
     private String vendorCategory;
+
+    // Primary: TDS configured by voucher category
+    @Column(name = "voucher_category", length = 50)
+    private String voucherCategory;
 
     @Column(name = "tds_section", length = 20)
     private String tdsSection;  // e.g., "194C", "194J"

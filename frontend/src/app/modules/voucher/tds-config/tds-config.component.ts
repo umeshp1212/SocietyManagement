@@ -12,13 +12,14 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { VendorCategoryService } from '@core/services/vendor-category.service';
-import { VendorCategoryModel } from '@core/models/vendor-category.model';
+import { VoucherCategoryService } from '@core/services/voucher-category.service';
+import { VoucherCategory } from '@core/models/voucher-category.model';
 import { environment } from '@env/environment';
 
 interface TdsConfig {
   tdsConfigId: number;
   vendorCategory: string;
+  voucherCategory: string;
   tdsSection: string;
   tdsRate: number;
   thresholdAmount: number;
@@ -47,8 +48,9 @@ interface TdsConfig {
       </div>
 
       <p class="subtitle">
-        Configure TDS (Tax Deducted at Source) rates per vendor category.
+        Configure TDS (Tax Deducted at Source) rates per voucher category.
         TDS is auto-calculated when creating vouchers if the amount exceeds the threshold.
+        <br><span class="hint">Note: TDS is based on voucher category, not vendor category.</span>
       </p>
 
       <!-- Add New TDS Config -->
@@ -59,8 +61,8 @@ interface TdsConfig {
         <mat-card-content>
           <div class="add-form-row">
             <mat-form-field appearance="outline">
-              <mat-label>Vendor Category</mat-label>
-              <mat-select [(value)]="newConfig.vendorCategory">
+              <mat-label>Voucher Category</mat-label>
+              <mat-select [(value)]="newConfig.voucherCategory">
                 <mat-option *ngFor="let cat of unconfiguredCategories" [value]="cat.code">
                   {{ cat.name }}
                 </mat-option>
@@ -97,8 +99,13 @@ interface TdsConfig {
           <div class="table-responsive">
             <table mat-table [dataSource]="configs" class="mat-elevation-z0">
               <ng-container matColumnDef="vendorCategory">
-                <th mat-header-cell *matHeaderCellDef>Vendor Category</th>
+                <th mat-header-cell *matHeaderCellDef>Vendor Category (Legacy)</th>
                 <td mat-cell *matCellDef="let c">{{ formatCategory(c.vendorCategory) }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="voucherCategory">
+                <th mat-header-cell *matHeaderCellDef>Voucher Category (Primary)</th>
+                <td mat-cell *matCellDef="let c">{{ formatCategory(c.voucherCategory) }}</td>
               </ng-container>
 
               <ng-container matColumnDef="tdsSection">
@@ -181,11 +188,11 @@ interface TdsConfig {
           <div class="info-grid">
             <div class="info-item">
               <mat-icon>info</mat-icon>
-              <p>When a voucher is created for a vendor, the system checks if TDS is applicable based on the vendor's category.</p>
+              <p>When a voucher is created, the system checks if TDS is applicable based on the <strong>voucher category</strong> (expense type), not the vendor category.</p>
             </div>
             <div class="info-item">
               <mat-icon>filter_alt</mat-icon>
-              <p>TDS is only deducted if the voucher amount exceeds the <strong>threshold amount</strong> (default Rs 30,000 per transaction).</p>
+              <p>TDS is only deducted if the voucher amount exceeds the <strong>threshold amount</strong> configured for that voucher category (default Rs 30,000 per transaction).</p>
             </div>
             <div class="info-item">
               <mat-icon>calculate</mat-icon>
@@ -193,7 +200,7 @@ interface TdsConfig {
             </div>
             <div class="info-item">
               <mat-icon>toggle_off</mat-icon>
-              <p>Set a category to <strong>Inactive</strong> to disable TDS deduction for that type of vendor.</p>
+              <p>Set a category to <strong>Inactive</strong> to disable TDS deduction for that type of voucher.</p>
             </div>
           </div>
         </mat-card-content>
@@ -230,38 +237,38 @@ interface TdsConfig {
 export class TdsConfigComponent implements OnInit {
   configs: TdsConfig[] = [];
   originalConfigs: Map<number, TdsConfig> = new Map();
-  displayedColumns = ['vendorCategory', 'tdsSection', 'tdsRate', 'thresholdAmount', 'description', 'isActive', 'actions'];
+  displayedColumns = ['vendorCategory', 'voucherCategory', 'tdsSection', 'tdsRate', 'thresholdAmount', 'description', 'isActive', 'actions'];
 
-  vendorCategories: VendorCategoryModel[] = [];
-  unconfiguredCategories: VendorCategoryModel[] = [];
+  voucherCategories: VoucherCategory[] = [];
+  unconfiguredCategories: VoucherCategory[] = [];
   showAddForm = false;
-  newConfig = { vendorCategory: '', tdsSection: '194C', tdsRate: 2.0, thresholdAmount: 30000, description: '' };
+  newConfig = { vendorCategory: '', voucherCategory: '', tdsSection: '194C', tdsRate: 2.0, thresholdAmount: 30000, description: '' };
 
   private apiUrl = environment.apiUrl;
 
   constructor(
     private http: HttpClient,
     private snackBar: MatSnackBar,
-    private vendorCategoryService: VendorCategoryService
+    private voucherCategoryService: VoucherCategoryService
   ) {}
 
   ngOnInit(): void {
     this.loadConfigs();
-    this.loadVendorCategories();
+    this.loadVoucherCategories();
   }
 
-  loadVendorCategories(): void {
-    this.vendorCategoryService.getActiveCategories().subscribe(res => {
+  loadVoucherCategories(): void {
+    this.voucherCategoryService.getAllCategories().subscribe(res => {
       if (res.success) {
-        this.vendorCategories = res.data;
+        this.voucherCategories = res.data;
         this.updateUnconfiguredCategories();
       }
     });
   }
 
   updateUnconfiguredCategories(): void {
-    const configuredCodes = this.configs.map(c => c.vendorCategory);
-    this.unconfiguredCategories = this.vendorCategories.filter(
+    const configuredCodes = this.configs.map(c => c.voucherCategory || c.vendorCategory);
+    this.unconfiguredCategories = this.voucherCategories.filter(
       cat => !configuredCodes.includes(cat.code)
     );
   }
@@ -281,7 +288,8 @@ export class TdsConfigComponent implements OnInit {
     if (!this.newConfig.vendorCategory || !this.newConfig.tdsRate) return;
 
     this.http.post<any>(`${this.apiUrl}/tds-config`, {
-      vendorCategory: this.newConfig.vendorCategory,
+      vendorCategory: this.newConfig.vendorCategory || this.newConfig.voucherCategory,
+      voucherCategory: this.newConfig.voucherCategory,
       tdsSection: this.newConfig.tdsSection,
       tdsRate: this.newConfig.tdsRate,
       thresholdAmount: this.newConfig.thresholdAmount,
@@ -290,9 +298,9 @@ export class TdsConfigComponent implements OnInit {
     }).subscribe({
       next: (res) => {
         if (res.success) {
-          this.snackBar.open(`TDS config added for ${this.formatCategory(this.newConfig.vendorCategory)}`, 'Close', { duration: 3000 });
+          this.snackBar.open(`TDS config added for ${this.formatCategory(this.newConfig.voucherCategory || this.newConfig.vendorCategory)}`, 'Close', { duration: 3000 });
           this.showAddForm = false;
-          this.newConfig = { vendorCategory: '', tdsSection: '194C', tdsRate: 2.0, thresholdAmount: 30000, description: '' };
+          this.newConfig = { vendorCategory: '', voucherCategory: '', tdsSection: '194C', tdsRate: 2.0, thresholdAmount: 30000, description: '' };
           this.loadConfigs();
         }
       },
@@ -314,7 +322,7 @@ export class TdsConfigComponent implements OnInit {
         if (res.success) {
           config.editing = false;
           this.originalConfigs.set(config.tdsConfigId, { ...config });
-          this.snackBar.open(`TDS config updated for ${this.formatCategory(config.vendorCategory)}`, 'Close', { duration: 3000 });
+          this.snackBar.open(`TDS config updated for ${this.formatCategory(config.voucherCategory || config.vendorCategory)}`, 'Close', { duration: 3000 });
         }
       },
       error: (err) => {

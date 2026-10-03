@@ -13,7 +13,13 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class TdsConfigDTO {
     private Long tdsConfigId;
+    
+    // Deprecated: kept for backward compatibility with existing production data
     private String vendorCategory;
+    
+    // Primary: voucher category for TDS configuration
+    private String voucherCategory;
+    
     private String tdsSection;
     private BigDecimal tdsRate;
     private BigDecimal thresholdAmount;

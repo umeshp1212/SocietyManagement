@@ -28,7 +28,7 @@ public class TdsConfigService {
     }
 
     public List<TdsConfigDTO> getActiveTdsConfigs() {
-        return tdsConfigRepository.findByIsActiveTrueOrderByVendorCategoryAsc()
+        return tdsConfigRepository.findByIsActiveTrueOrderByVoucherCategoryAscVendorCategoryAsc()
                 .stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -42,31 +42,52 @@ public class TdsConfigService {
 
     /**
      * Get TDS config for a vendor category code. Returns null if not configured or inactive.
+     * 
+     * @deprecated Use getTdsConfigByVoucherCategory() as primary method.
+     * Kept for backward compatibility with existing vendor-category-based configs.
      */
+    @Deprecated
     public TdsConfig getTdsConfigForCategory(String vendorCategory) {
         if (vendorCategory == null || vendorCategory.isEmpty()) return null;
         return tdsConfigRepository.findByVendorCategoryAndIsActiveTrue(vendorCategory).orElse(null);
     }
 
     /**
+     * Get TDS config for a voucher category code. Returns null if not configured or inactive.
+     * This is the primary method for new voucher-category-based TDS configuration.
+     */
+    public TdsConfig getTdsConfigByVoucherCategory(String voucherCategory) {
+        if (voucherCategory == null || voucherCategory.isEmpty()) return null;
+        return tdsConfigRepository.findByVoucherCategoryAndIsActiveTrue(voucherCategory).orElse(null);
+    }
+
+    /**
      * Calculate TDS amount for a given vendor category and bill amount.
      * Returns null if TDS is not applicable (inactive or below threshold).
      * 
-     * @param vendorCategory - Can be category code (e.g., "FIRE_SAFETY") or name (e.g., "Fire Safety")
+     * PRIORITY ORDER:
+     * 1. First tries voucher_category (primary - for new voucher-based TDS config)
+     * 2. Falls back to vendor_category (backward compatibility for existing configs)
+     * 3. Returns null if no matching config found or below threshold
+     * 
+     * @param vendorCategory - Vendor category code (e.g., "SECURITY")
+     * @param voucherCategory - Voucher category code (e.g., "SECURITY")
+     * @param amount - The bill amount
      */
-    public TdsCalculation calculateTds(String vendorCategory, BigDecimal amount) {
-        if (vendorCategory == null || vendorCategory.isEmpty()) return null;
+    public TdsCalculation calculateTds(String vendorCategory, String voucherCategory, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) return null;
 
-        // First try exact match (code)
-        TdsConfig config = getTdsConfigForCategory(vendorCategory);
-        
-        // If not found, try with underscore conversion for backwards compatibility
-        // (handles cases where name with spaces was passed: "Fire Safety" → "FIRE_SAFETY")
-        if (config == null) {
-            String categoryCode = vendorCategory.toUpperCase().replace(" ", "_");
-            config = getTdsConfigForCategory(categoryCode);
+        // First, try to find by voucher_category (primary method)
+        TdsConfig config = null;
+        if (voucherCategory != null && !voucherCategory.isEmpty()) {
+            config = tdsConfigRepository.findByVoucherCategoryAndIsActiveTrue(voucherCategory).orElse(null);
         }
-        
+
+        // If not found by voucher_category, fall back to vendor_category (backward compatibility)
+        if (config == null && vendorCategory != null && !vendorCategory.isEmpty()) {
+            config = tdsConfigRepository.findByVendorCategoryAndIsActiveTrue(vendorCategory).orElse(null);
+        }
+
         if (config == null) return null;
 
         // Check threshold
@@ -98,7 +119,7 @@ public class TdsConfigService {
         }
 
         String categoryCode = vendor.getCategory().getCode();
-        TdsCalculation tds = calculateTds(categoryCode, voucher.getAmount());
+        TdsCalculation tds = calculateTds(categoryCode, null, voucher.getAmount());
 
         if (tds != null) {
             voucher.setTdsApplicable(true);
@@ -122,6 +143,13 @@ public class TdsConfigService {
         TdsConfig config = tdsConfigRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TdsConfig", "tdsConfigId", id));
 
+        // Note: vendorCategory is kept for backward compatibility, voucherCategory is primary
+        if (dto.getVendorCategory() != null) {
+            config.setVendorCategory(dto.getVendorCategory());
+        }
+        if (dto.getVoucherCategory() != null) {
+            config.setVoucherCategory(dto.getVoucherCategory());
+        }
         config.setTdsSection(dto.getTdsSection());
         config.setTdsRate(dto.getTdsRate());
         config.setThresholdAmount(dto.getThresholdAmount());
@@ -136,6 +164,7 @@ public class TdsConfigService {
     public TdsConfigDTO createTdsConfig(TdsConfigDTO dto) {
         TdsConfig config = TdsConfig.builder()
                 .vendorCategory(dto.getVendorCategory())
+                .voucherCategory(dto.getVoucherCategory())
                 .tdsSection(dto.getTdsSection())
                 .tdsRate(dto.getTdsRate())
                 .thresholdAmount(dto.getThresholdAmount())
@@ -151,6 +180,7 @@ public class TdsConfigService {
         return TdsConfigDTO.builder()
                 .tdsConfigId(config.getTdsConfigId())
                 .vendorCategory(config.getVendorCategory())
+                .voucherCategory(config.getVoucherCategory())
                 .tdsSection(config.getTdsSection())
                 .tdsRate(config.getTdsRate())
                 .thresholdAmount(config.getThresholdAmount())
