@@ -1,0 +1,586 @@
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterModule, ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
+import { MatTableModule } from '@angular/material/table';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MaintenanceService } from '@core/services/maintenance.service';
+import { AuthService } from '@core/services/auth.service';
+import { ReversePaymentDialogComponent } from '../reverse-payment-dialog/reverse-payment-dialog.component';
+import { ReassignPaymentDialogComponent, ReassignPaymentResult } from '../reassign-payment-dialog/reassign-payment-dialog.component';
+import { BackButtonComponent } from '@shared/components/back-button';
+
+@Component({
+  selector: 'app-bill-detail',
+  standalone: true,
+  imports: [CommonModule, RouterModule, FormsModule, MatCardModule, MatButtonModule,
+    MatIconModule, MatFormFieldModule, MatSelectModule, MatInputModule, MatTableModule,
+    MatChipsModule, MatDividerModule, MatTooltipModule, MatDialogModule, MatSnackBarModule,
+    BackButtonComponent],
+  template: `
+    <div class="container" *ngIf="bill">
+      <app-back-button link="/maintenance" label="Back to Bills"></app-back-button>
+      <div class="page-header">
+        <h2>Maintenance Bill - {{ bill.billPeriod || (bill.billMonth + '/' + bill.billYear) }}</h2>
+        <div class="header-actions">
+          <button mat-raised-button color="accent" (click)="downloadPdf()">
+            <mat-icon>download</mat-icon> Download PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Bill Info Header -->
+      <mat-card class="info-card">
+        <mat-card-content>
+          <div class="info-grid">
+            <div class="info-item"><span class="label">Unit No</span><span class="value">{{ bill.unitNumber }}</span></div>
+            <div class="info-item"><span class="label">Owner</span><span class="value">{{ bill.ownerName }}</span></div>
+            <div class="info-item"><span class="label">Area (Sq.Ft)</span><span class="value">{{ bill.unitAreaSqft || '-' }}</span></div>
+            <div class="info-item"><span class="label">Bill Period</span><span class="value">{{ bill.billPeriod }}</span></div>
+            <div class="info-item"><span class="label">Bill Date</span><span class="value">{{ bill.billDate | date:'mediumDate' }}</span></div>
+            <div class="info-item"><span class="label">Due Date</span><span class="value">{{ bill.dueDate | date:'mediumDate' }}</span></div>
+            <div class="info-item">
+              <span class="label">Status</span>
+              <span class="status-badge" [ngClass]="bill.status?.toLowerCase()">{{ bill.status }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Charges Breakup Table -->
+      <mat-card class="charges-card">
+        <mat-card-header><mat-card-title>Charges Breakup</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <table class="charges-table">
+            <thead>
+              <tr>
+                <th class="sr-col">Sr.</th>
+                <th class="desc-col">Description</th>
+                <th class="calc-col">Calculation</th>
+                <th class="amt-col">Amount (Rs.)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of bill.lineItems; let i = index">
+                <td class="sr-col">{{ i + 1 }}</td>
+                <td class="desc-col">{{ item.chargeName }}</td>
+                <td class="calc-col">
+                  <span *ngIf="item.calculationType === 'AREA_BASED'">
+                    {{ item.areaSqft }} sq.ft x Rs.{{ item.rate }}
+                  </span>
+                  <span *ngIf="item.calculationType === 'FLAT'">
+                    Flat Charge
+                  </span>
+                </td>
+                <td class="amt-col">{{ item.amount | number:'1.2-2' }}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="subtotal-row">
+                <td colspan="3" class="text-right"><strong>Current Month Charges</strong></td>
+                <td class="amt-col"><strong>{{ bill.amount | number:'1.2-2' }}</strong></td>
+              </tr>
+              <tr *ngIf="bill.previousArrears > 0" class="arrears-row">
+                <td colspan="3" class="text-right">Previous Arrears (Principal)</td>
+                <td class="amt-col">{{ bill.previousArrears | number:'1.2-2' }}</td>
+              </tr>
+              <tr *ngIf="bill.interestOnArrears > 0" class="arrears-row">
+                <td colspan="3" class="text-right">Interest on Arrears (1% per month)</td>
+                <td class="amt-col">{{ bill.interestOnArrears | number:'1.2-2' }}</td>
+              </tr>
+              <tr *ngIf="bill.lateFee > 0" class="arrears-row">
+                <td colspan="3" class="text-right">Late Fee</td>
+                <td class="amt-col">{{ bill.lateFee | number:'1.2-2' }}</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="3" class="text-right"><strong>Grand Total</strong></td>
+                <td class="amt-col"><strong>{{ bill.totalAmount | number:'1.2-2' }}</strong></td>
+              </tr>
+              <tr *ngIf="bill.paidAmount > 0" class="paid-row">
+                <td colspan="3" class="text-right">Paid Amount</td>
+                <td class="amt-col">- {{ bill.paidAmount | number:'1.2-2' }}</td>
+              </tr>
+              <tr class="balance-row">
+                <td colspan="3" class="text-right"><strong>Balance Due</strong></td>
+                <td class="amt-col"><strong>{{ bill.balanceAmount | number:'1.2-2' }}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- QR Code & Payment Actions -->
+      <div class="actions-row">
+        <mat-card class="qr-card">
+          <mat-card-header><mat-card-title>Payment QR Code</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <img *ngIf="qrCodeBase64" [src]="qrCodeBase64" alt="Payment QR Code" class="qr-image">
+            <p *ngIf="!qrCodeBase64" class="loading-text">Loading QR code...</p>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="links-card">
+          <mat-card-header><mat-card-title>Payment Actions</mat-card-title></mat-card-header>
+          <mat-card-content>
+            <div class="action-buttons">
+              <button mat-raised-button color="primary" (click)="copyPaymentLink()">
+                <mat-icon>content_copy</mat-icon> Copy Payment Link
+              </button>
+              <span *ngIf="paymentLink" class="link-text">{{ paymentLink }}</span>
+
+              <button mat-raised-button color="accent" (click)="shareWhatsApp()">
+                <mat-icon>share</mat-icon> Share via WhatsApp
+              </button>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+
+      <!-- Record Offline Payment -->
+      <mat-card class="payment-form-card" *ngIf="bill.status !== 'PAID' && canRecordPayment()">
+        <mat-card-header><mat-card-title>Record Offline Payment</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <form class="payment-form" (ngSubmit)="recordPayment()">
+            <mat-form-field appearance="outline">
+              <mat-label>Amount</mat-label>
+              <input matInput type="number" [(ngModel)]="paymentForm.amount" name="amount" required>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Payment Date</mat-label>
+              <input matInput type="date" [(ngModel)]="paymentForm.paymentDate" name="paymentDate" required>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Payment Mode</mat-label>
+              <mat-select [(ngModel)]="paymentForm.paymentMode" name="paymentMode" required>
+                <mat-option value="CASH">Cash</mat-option>
+                <mat-option value="CHEQUE">Cheque</mat-option>
+                <mat-option value="BANK_TRANSFER">Bank Transfer</mat-option>
+                <mat-option value="UPI">UPI</mat-option>
+                <mat-option value="NEFT">NEFT</mat-option>
+                <mat-option value="RTGS">RTGS</mat-option>
+                <mat-option value="IMPS">IMPS</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Transaction ID</mat-label>
+              <input matInput [(ngModel)]="paymentForm.transactionId" name="transactionId">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Payer Name</mat-label>
+              <input matInput [(ngModel)]="paymentForm.payerName" name="payerName">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Remarks</mat-label>
+              <input matInput [(ngModel)]="paymentForm.remarks" name="remarks">
+            </mat-form-field>
+            <button mat-raised-button color="primary" type="submit">
+              <mat-icon>payment</mat-icon> Submit Payment
+            </button>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Payment History for this Bill -->
+      <mat-card class="history-card">
+        <mat-card-header><mat-card-title>Payment History</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="payments" class="mat-elevation-z1" *ngIf="payments.length > 0">
+            <ng-container matColumnDef="paymentDate">
+              <th mat-header-cell *matHeaderCellDef>Date</th>
+              <td mat-cell *matCellDef="let p">{{ p.paymentDate | date:'mediumDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Amount</th>
+              <td mat-cell *matCellDef="let p">{{ p.amount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="paymentMode">
+              <th mat-header-cell *matHeaderCellDef>Mode</th>
+              <td mat-cell *matCellDef="let p">{{ p.paymentMode }}</td>
+            </ng-container>
+            <ng-container matColumnDef="receiptNumber">
+              <th mat-header-cell *matHeaderCellDef>Receipt #</th>
+              <td mat-cell *matCellDef="let p">{{ p.receiptNumber || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="transactionId">
+              <th mat-header-cell *matHeaderCellDef>Transaction ID</th>
+              <td mat-cell *matCellDef="let p">{{ p.transactionId || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let p">
+                <span class="status-badge" [ngClass]="p.status?.toLowerCase()">{{ p.status }}</span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let p">
+                <button mat-button color="primary" type="button"
+                        *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && canReassign()"
+                        (click)="reassignPayment(p)">
+                  <mat-icon>swap_horiz</mat-icon> Reassign
+                </button>
+                <button mat-button color="warn" type="button"
+                        *ngIf="p.status !== 'REVERSED' && p.status !== 'FAILED' && canReverse()"
+                        (click)="reversePayment(p)">
+                  <mat-icon>undo</mat-icon> Reverse
+                </button>
+                <span *ngIf="p.status === 'REVERSED'" class="reversed-note"
+                      [matTooltip]="(p.reversalReason || '') + ' — by ' + (p.reversedBy || '')">
+                  Reversed
+                </span>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="paymentColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: paymentColumns;"></tr>
+          </table>
+          <p *ngIf="payments.length === 0" class="no-data">No payments recorded yet.</p>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Advance Credit: overpayment surplus held for this unit (from suspense account) -->
+      <mat-card class="history-card" *ngIf="advanceCredit.length > 0">
+        <mat-card-header>
+          <mat-card-title>Advance Credit for Unit</mat-card-title>
+          <mat-card-subtitle>Total available: {{ advanceCreditTotal | currency:'INR' }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p class="advance-note">
+            Money the owner paid over the bill amount. It is held as credit for this unit and can be
+            applied to a future bill from the Suspense Account.
+          </p>
+          <table mat-table [dataSource]="advanceCredit" class="mat-elevation-z1">
+            <ng-container matColumnDef="receivedDate">
+              <th mat-header-cell *matHeaderCellDef>Date</th>
+              <td mat-cell *matCellDef="let c">{{ c.receivedDate | date:'mediumDate' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="payerName">
+              <th mat-header-cell *matHeaderCellDef>Payer</th>
+              <td mat-cell *matCellDef="let c">{{ c.payerName || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Credit</th>
+              <td mat-cell *matCellDef="let c">{{ c.amount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="balanceAmount">
+              <th mat-header-cell *matHeaderCellDef>Available</th>
+              <td mat-cell *matCellDef="let c">{{ c.balanceAmount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="paymentMode">
+              <th mat-header-cell *matHeaderCellDef>Mode</th>
+              <td mat-cell *matCellDef="let c">{{ c.paymentMode || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="referenceNumber">
+              <th mat-header-cell *matHeaderCellDef>Reference</th>
+              <td mat-cell *matCellDef="let c">{{ c.referenceNumber || '-' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let c">
+                <span class="status-badge" [ngClass]="c.status?.toLowerCase()">{{ c.status }}</span>
+              </td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="advanceColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: advanceColumns;"></tr>
+          </table>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Audit Ledger: full money-mutation history for this bill -->
+      <mat-card class="history-card" *ngIf="canViewLedger()">
+        <mat-card-header><mat-card-title>Audit Ledger</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <table mat-table [dataSource]="ledger" class="mat-elevation-z1" *ngIf="ledger.length > 0">
+            <ng-container matColumnDef="performedOn">
+              <th mat-header-cell *matHeaderCellDef>When</th>
+              <td mat-cell *matCellDef="let e">{{ e.performedOn | date:'medium' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="entryType">
+              <th mat-header-cell *matHeaderCellDef>Event</th>
+              <td mat-cell *matCellDef="let e">{{ formatEntryType(e.entryType) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="amount">
+              <th mat-header-cell *matHeaderCellDef>Amount</th>
+              <td mat-cell *matCellDef="let e" [class.negative]="e.amount < 0">{{ e.amount | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="balanceAfter">
+              <th mat-header-cell *matHeaderCellDef>Balance After</th>
+              <td mat-cell *matCellDef="let e">{{ e.balanceAfter | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="source">
+              <th mat-header-cell *matHeaderCellDef>Source</th>
+              <td mat-cell *matCellDef="let e">{{ e.source }}</td>
+            </ng-container>
+            <ng-container matColumnDef="performedBy">
+              <th mat-header-cell *matHeaderCellDef>By</th>
+              <td mat-cell *matCellDef="let e">{{ e.performedBy }}</td>
+            </ng-container>
+            <ng-container matColumnDef="reason">
+              <th mat-header-cell *matHeaderCellDef>Reason</th>
+              <td mat-cell *matCellDef="let e">{{ e.reason || '-' }}</td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="ledgerColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: ledgerColumns;"></tr>
+          </table>
+          <p *ngIf="ledger.length === 0" class="no-data">No ledger entries yet.</p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  `,
+  styles: [`
+    .container { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .info-card { margin-bottom: 24px; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+    .info-item { display: flex; flex-direction: column; }
+    .info-item .label { font-size: 12px; color: #666; text-transform: uppercase; }
+    .info-item .value { font-size: 16px; font-weight: 500; margin-top: 4px; }
+
+    /* Charges Breakup Table */
+    .charges-card { margin-bottom: 24px; }
+    .charges-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .charges-table th, .charges-table td { padding: 10px 12px; border: 1px solid #e0e0e0; }
+    .charges-table thead { background: #f5f5f5; }
+    .charges-table th { font-weight: 600; text-align: left; font-size: 13px; }
+    .sr-col { width: 50px; text-align: center; }
+    .desc-col { }
+    .calc-col { width: 200px; color: #666; font-size: 13px; }
+    .amt-col { width: 130px; text-align: right; }
+    .text-right { text-align: right; }
+    .subtotal-row td { background: #f9f9f9; border-top: 2px solid #ccc; }
+    .arrears-row td { background: #fff8e1; }
+    .total-row td { background: #e3f2fd; border-top: 2px solid #1976d2; font-size: 15px; }
+    .paid-row td { background: #e8f5e9; }
+    .balance-row td { background: #fff3e0; border-top: 1px solid #f57c00; font-size: 15px; }
+
+    .actions-row { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; }
+    .qr-card, .links-card { flex: 1; min-width: 280px; }
+    .qr-image { max-width: 200px; display: block; margin: 0 auto; }
+    .loading-text { text-align: center; color: #666; }
+    .action-buttons { display: flex; flex-direction: column; gap: 12px; }
+    .link-text { font-size: 12px; color: #666; word-break: break-all; }
+    .payment-form-card { margin-bottom: 24px; }
+    .payment-form { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+    .payment-form mat-form-field { width: 100%; }
+    .payment-form button { grid-column: 1 / -1; justify-self: start; }
+    .history-card { margin-bottom: 24px; }
+    .history-card table { width: 100%; }
+    .no-data { text-align: center; color: #666; padding: 16px; }
+    .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+    .status-badge.paid { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.unpaid { background: #fbe9e7; color: #c62828; }
+    .status-badge.partially_paid { background: #fff3e0; color: #e65100; }
+    .status-badge.overdue { background: #ffebee; color: #b71c1c; }
+    .status-badge.success, .status-badge.verified { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.pending { background: #fff3e0; color: #e65100; }
+    .status-badge.failed { background: #ffebee; color: #b71c1c; }
+    .status-badge.reversed { background: #eceff1; color: #455a64; }
+    .negative { color: #c62828; }
+    .reversed-note { font-size: 12px; color: #b71c1c; font-style: italic; cursor: help; }
+    .status-badge.available { background: #e8f5e9; color: #2e7d32; }
+    .status-badge.applied { background: #e3f2fd; color: #1565c0; }
+    .advance-note { color: #555; font-size: 13px; margin: 0 0 12px; line-height: 1.5; }
+  `]
+})
+export class BillDetailComponent implements OnInit {
+  bill: any = null;
+  qrCodeBase64: string | null = null;
+  paymentLink: string | null = null;
+  payments: any[] = [];
+  paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'transactionId', 'status', 'actions'];
+  ledger: any[] = [];
+  ledgerColumns = ['performedOn', 'entryType', 'amount', 'balanceAfter', 'source', 'performedBy', 'reason'];
+  advanceCredit: any[] = [];
+  advanceColumns = ['receivedDate', 'payerName', 'amount', 'balanceAmount', 'paymentMode', 'referenceNumber', 'status'];
+  advanceCreditTotal = 0;
+  billId!: number;
+
+  paymentForm = {
+    amount: null as number | null,
+    paymentDate: '',
+    paymentMode: '',
+    transactionId: '',
+    payerName: '',
+    remarks: ''
+  };
+
+  constructor(private maintenanceService: MaintenanceService, private route: ActivatedRoute,
+              private authService: AuthService, private dialog: MatDialog, private snackBar: MatSnackBar) {}
+
+  ngOnInit(): void {
+    this.billId = +this.route.snapshot.paramMap.get('id')!;
+    this.loadBill();
+    this.loadQrCode();
+    this.loadPayments();
+    this.loadLedger();
+  }
+
+  loadAdvanceCredit(unitId: number): void {
+    if (!unitId) { return; }
+    this.maintenanceService.getUnitAdvanceCredit(unitId).subscribe(res => {
+      if (res.success) {
+        this.advanceCredit = res.data?.entries || [];
+        this.advanceCreditTotal = Number(res.data?.availableTotal || 0);
+      }
+    });
+  }
+
+  loadLedger(): void {
+    if (!this.canViewLedger()) { return; }
+    this.maintenanceService.getLedgerByBill(this.billId).subscribe(res => {
+      if (res.success) {
+        this.ledger = res.data || [];
+      }
+    });
+  }
+
+  formatEntryType(t: string): string {
+    switch (t) {
+      case 'BILL_GENERATED': return 'Bill Generated';
+      case 'PAYMENT_APPLIED': return 'Payment Applied';
+      case 'PAYMENT_REVERSED': return 'Payment Reversed';
+      default: return t;
+    }
+  }
+
+  reversePayment(payment: any): void {
+    const dialogRef = this.dialog.open(ReversePaymentDialogComponent, {
+      width: '440px',
+      data: { amount: payment.amount, receiptNumber: payment.receiptNumber }
+    });
+
+    dialogRef.afterClosed().subscribe((reason: string | undefined) => {
+      if (!reason) { return; }   // cancelled or empty
+      this.maintenanceService.reversePayment(payment.paymentId, reason).subscribe({
+        next: res => {
+          if (res.success) {
+            this.snackBar.open('Payment reversed', 'Close', { duration: 3000 });
+            this.loadBill();
+            this.loadPayments();
+            this.loadLedger();
+          }
+        },
+        error: err => this.snackBar.open(
+          err?.error?.message || 'Failed to reverse payment.', 'Close', { duration: 5000 })
+      });
+    });
+  }
+
+  reassignPayment(payment: any): void {
+    const dialogRef = this.dialog.open(ReassignPaymentDialogComponent, {
+      width: '520px',
+      data: {
+        paymentId: payment.paymentId,
+        amount: payment.amount,
+        receiptNumber: payment.receiptNumber,
+        currentUnitNumber: this.bill?.unitNumber,
+        currentBillId: this.billId
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((result: ReassignPaymentResult | undefined) => {
+      if (!result) { return; }   // cancelled
+      this.maintenanceService.reassignPayment(payment.paymentId, result.targetBillId, result.reason).subscribe({
+        next: res => {
+          if (res.success) {
+            this.snackBar.open('Payment reassigned', 'Close', { duration: 3000 });
+            this.loadBill();
+            this.loadPayments();
+            this.loadLedger();
+          }
+        },
+        error: err => this.snackBar.open(
+          err?.error?.message || 'Failed to reassign payment.', 'Close', { duration: 5000 })
+      });
+    });
+  }
+
+  loadBill(): void {
+    this.maintenanceService.getBillById(this.billId).subscribe(res => {
+      if (res.success) {
+        this.bill = res.data;
+        if (this.bill?.unitId) {
+          this.loadAdvanceCredit(this.bill.unitId);
+        }
+      }
+    });
+  }
+
+  loadQrCode(): void {
+    this.maintenanceService.getQrCode(this.billId).subscribe(res => {
+      if (res.success && res.data?.qrCode) {
+        this.qrCodeBase64 = 'data:image/png;base64,' + res.data.qrCode;
+      }
+    });
+  }
+
+  loadPayments(): void {
+    this.maintenanceService.getPaymentsByBill(this.billId).subscribe(res => {
+      if (res.success) {
+        this.payments = res.data || [];
+      }
+    });
+  }
+
+  copyPaymentLink(): void {
+    this.maintenanceService.generatePaymentLink(this.billId).subscribe(res => {
+      if (res.success) {
+        this.paymentLink = res.data?.paymentLink;
+        if (this.paymentLink) {
+          navigator.clipboard.writeText(this.paymentLink);
+        }
+      }
+    });
+  }
+
+  shareWhatsApp(): void {
+    this.maintenanceService.getWhatsAppLink(this.billId).subscribe(res => {
+      if (res.success && res.data?.whatsappLink) {
+        window.open(res.data.whatsappLink, '_blank');
+      }
+    });
+  }
+
+  recordPayment(): void {
+    const request = {
+      billId: this.billId,
+      ...this.paymentForm
+    };
+    this.maintenanceService.recordOfflinePayment(request).subscribe({
+      next: res => {
+        if (res.success) {
+          // Backend may report that part of the amount was credited as advance/surplus.
+          const note = res.data?.remarks && /surplus|advance/i.test(res.data.remarks)
+            ? ' Surplus recorded as unit advance credit.'
+            : '';
+          this.snackBar.open((res.message || 'Payment recorded') + note, 'Close', { duration: 4000 });
+          this.loadBill();
+          this.loadPayments();
+          this.loadLedger();
+          this.paymentForm = { amount: null, paymentDate: '', paymentMode: '', transactionId: '', payerName: '', remarks: '' };
+        }
+      },
+      error: err => this.snackBar.open(
+        err?.error?.message || 'Failed to record payment.', 'Close', { duration: 5000 })
+    });
+  }
+
+  downloadPdf(): void {
+    this.maintenanceService.downloadBillPdf(this.billId);
+  }
+
+  canRecordPayment(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT'); }
+  canReverse(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT_REVERSE'); }
+  canReassign(): boolean { return this.authService.hasPermission('MAINTENANCE_PAYMENT_REASSIGN'); }
+  canViewLedger(): boolean { return this.authService.hasPermission('MAINTENANCE_VIEW'); }
+}

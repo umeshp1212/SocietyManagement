@@ -65,10 +65,10 @@ services:
     networks:
       - society-network
 
-  # Angular Frontend with Nginx
+  # Angular Frontends (Admin at /, Member PWA at /member/) with Nginx
   frontend:
     build:
-      context: ./frontend
+      context: ./frontend-new
       dockerfile: Dockerfile
     container_name: society-frontend
     restart: unless-stopped

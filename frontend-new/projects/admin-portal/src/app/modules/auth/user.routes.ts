@@ -1,0 +1,39 @@
+import { Routes } from '@angular/router';
+
+export const USER_ROUTES: Routes = [
+  {
+    path: '',
+    loadComponent: () => import('./user-list/user-list.component').then(m => m.UserListComponent)
+  },
+  {
+    path: 'add',
+    loadComponent: () => import('./user-form/user-form.component').then(m => m.UserFormComponent)
+  },
+  {
+    path: 'edit/:id',
+    loadComponent: () => import('./user-form/user-form.component').then(m => m.UserFormComponent)
+  },
+  {
+    path: 'roles-permissions',
+    loadComponent: () => import('./roles-permissions/roles-permissions.component').then(m => m.RolesPermissionsComponent)
+  },
+  {
+    path: 'profile-requests',
+    redirectTo: 'member-requests',
+    pathMatch: 'full'
+  },
+  {
+    path: 'registration-requests',
+    redirectTo: 'member-requests',
+    pathMatch: 'full'
+  },
+  {
+    path: 'member-requests',
+    loadComponent: () => import('./member-requests/member-requests.component').then(m => m.MemberRequestsComponent)
+  },
+  {
+    path: 'noc-types',
+    redirectTo: '/settings',
+    pathMatch: 'full'
+  }
+];

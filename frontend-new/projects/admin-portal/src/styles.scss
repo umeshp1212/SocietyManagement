@@ -1,0 +1,231 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+.container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-weight: 400;
+  }
+}
+
+.search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mat-mdc-table {
+  width: 100%;
+}
+
+/* Muted text for secondary information */
+.text-muted {
+  color: #757575;
+  font-style: italic;
+}
+
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  &.active { background: #e8f5e9; color: #2e7d32; }
+  &.transferred { background: #fff3e0; color: #e65100; }
+  &.rented { background: #e3f2fd; color: #1565c0; }
+  &.vacant { background: #fafafa; color: #616161; }
+  &.pending { background: #fff8e1; color: #f57f17; }
+  &.pending_approval { background: #fff3e0; color: #e65100; }
+  &.approved { background: #e8f5e9; color: #2e7d32; }
+  &.rejected { background: #ffebee; color: #c62828; }
+  &.draft { background: #f3e5f5; color: #6a1b9a; }
+  &.final { background: #e8f5e9; color: #2e7d32; }
+  &.cancelled { background: #ffebee; color: #c62828; }
+  &.inactive { background: #eceff1; color: #546e7a; }
+  &.blacklisted { background: #ffebee; color: #c62828; }
+  &.expired { background: #ffebee; color: #c62828; }
+}
+
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  text-align: center;
+
+  .summary-value {
+    font-size: 2rem;
+    font-weight: 500;
+    color: #1976d2;
+  }
+
+  .summary-label {
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 4px;
+  }
+}
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+
+    h2 { font-size: 1.25rem; }
+  }
+
+  .form-container {
+    padding: 12px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .action-buttons {
+    justify-content: stretch;
+
+    button, a {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .card-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .summary-card .summary-value {
+    font-size: 1.5rem;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Make tables horizontally scrollable on mobile */
+  .mat-mdc-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reduce padding in mat-cards */
+  mat-card {
+    padding: 12px !important;
+  }
+
+  mat-card-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Stack approval grid vertically on mobile */
+  .approval-grid {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .approval-actions {
+    flex-direction: column !important;
+
+    button {
+      width: 100%;
+    }
+  }
+
+  /* Full-width buttons in action cards */
+  .action-buttons button,
+  .action-buttons a {
+    font-size: 13px;
+  }
+
+  /* Header actions stack vertically */
+  .header-actions {
+    flex-wrap: wrap;
+    gap: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header h2 {
+    font-size: 1.1rem;
+  }
+}
+
+
+/* ==================== NGX-QUILL ==================== */
+/* ngx-quill's <quill-editor> custom element has no user-agent display value, so
+   it computes to display:inline. An inline host does not reserve block height, so
+   its toolbar and .ql-container (min-height) paint over the preceding element and
+   intercept clicks meant for it (e.g. an adjacent mat-form-field input). Forcing
+   the host to a block that claims its own height keeps it in normal flow below
+   sibling fields. Declared globally so it applies regardless of the component's
+   view-encapsulation scoping. */
+quill-editor {
+  display: block;
+  position: relative;
+}
+
+quill-editor .ql-container {
+  min-height: 200px;
+}

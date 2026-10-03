@@ -1,0 +1,59 @@
+{
+  "index": "/member/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "resources": {
+        "files": [
+          "/member/favicon.ico",
+          "/member/index.html",
+          "/member/*.css",
+          "/member/*.js"
+        ]
+      }
+    },
+    {
+      "name": "assets", 
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/member/assets/**",
+          "/*.(eot|svg|cur|jpg|png|webp|gif|otf|ttf|woff|woff2|ani)"
+        ]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "member-api",
+      "urls": [
+        "/api/member/**",
+        "/api/maintenance/member/**", 
+        "/api/notices/member/**"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 100,
+        "maxAge": "1h",
+        "timeout": "10s"
+      }
+    },
+    {
+      "name": "auth-api",
+      "urls": [
+        "/api/auth/member/**"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 10,
+        "maxAge": "1d"
+      }
+    }
+  ],
+  "navigationUrls": [
+    "!/member/**",
+    "/member/**"
+  ]
+}
