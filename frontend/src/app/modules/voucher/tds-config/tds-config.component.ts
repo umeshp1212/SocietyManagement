@@ -40,23 +40,32 @@ interface TdsConfig {
     <div class="container">
       <div class="page-header">
         <h2>TDS Configuration</h2>
-        <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm"
-                *ngIf="unconfiguredCategories.length > 0">
-          <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
-          {{ showAddForm ? 'Cancel' : 'Add TDS Config' }}
-        </button>
+        <div class="header-actions">
+          <button mat-icon-button (click)="refreshData()" matTooltip="Refresh TDS Configs">
+            <mat-icon>refresh</mat-icon>
+          </button>
+          <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm"
+                  *ngIf="unconfiguredCategories.length > 0">
+            <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
+            {{ showAddForm ? 'Cancel' : 'Add TDS Config' }}
+          </button>
+        </div>
       </div>
 
       <p class="subtitle">
         Configure TDS (Tax Deducted at Source) rates per voucher category.
         TDS is auto-calculated when creating vouchers if the amount exceeds the threshold.
-        <br><span class="hint">Note: TDS is based on voucher category, not vendor category.</span>
+        <br><span class="hint">
+          Note: TDS is based on voucher category, not vendor category.
+          <br><strong>To add TDS for a new voucher category:</strong> 1. Create the voucher category in Voucher Categories, 
+          then 2. Click "Add TDS Config" to configure TDS for that category.
+        </span>
       </p>
 
       <!-- Add New TDS Config -->
       <mat-card *ngIf="showAddForm" class="add-form-card">
         <mat-card-header>
-          <mat-card-title>Add TDS Config for Vendor Category</mat-card-title>
+          <mat-card-title>Add TDS Config for Voucher Category</mat-card-title>
         </mat-card-header>
         <mat-card-content>
           <div class="add-form-row">
@@ -87,7 +96,7 @@ interface TdsConfig {
               <input matInput [(ngModel)]="newConfig.description" placeholder="TDS description">
             </mat-form-field>
             <button mat-raised-button color="primary" (click)="addTdsConfig()"
-                    [disabled]="!newConfig.vendorCategory || !newConfig.tdsRate">
+                    [disabled]="(!newConfig.voucherCategory && !newConfig.vendorCategory) || !newConfig.tdsRate">
               <mat-icon>save</mat-icon> Save
             </button>
           </div>
@@ -100,7 +109,13 @@ interface TdsConfig {
             <table mat-table [dataSource]="configs" class="mat-elevation-z0">
               <ng-container matColumnDef="vendorCategory">
                 <th mat-header-cell *matHeaderCellDef>Vendor Category (Legacy)</th>
-                <td mat-cell *matCellDef="let c">{{ formatCategory(c.vendorCategory) }}</td>
+                <td mat-cell *matCellDef="let c">
+                  <span *ngIf="c.vendorCategory">{{ formatCategory(c.vendorCategory) }}</span>
+                  <span *ngIf="!c.vendorCategory && c.voucherCategory" class="fallback-text">
+                    (fallback: {{ formatCategory(c.voucherCategory) }})
+                  </span>
+                  <span *ngIf="!c.vendorCategory && !c.voucherCategory" class="empty-text">-</span>
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="voucherCategory">
@@ -210,7 +225,9 @@ interface TdsConfig {
   styles: [`
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .page-header h2 { margin: 0; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
     .subtitle { color: #666; margin-bottom: 20px; }
+    .subtitle .hint { color: #888; font-size: 12px; display: block; margin-top: 4px; line-height: 1.5; }
     .add-form-card { margin-bottom: 20px; }
     .add-form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
     .add-form-row mat-form-field { flex: 1; min-width: 140px; }
@@ -220,6 +237,8 @@ interface TdsConfig {
     .inline-input.narrow { width: 60px; }
     .inline-input.wide { width: 180px; }
     .desc-text { font-size: 12px; color: #666; }
+    .fallback-text { color: #888; font-style: italic; font-size: 12px; }
+    .empty-text { color: #aaa; font-size: 12px; }
     .inactive-row { opacity: 0.5; background: #fafafa; }
     .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px 0; }
     .info-item { display: flex; gap: 10px; align-items: flex-start; }
@@ -243,6 +262,10 @@ export class TdsConfigComponent implements OnInit {
   unconfiguredCategories: VoucherCategory[] = [];
   showAddForm = false;
   newConfig = { vendorCategory: '', voucherCategory: '', tdsSection: '194C', tdsRate: 2.0, thresholdAmount: 30000, description: '' };
+  
+  // Track which voucher categories already have configs (even if only vendorCategory is set)
+  configuredVoucherCategories: Set<string> = new Set();
+  configuredVendorCategories: Set<string> = new Set();
 
   private apiUrl = environment.apiUrl;
 
@@ -266,10 +289,24 @@ export class TdsConfigComponent implements OnInit {
     });
   }
 
+  refreshData(): void {
+    this.loadConfigs();
+    this.loadVoucherCategories();
+  }
+
   updateUnconfiguredCategories(): void {
-    const configuredCodes = this.configs.map(c => c.voucherCategory || c.vendorCategory);
+    // Track which voucher categories already have TDS configs
+    this.configuredVoucherCategories.clear();
+    this.configuredVendorCategories.clear();
+    
+    this.configs.forEach(c => {
+      if (c.voucherCategory) this.configuredVoucherCategories.add(c.voucherCategory);
+      if (c.vendorCategory) this.configuredVendorCategories.add(c.vendorCategory);
+    });
+    
+    // Show voucher categories that don't have a TDS config (by voucher category)
     this.unconfiguredCategories = this.voucherCategories.filter(
-      cat => !configuredCodes.includes(cat.code)
+      cat => !this.configuredVoucherCategories.has(cat.code)
     );
   }
 
@@ -285,10 +322,11 @@ export class TdsConfigComponent implements OnInit {
   }
 
   addTdsConfig(): void {
-    if (!this.newConfig.vendorCategory || !this.newConfig.tdsRate) return;
+    // Require at least one category (voucherCategory is primary, vendorCategory is optional fallback)
+    if ((!this.newConfig.voucherCategory && !this.newConfig.vendorCategory) || !this.newConfig.tdsRate) return;
 
     this.http.post<any>(`${this.apiUrl}/tds-config`, {
-      vendorCategory: this.newConfig.vendorCategory || this.newConfig.voucherCategory,
+      vendorCategory: this.newConfig.vendorCategory,
       voucherCategory: this.newConfig.voucherCategory,
       tdsSection: this.newConfig.tdsSection,
       tdsRate: this.newConfig.tdsRate,
