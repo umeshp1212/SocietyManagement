@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
+  # =============================================================
   # MySQL Database
+  # =============================================================
   mysql:
     image: mysql:8.0
     container_name: society-mysql
@@ -9,13 +11,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: society_management
-      MYSQL_USER: society_app
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-SocietyApp@123}
-    ports:
-      - "3306:3306"
+      MYSQL_USER: ${DB_USERNAME:-society_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-CDwing@2019}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backend/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
     networks:
       - society-network
     healthcheck:
@@ -25,7 +24,9 @@ services:
       retries: 5
       start_period: 30s
 
-  # Spring Boot Backend
+  # =============================================================
+  # Spring Boot Backend (prod profile)
+  # =============================================================
   backend:
     build:
       context: ./backend
@@ -36,36 +37,59 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
-      SPRING_DATASOURCE_USERNAME: society_app
-      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-SocietyApp@123}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_SQL_INIT_MODE: always
-      APP_JWT_SECRET: ${JWT_SECRET:-MySuperSecretKeyForJwtTokenGenerationMustBeLongEnough12345678}
-      APP_JWT_EXPIRATION: 86400000
+      # Activate the production profile (application-prod.yml)
+      SPRING_PROFILES_ACTIVE: prod
+
+      # ---- Database (override localhost -> mysql service) ----
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata&createDatabaseIfNotExist=true
+      DB_USERNAME: ${DB_USERNAME:-society_app}
+      DB_PASSWORD: ${DB_PASSWORD:-CDwing@2019}
+
+      # ---- Writable paths inside the container (mapped to volumes) ----
       APP_UPLOAD_DIR: /app/uploads
-      APP_CASHFREE_APP_ID: ${CASHFREE_APP_ID:-}
-      APP_CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY:-}
-      APP_CASHFREE_ENVIRONMENT: ${CASHFREE_ENVIRONMENT:-sandbox}
-      APP_CASHFREE_RETURN_URL: ${CASHFREE_RETURN_URL:-http://localhost/maintenance/payment-status}
-      APP_CASHFREE_NOTIFY_URL: ${CASHFREE_NOTIFY_URL:-http://localhost/api/maintenance/payments/webhook}
-      APP_BASE_URL: ${APP_BASE_URL:-http://localhost/api}
-      APP_FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
-      SPRING_MAIL_HOST: smtp.gmail.com
-      SPRING_MAIL_PORT: 587
-      SPRING_MAIL_USERNAME: ${MAIL_USERNAME:-}
-      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD:-}
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
-      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLED: true
-    ports:
-      - "8080:8080"
+      LOGGING_FILE_PATH: /app/logs
+      LOGGING_FILE_NAME: /app/logs/society-management.log
+
+      # ---- Security / tokens ----
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+
+      # ---- Email (Gmail SMTP) ----
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+
+      # ---- Payment gateways ----
+      CASHFREE_APP_ID: ${CASHFREE_APP_ID:-}
+      CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY:-}
+      CASHFREE_ENVIRONMENT: ${CASHFREE_ENVIRONMENT:-sandbox}
+      CASHFREE_RETURN_URL: ${CASHFREE_RETURN_URL:-https://ppvcd.in/maintenance/payment-status}
+      CASHFREE_NOTIFY_URL: ${CASHFREE_NOTIFY_URL:-https://ppvcd.in/api/member/payments/webhook/cashfree}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+
+      # ---- App URLs ----
+      APP_BASE_URL: ${APP_BASE_URL:-https://ppvcd.in/api}
+      FRONTEND_URL: ${FRONTEND_URL:-https://ppvcd.in}
+      # Admin SPA now lives at the site root (not /app). Keep this EMPTY so
+      # backend-built links (e.g. password-reset emails) point at https://ppvcd.in/...
+      FRONTEND_BASE_PATH: ${FRONTEND_BASE_PATH:-}
     volumes:
       - uploads_data:/app/uploads
       - backend_logs:/app/logs
     networks:
       - society-network
+    # Not published to the host — only nginx reaches it over the compose network.
+    expose:
+      - "8080"
 
-  # Angular Frontends (Admin at /, Member PWA at /member/) with Nginx
+  # =============================================================
+  # Nginx: TLS termination + both Angular frontends + /api proxy
+  #   /         -> admin + public landing
+  #   /member/  -> member PWA
+  #   /api/     -> backend container
+  # =============================================================
   frontend:
     build:
       context: ./frontend-new
@@ -76,6 +100,12 @@ services:
       - backend
     ports:
       - "80:80"
+      - "443:443"
+    volumes:
+      # Mount the host's Let's Encrypt certs read-only so certbot keeps renewing them.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Webroot for ACME HTTP-01 challenge renewals.
+      - certbot_webroot:/var/www/certbot
     networks:
       - society-network
 
@@ -85,6 +115,8 @@ volumes:
   uploads_data:
     driver: local
   backend_logs:
+    driver: local
+  certbot_webroot:
     driver: local
 
 networks:

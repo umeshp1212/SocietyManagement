@@ -30,9 +30,11 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=build /app/dist/admin-portal/browser   /usr/share/nginx/html/admin-portal
 COPY --from=build /app/dist/member-portal/browser  /usr/share/nginx/html/member
 
-# Nginx site config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Production nginx config: TLS termination + both frontends + /api proxy.
+# Remove the stock default so our server blocks are the only ones.
+RUN rm -f /etc/nginx/conf.d/default.conf
+COPY nginx.prod.conf /etc/nginx/conf.d/society.conf
 
-EXPOSE 80
+EXPOSE 80 443
 
 CMD ["nginx", "-g", "daemon off;"]
