@@ -215,7 +215,7 @@ export class MemberProfileComponent implements OnInit {
 
   ngOnInit(): void {
     if (!this.memberAuth.isLoggedIn()) {
-      this.router.navigate(['/member-login']);
+      this.router.navigate(['/login']);
       return;
     }
     this.loadProfile();
@@ -262,6 +262,6 @@ export class MemberProfileComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/member/dashboard']);
+    this.router.navigate(['/dashboard']);
   }
 }

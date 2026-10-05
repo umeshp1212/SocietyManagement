@@ -62,13 +62,13 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
               </mat-option>
             </mat-select>
           </mat-form-field>
-          <button mat-icon-button routerLink="/member/register-tenant" matTooltip="Register a Tenant" color="primary">
+          <button mat-icon-button routerLink="/register-tenant" matTooltip="Register a Tenant" color="primary">
             <mat-icon>person_add</mat-icon>
           </button>
-          <button mat-icon-button routerLink="/member/apply-noc" matTooltip="Apply for NOC" color="primary">
+          <button mat-icon-button routerLink="/apply-noc" matTooltip="Apply for NOC" color="primary">
             <mat-icon>description</mat-icon>
           </button>
-          <button mat-icon-button routerLink="/member/profile" matTooltip="My Profile" color="primary">
+          <button mat-icon-button routerLink="/profile" matTooltip="My Profile" color="primary">
             <mat-icon>account_circle</mat-icon>
           </button>
           <button mat-icon-button (click)="logout()" matTooltip="Logout" color="warn">
@@ -492,7 +492,7 @@ export class MemberDashboardComponent implements OnInit {
   ngOnInit(): void {
     const member = this.memberAuth.getCurrentMember();
     if (!member) {
-      this.router.navigate(['/member-login']);
+      this.router.navigate(['/login']);
       return;
     }
 

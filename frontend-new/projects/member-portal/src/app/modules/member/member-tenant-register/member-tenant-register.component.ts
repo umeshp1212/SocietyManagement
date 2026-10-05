@@ -181,7 +181,7 @@ export class MemberTenantRegisterComponent implements OnInit {
 
   ngOnInit(): void {
     if (!this.memberAuth.isLoggedIn()) {
-      this.router.navigate(['/member-login']);
+      this.router.navigate(['/login']);
       return;
     }
     const member = this.memberAuth.getCurrentMember();
@@ -215,7 +215,7 @@ export class MemberTenantRegisterComponent implements OnInit {
         if (res.success) {
           this.snackBar.open(res.message || 'Tenant registration submitted for approval.',
             'Close', { duration: 5000 });
-          this.router.navigate(['/member/dashboard']);
+          this.router.navigate(['/dashboard']);
         }
       },
       error: (err) => {
@@ -235,6 +235,6 @@ export class MemberTenantRegisterComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/member/dashboard']);
+    this.router.navigate(['/dashboard']);
   }
 }

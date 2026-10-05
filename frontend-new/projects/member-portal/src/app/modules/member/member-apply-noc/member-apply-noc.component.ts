@@ -158,7 +158,7 @@ export class MemberApplyNocComponent implements OnInit {
 
   ngOnInit(): void {
     if (!this.memberAuth.isLoggedIn()) {
-      this.router.navigate(['/member-login']);
+      this.router.navigate(['/login']);
       return;
     }
     this.units = this.memberAuth.getCurrentMember()?.units || [];
@@ -227,6 +227,6 @@ export class MemberApplyNocComponent implements OnInit {
   }
 
   goBack(): void {
-    this.router.navigate(['/member/dashboard']);
+    this.router.navigate(['/dashboard']);
   }
 }

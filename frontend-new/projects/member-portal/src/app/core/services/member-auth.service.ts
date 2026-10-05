@@ -233,7 +233,7 @@ export class MemberAuthService {
     localStorage.removeItem('member_user');
     localStorage.removeItem('member_selected_unit');
     this.currentMemberSubject.next(null);
-    this.router.navigate(['/member-login']);
+    this.router.navigate(['/login']);
   }
 
   // ===== Private =====

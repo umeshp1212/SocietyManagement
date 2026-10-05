@@ -10,6 +10,6 @@ export const memberAuthGuard: CanActivateFn = () => {
     return true;
   }
 
-  router.navigate(['/member-login']);
+  router.navigate(['/login']);
   return false;
 };
