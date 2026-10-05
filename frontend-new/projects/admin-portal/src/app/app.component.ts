@@ -10,15 +10,17 @@ import { AuthService } from './core/services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterOutlet, LayoutComponent],
   template: `
-    <router-outlet *ngIf="isAuthPage"></router-outlet>
-    <app-layout *ngIf="!isAuthPage">
+    <router-outlet *ngIf="isPublicPage"></router-outlet>
+    <app-layout *ngIf="!isPublicPage">
       <router-outlet></router-outlet>
     </app-layout>
   `
 })
 export class AppComponent {
   title = 'Society Management';
-  isAuthPage = false;
+  // When true, the route renders standalone (no admin dashboard chrome).
+  // Covers auth screens and the public, pre-login website pages.
+  isPublicPage = false;
 
   constructor(private router: Router, private authService: AuthService) {
     // Refresh cached roles/permissions on startup so grants made in the
@@ -30,9 +32,13 @@ export class AppComponent {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event: any) => {
-      const authPages = ['/login', '/forgot-password', '/reset-password'];
-      this.isAuthPage = event.url === '/'
-        || authPages.some(page => event.url === page || event.url.startsWith(page + '?'));
+      // Routes that must render WITHOUT the admin layout (public website + auth).
+      const publicPages = [
+        '/login', '/forgot-password', '/reset-password',
+        '/products', '/contact', '/terms', '/refunds', '/privacy'
+      ];
+      this.isPublicPage = event.url === '/'
+        || publicPages.some(page => event.url === page || event.url.startsWith(page + '?'));
     });
   }
 }

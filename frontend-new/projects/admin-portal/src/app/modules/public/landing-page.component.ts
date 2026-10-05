@@ -66,6 +66,13 @@ import { environment } from '@env/environment';
     <footer class="footer">
       <div class="society-name">{{ societyName }}</div>
       <div>{{ address }}</div>
+      <div class="footer-links">
+        <a routerLink="/products">Services &amp; Charges</a>
+        <a routerLink="/contact">Contact Us</a>
+        <a routerLink="/terms">Terms &amp; Conditions</a>
+        <a routerLink="/refunds">Refunds &amp; Cancellations</a>
+        <a routerLink="/privacy">Privacy Policy</a>
+      </div>
       <div class="copyright">&copy; {{ currentYear }} All Rights Reserved.</div>
     </footer>
   `,
@@ -140,6 +147,9 @@ import { environment } from '@env/environment';
       padding: 24px 20px; font-size: 0.8rem;
     }
     .footer .society-name { color: white; font-weight: 500; margin-bottom: 4px; }
+    .footer .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 12px; }
+    .footer .footer-links a { color: #b0bec5; text-decoration: none; }
+    .footer .footer-links a:hover { color: white; }
     .footer .copyright { margin-top: 8px; opacity: 0.7; }
 
     .loading { text-align: center; padding: 40px; color: #999; }

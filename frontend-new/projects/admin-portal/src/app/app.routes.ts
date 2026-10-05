@@ -9,6 +9,31 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
+    path: 'products',
+    loadComponent: () => import('./modules/public/products.component')
+      .then(m => m.ProductsComponent)
+  },
+  {
+    path: 'contact',
+    loadComponent: () => import('./modules/public/contact.component')
+      .then(m => m.ContactComponent)
+  },
+  {
+    path: 'terms',
+    loadComponent: () => import('./modules/public/terms.component')
+      .then(m => m.TermsComponent)
+  },
+  {
+    path: 'refunds',
+    loadComponent: () => import('./modules/public/refunds.component')
+      .then(m => m.RefundsComponent)
+  },
+  {
+    path: 'privacy',
+    loadComponent: () => import('./modules/public/privacy.component')
+      .then(m => m.PrivacyComponent)
+  },
+  {
     path: 'login',
     loadComponent: () => import('./modules/auth/login/login.component')
       .then(m => m.LoginComponent)

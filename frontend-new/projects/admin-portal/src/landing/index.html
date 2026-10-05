@@ -141,6 +141,9 @@
             font-size: 0.8rem;
         }
         .footer .society-name { color: white; font-weight: 500; margin-bottom: 4px; }
+        .footer .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 12px; }
+        .footer .footer-links a { color: #b0bec5; text-decoration: none; }
+        .footer .footer-links a:hover { color: white; }
         .footer .copyright { margin-top: 8px; opacity: 0.7; }
 
         /* Loading State */
@@ -197,6 +200,13 @@
     <footer class="footer">
         <div class="society-name" id="footerSocietyName"></div>
         <div id="footerAddress"></div>
+        <div class="footer-links">
+            <a href="/products">Services &amp; Charges</a>
+            <a href="/contact">Contact Us</a>
+            <a href="/terms">Terms &amp; Conditions</a>
+            <a href="/refunds">Refunds &amp; Cancellations</a>
+            <a href="/privacy">Privacy Policy</a>
+        </div>
         <div class="copyright">&copy; <span id="currentYear"></span> All Rights Reserved.</div>
     </footer>
 
