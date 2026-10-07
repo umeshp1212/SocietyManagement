@@ -76,7 +76,7 @@ public class VoucherPdfService {
         PdfWriter writer = new PdfWriter(baos);
         PdfDocument pdfDoc = new PdfDocument(writer);
         Document document = new Document(pdfDoc, PageSize.A4);
-        document.setMargins(30, 40, 30, 40);
+        document.setMargins(20, 36, 20, 36);
 
         PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
         PdfFont regularFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
@@ -95,31 +95,29 @@ public class VoucherPdfService {
         addPaymentDetailsSection(document, voucher, boldFont, regularFont);
 
         // ===== AMOUNT IN WORDS =====
-        document.add(new Paragraph("\n"));
         Table amountTable = new Table(UnitValue.createPercentArray(new float[]{1}))
-                .setWidth(UnitValue.createPercentValue(100));
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginTop(6);
         amountTable.addCell(createCell("Amount in Words: " + convertToWords(getEffectivePaidAmount(voucher)),
-                boldFont, 10, TextAlignment.LEFT).setBackgroundColor(LIGHT_GRAY_BG).setPadding(8));
+                boldFont, 10, TextAlignment.LEFT).setBackgroundColor(LIGHT_GRAY_BG).setPadding(6));
         document.add(amountTable);
 
         // ===== NARRATION =====
-        document.add(new Paragraph("\n"));
         document.add(new Paragraph("Narration / Description:")
-                .setFont(boldFont).setFontSize(10));
+                .setFont(boldFont).setFontSize(10).setMarginTop(6));
         document.add(new Paragraph(voucher.getDescription())
                 .setFont(regularFont).setFontSize(10)
                 .setBorderBottom(new SolidBorder(0.5f))
                 .setPaddingBottom(5));
 
         // ===== SIGNATURE SECTION =====
-        document.add(new Paragraph("\n\n\n"));
         addSignatureSection(document, settings, boldFont, regularFont);
 
         // ===== FOOTER =====
-        document.add(new Paragraph("\n"));
         document.add(new Paragraph("This is a computer-generated voucher.")
                 .setFont(italicFont).setFontSize(8)
                 .setTextAlignment(TextAlignment.CENTER)
+                .setMarginTop(10)
                 .setFontColor(ColorConstants.GRAY));
         document.add(new Paragraph("Printed on: " + java.time.LocalDateTime.now().format(
                 DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss")))
@@ -187,7 +185,7 @@ public class VoucherPdfService {
         PdfWriter writer = new PdfWriter(baos);
         PdfDocument pdfDoc = new PdfDocument(writer);
         Document document = new Document(pdfDoc, PageSize.A4);
-        document.setMargins(30, 40, 30, 40);
+        document.setMargins(20, 36, 20, 36);
 
         PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
         PdfFont regularFont = PdfFontFactory.createFont(StandardFonts.HELVETICA);
@@ -525,7 +523,8 @@ public class VoucherPdfService {
     private void addSignatureSection(Document document, SocietySettings settings,
                                       PdfFont boldFont, PdfFont regularFont) {
         Table sigTable = new Table(UnitValue.createPercentArray(new float[]{1, 1, 1}))
-                .setWidth(UnitValue.createPercentValue(100));
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginTop(24);
 
         // Signature lines
         sigTable.addCell(createSignatureCell("Approved By", settings.getChairmanName(),
@@ -538,9 +537,9 @@ public class VoucherPdfService {
         document.add(sigTable);
 
         // ===== RECEIVER SIGNATURE (below Chairman/Secretary/Treasurer) =====
-        document.add(new Paragraph("\n\n"));
         Table receiverTable = new Table(UnitValue.createPercentArray(new float[]{1, 1, 1}))
-                .setWidth(UnitValue.createPercentValue(100));
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginTop(16);
         // Empty spacer cell, receiver cell (centered), empty spacer cell
         receiverTable.addCell(new Cell().setBorder(Border.NO_BORDER));
         receiverTable.addCell(createSignatureCell("Received By", "",
@@ -554,7 +553,7 @@ public class VoucherPdfService {
                                       PdfFont boldFont, PdfFont regularFont) {
         Cell cell = new Cell().setBorder(Border.NO_BORDER)
                 .setTextAlignment(TextAlignment.CENTER)
-                .setPadding(10);
+                .setPadding(6);
 
         cell.add(new Paragraph("___________________")
                 .setFont(regularFont).setFontSize(10)
