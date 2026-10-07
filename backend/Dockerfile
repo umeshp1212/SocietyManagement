@@ -10,13 +10,24 @@ RUN mvn clean package -DskipTests -B
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
+# gosu lets the entrypoint start as root (to fix mounted-volume ownership) and
+# then drop privileges to the non-root appuser before launching the JVM.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN mkdir -p /app/uploads /app/logs && chown -R appuser:appuser /app
 
 COPY --from=build /app/target/society-management-1.0.0-SNAPSHOT.jar app.jar
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
-USER appuser
+# NOTE: intentionally NOT setting `USER appuser` here. The entrypoint starts as
+# root to repair ownership of the mounted volumes, then uses gosu to run the JVM
+# as appuser. This keeps the application process non-root while allowing the
+# one-time ownership fixup.
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "-Xms512m", "-Xmx1024m", "app.jar"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
