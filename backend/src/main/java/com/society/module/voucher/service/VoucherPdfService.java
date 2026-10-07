@@ -98,7 +98,7 @@ public class VoucherPdfService {
         document.add(new Paragraph("\n"));
         Table amountTable = new Table(UnitValue.createPercentArray(new float[]{1}))
                 .setWidth(UnitValue.createPercentValue(100));
-        amountTable.addCell(createCell("Amount in Words: " + convertToWords(voucher.getAmount()),
+        amountTable.addCell(createCell("Amount in Words: " + convertToWords(getEffectivePaidAmount(voucher)),
                 boldFont, 10, TextAlignment.LEFT).setBackgroundColor(LIGHT_GRAY_BG).setPadding(8));
         document.add(amountTable);
 
@@ -282,7 +282,7 @@ public class VoucherPdfService {
             document.add(new Paragraph("\n"));
             Table amountTable = new Table(UnitValue.createPercentArray(new float[]{1}))
                     .setWidth(UnitValue.createPercentValue(100));
-            amountTable.addCell(createCell("Amount in Words: " + convertToWords(voucher.getAmount()),
+            amountTable.addCell(createCell("Amount in Words: " + convertToWords(getEffectivePaidAmount(voucher)),
                     boldFont, 10, TextAlignment.LEFT).setBackgroundColor(LIGHT_GRAY_BG).setPadding(8));
             document.add(amountTable);
 
@@ -433,6 +433,17 @@ public class VoucherPdfService {
         document.add(infoTable);
     }
 
+    /**
+     * Returns the amount actually paid out: net payable when TDS is applicable,
+     * otherwise the gross voucher amount.
+     */
+    private BigDecimal getEffectivePaidAmount(Voucher voucher) {
+        if (Boolean.TRUE.equals(voucher.getTdsApplicable()) && voucher.getNetPayable() != null) {
+            return voucher.getNetPayable();
+        }
+        return voucher.getAmount();
+    }
+
     private void addPaymentDetailsSection(Document document, Voucher voucher,
                                            PdfFont boldFont, PdfFont regularFont) {
         document.add(new Paragraph("\n"));
@@ -469,6 +480,46 @@ public class VoucherPdfService {
                 voucher.getCreatedBy() != null ? voucher.getCreatedBy() : "SYSTEM", regularFont));
 
         document.add(payTable);
+
+        // ===== TDS DEDUCTION (only when applicable) =====
+        if (Boolean.TRUE.equals(voucher.getTdsApplicable()) && voucher.getTdsAmount() != null) {
+            document.add(new Paragraph("\n"));
+            document.add(new Paragraph("TDS Deduction")
+                    .setFont(boldFont).setFontSize(11)
+                    .setBorderBottom(new SolidBorder(0.5f))
+                    .setPaddingBottom(3));
+
+            Table tdsTable = new Table(UnitValue.createPercentArray(new float[]{1, 1.5f, 1, 1.5f}))
+                    .setWidth(UnitValue.createPercentValue(100));
+
+            // Row 1: TDS Section + TDS Rate
+            tdsTable.addCell(createLabelCell("TDS Section:", boldFont));
+            tdsTable.addCell(createValueCell(
+                    voucher.getTdsSection() != null ? voucher.getTdsSection() : "N/A", regularFont));
+            tdsTable.addCell(createLabelCell("TDS Rate:", boldFont));
+            tdsTable.addCell(createValueCell(
+                    voucher.getTdsRate() != null ? formatAmount(voucher.getTdsRate()) + " %" : "N/A", regularFont));
+
+            // Row 2: Gross/Bill Amount + TDS Deducted
+            tdsTable.addCell(createLabelCell("Bill Amount (Rs):", boldFont));
+            tdsTable.addCell(createValueCell("₹ " + formatAmount(voucher.getAmount()), regularFont));
+            tdsTable.addCell(createLabelCell("TDS Deducted (Rs):", boldFont));
+            tdsTable.addCell(createValueCell("- ₹ " + formatAmount(voucher.getTdsAmount()), boldFont));
+
+            document.add(tdsTable);
+
+            // Net payable (paid amount) highlighted row
+            BigDecimal netPayable = voucher.getNetPayable() != null
+                    ? voucher.getNetPayable()
+                    : voucher.getAmount().subtract(voucher.getTdsAmount());
+
+            Table netTable = new Table(UnitValue.createPercentArray(new float[]{1, 1.5f}))
+                    .setWidth(UnitValue.createPercentValue(100));
+            netTable.addCell(createLabelCell("Net Payable / Paid Amount (Rs):", boldFont));
+            netTable.addCell(createValueCell("₹ " + formatAmount(netPayable), boldFont)
+                    .setFontSize(13));
+            document.add(netTable);
+        }
     }
 
     private void addSignatureSection(Document document, SocietySettings settings,
@@ -485,6 +536,18 @@ public class VoucherPdfService {
                 "Treasurer", boldFont, regularFont));
 
         document.add(sigTable);
+
+        // ===== RECEIVER SIGNATURE (below Chairman/Secretary/Treasurer) =====
+        document.add(new Paragraph("\n\n"));
+        Table receiverTable = new Table(UnitValue.createPercentArray(new float[]{1, 1, 1}))
+                .setWidth(UnitValue.createPercentValue(100));
+        // Empty spacer cell, receiver cell (centered), empty spacer cell
+        receiverTable.addCell(new Cell().setBorder(Border.NO_BORDER));
+        receiverTable.addCell(createSignatureCell("Received By", "",
+                "Receiver", boldFont, regularFont));
+        receiverTable.addCell(new Cell().setBorder(Border.NO_BORDER));
+
+        document.add(receiverTable);
     }
 
     private Cell createSignatureCell(String label, String name, String designation,
@@ -496,7 +559,7 @@ public class VoucherPdfService {
         cell.add(new Paragraph("___________________")
                 .setFont(regularFont).setFontSize(10)
                 .setTextAlignment(TextAlignment.CENTER));
-        cell.add(new Paragraph(name)
+        cell.add(new Paragraph(name != null ? name : " ")
                 .setFont(boldFont).setFontSize(9)
                 .setTextAlignment(TextAlignment.CENTER)
                 .setMarginTop(3));
