@@ -490,6 +490,24 @@ public class VoucherService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Removes a document attached to a voucher: deletes the stored file and the
+     * database record. Validates that the document actually belongs to the given
+     * voucher so a document can't be deleted via the wrong voucher id.
+     */
+    @Transactional
+    public void deleteDocument(Long voucherId, Long documentId) {
+        VoucherDocument document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("VoucherDocument", "documentId", documentId));
+
+        if (document.getVoucher() == null || !voucherId.equals(document.getVoucher().getVoucherId())) {
+            throw new ResourceNotFoundException("VoucherDocument", "documentId", documentId);
+        }
+
+        fileUploadService.deleteFile(document.getFilePath());
+        documentRepository.delete(document);
+    }
+
     // ==================== HELPER METHODS ====================
 
     private String generateVoucherNumber(VoucherType type, String financialYear) {

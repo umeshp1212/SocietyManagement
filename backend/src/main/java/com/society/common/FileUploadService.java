@@ -53,4 +53,25 @@ public class FileUploadService {
             throw new BusinessException("Failed to upload file: " + e.getMessage());
         }
     }
+
+    /**
+     * Deletes a previously uploaded file given its relative path (the value
+     * returned by {@link #uploadFile}). Missing files are ignored. Failures are
+     * logged but never thrown, so a filesystem issue cannot block the deletion
+     * of the owning database record.
+     *
+     * @param relativePath path relative to the upload directory, e.g. "vouchers/12/..."
+     */
+    public void deleteFile(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return;
+        }
+        try {
+            Path filePath = Paths.get(uploadDir, relativePath).normalize();
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            log.warn("Failed to delete file '{}' under uploadDir '{}': {}",
+                    relativePath, uploadDir, e.toString());
+        }
+    }
 }

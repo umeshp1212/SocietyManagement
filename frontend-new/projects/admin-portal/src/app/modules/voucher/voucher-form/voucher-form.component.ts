@@ -12,6 +12,8 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { forkJoin } from 'rxjs';
 import { VoucherService } from '@core/services/voucher.service';
 import { VendorService } from '@core/services/vendor.service';
 import { VoucherCategoryService } from '@core/services/voucher-category.service';
@@ -28,7 +30,7 @@ import { environment } from '@env/environment';
     CommonModule, ReactiveFormsModule, RouterModule, MatFormFieldModule,
     MatInputModule, MatSelectModule, MatButtonModule, MatCardModule,
     MatDatepickerModule, MatNativeDateModule, MatIconModule, MatSnackBarModule,
-    SearchableSelectComponent, BackButtonComponent
+    MatTooltipModule, SearchableSelectComponent, BackButtonComponent
   ],
   template: `
     <div class="form-container">
@@ -157,13 +159,23 @@ import { environment } from '@env/environment';
             <!-- File Upload - Invoice/Bill -->
             <h4>Upload Invoice / Bill</h4>
             <div class="upload-section">
-              <input type="file" #fileInput (change)="onFileSelected($event)"
+              <input type="file" #fileInput (change)="onFileSelected($event)" multiple
                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none">
               <button mat-stroked-button type="button" (click)="fileInput.click()">
-                <mat-icon>cloud_upload</mat-icon> Choose File
+                <mat-icon>cloud_upload</mat-icon> Choose File(s)
               </button>
-              <span class="file-name" *ngIf="selectedFile">{{ selectedFile.name }}</span>
-              <span class="file-hint" *ngIf="!selectedFile">PDF, JPG, PNG, DOC (max 10MB)</span>
+              <span class="file-hint">PDF, JPG, PNG, DOC (max 10MB each)</span>
+            </div>
+            <div *ngIf="selectedFiles.length > 0" class="selected-list">
+              <div *ngFor="let file of selectedFiles; let i = index" class="selected-item">
+                <mat-icon>description</mat-icon>
+                <span class="selected-name">{{ file.name }}</span>
+                <span class="selected-size">{{ (file.size / 1024) | number:'1.0-0' }} KB</span>
+                <button mat-icon-button type="button" color="warn"
+                        (click)="removeSelectedFile(i)" matTooltip="Remove file">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
             </div>
             <div *ngIf="uploadedDocuments.length > 0" class="uploaded-list">
               <p><strong>Uploaded Documents:</strong></p>
@@ -213,9 +225,14 @@ import { environment } from '@env/environment';
     h4 { color: #1976d2; margin: 20px 0 10px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; }
     .voucher-number { font-size: 14px; color: #666; font-weight: 500; }
     mat-card-header { display: flex; justify-content: space-between; align-items: center; }
-    .upload-section { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .upload-section { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
     .file-name { font-weight: 500; color: #1976d2; }
     .file-hint { color: #999; font-size: 12px; }
+    .selected-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .selected-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; font-size: 13px; }
+    .selected-item mat-icon { font-size: 18px; height: 18px; width: 18px; color: #1976d2; }
+    .selected-name { font-weight: 500; color: #1565c0; flex: 1; word-break: break-all; }
+    .selected-size { color: #777; font-size: 12px; }
     .uploaded-list { background: #f5f5f5; padding: 12px; border-radius: 8px; margin-bottom: 16px; }
     .uploaded-list p { margin: 0 0 8px; }
     .uploaded-item { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
@@ -233,7 +250,7 @@ export class VoucherFormComponent implements OnInit {
 
   /** Display label for a vendor option in the searchable dropdown. */
   readonly vendorLabel = (v: Vendor): string => `${v.vendorName} (${v.categoryName})`;
-  selectedFile: File | null = null;
+  selectedFiles: File[] = [];
   uploadedDocuments: any[] = [];
 
   expenseCategories: { value: string; label: string }[] = [];
@@ -335,26 +352,37 @@ export class VoucherFormComponent implements OnInit {
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
-      this.selectedFile = input.files[0];
+      // Append newly chosen files, skipping duplicates (same name + size).
+      Array.from(input.files).forEach(file => {
+        const exists = this.selectedFiles.some(
+          f => f.name === file.name && f.size === file.size
+        );
+        if (!exists) this.selectedFiles.push(file);
+      });
+      // Reset the input so selecting the same file again re-triggers change.
+      input.value = '';
     }
   }
 
-  uploadFileForVoucher(voucherId: number): void {
-    if (!this.selectedFile) return;
+  removeSelectedFile(index: number): void {
+    this.selectedFiles.splice(index, 1);
+  }
 
-    const formData = new FormData();
-    formData.append('file', this.selectedFile);
-    formData.append('documentType', 'BILL');
-
-    this.http.post<any>(`${environment.apiUrl}/vouchers/${voucherId}/documents/upload`, formData)
-      .subscribe({
-        next: (res) => {
-          if (res.success) {
-            this.snackBar.open('Invoice/Bill uploaded successfully', 'Close', { duration: 3000 });
-          }
-        },
-        error: () => this.snackBar.open('File upload failed', 'Close', { duration: 3000 })
-      });
+  /**
+   * Uploads every selected file for the given voucher. Returns an observable
+   * that completes only after ALL uploads finish, so callers can defer
+   * navigation until the attachments are actually persisted.
+   */
+  private uploadFilesForVoucher(voucherId: number) {
+    const uploads = this.selectedFiles.map(file => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentType', 'BILL');
+      return this.http.post<any>(
+        `${environment.apiUrl}/vouchers/${voucherId}/documents/upload`, formData
+      );
+    });
+    return forkJoin(uploads);
   }
 
   onSubmit(): void {
@@ -378,12 +406,7 @@ export class VoucherFormComponent implements OnInit {
       this.voucherService.updateVoucher(this.voucherId!, updateRequest).subscribe({
         next: (res) => {
           if (res.success) {
-            // Upload file if selected
-            if (this.selectedFile) {
-              this.uploadFileForVoucher(this.voucherId!);
-            }
-            this.snackBar.open('Voucher updated successfully', 'Close', { duration: 3000 });
-            this.router.navigate(['/vouchers', this.voucherId]);
+            this.finishSubmit(this.voucherId!, 'Voucher updated successfully');
           }
         },
         error: (err) => this.snackBar.open(err.error?.message || 'Update failed', 'Close', { duration: 5000 })
@@ -405,20 +428,44 @@ export class VoucherFormComponent implements OnInit {
       this.voucherService.createVoucher(createRequest).subscribe({
         next: (res) => {
           if (res.success) {
-            // Upload file if selected
-            if (this.selectedFile) {
-              this.uploadFileForVoucher(res.data.voucherId);
-            }
-            this.snackBar.open(
-              'Voucher ' + res.data.voucherNumber + ' created successfully',
-              'Close', { duration: 3000 }
+            this.finishSubmit(
+              res.data.voucherId,
+              'Voucher ' + res.data.voucherNumber + ' created successfully'
             );
-            this.router.navigate(['/vouchers', res.data.voucherId]);
           }
         },
         error: (err) => this.snackBar.open(err.error?.message || 'Creation failed', 'Close', { duration: 5000 })
       });
     }
+  }
+
+  /**
+   * Uploads any selected files, then navigates to the voucher detail page.
+   * Navigation is deferred until the uploads complete so the detail page's
+   * document list reflects the files that were just attached. If an upload
+   * fails, we still navigate but warn the user.
+   */
+  private finishSubmit(voucherId: number, successMessage: string): void {
+    if (this.selectedFiles.length === 0) {
+      this.snackBar.open(successMessage, 'Close', { duration: 3000 });
+      this.router.navigate(['/vouchers', voucherId]);
+      return;
+    }
+
+    this.uploadFilesForVoucher(voucherId).subscribe({
+      next: () => {
+        this.selectedFiles = [];
+        this.snackBar.open(successMessage, 'Close', { duration: 3000 });
+        this.router.navigate(['/vouchers', voucherId]);
+      },
+      error: () => {
+        this.snackBar.open(
+          'Voucher saved, but one or more files failed to upload. You can attach them from the voucher details page.',
+          'Close', { duration: 6000 }
+        );
+        this.router.navigate(['/vouchers', voucherId]);
+      }
+    });
   }
 
   private formatDate(date: any): string {

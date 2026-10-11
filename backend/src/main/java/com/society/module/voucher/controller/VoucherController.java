@@ -180,6 +180,14 @@ public class VoucherController {
         return ResponseEntity.ok(ApiResponse.success(documents));
     }
 
+    @DeleteMapping("/{voucherId}/documents/{documentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteDocument(
+            @PathVariable Long voucherId,
+            @PathVariable Long documentId) {
+        voucherService.deleteDocument(voucherId, documentId);
+        return ResponseEntity.ok(ApiResponse.success("Document removed successfully", null));
+    }
+
     // ==================== PDF DOWNLOAD / PRINT ====================
 
     @GetMapping("/{voucherId}/pdf")

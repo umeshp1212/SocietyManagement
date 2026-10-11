@@ -129,6 +129,11 @@ import { BackButtonComponent } from '@shared/components/back-button';
                         matTooltip="Download Document">
                   <mat-icon>download</mat-icon>
                 </button>
+                <button mat-icon-button color="warn" (click)="deleteDocument(doc)"
+                        *ngIf="voucher.status !== 'CANCELLED' && hasPermission('VOUCHER_UPDATE')"
+                        matTooltip="Remove Document">
+                  <mat-icon>delete</mat-icon>
+                </button>
               </div>
             </div>
           </div>
@@ -555,6 +560,25 @@ export class VoucherDetailComponent implements OnInit {
         error: (err) => {
           this.snackBar.open('Failed to download: ' + (err.status === 404 ? 'File not found' : err.statusText), 'Close', { duration: 5000 });
         }
+      });
+  }
+
+  deleteDocument(doc: any): void {
+    if (!this.voucher) return;
+    const confirmed = window.confirm(
+      `Remove "${doc.documentName}" from this voucher? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    this.http.delete<any>(`${this.apiUrl}/vouchers/${this.voucher.voucherId}/documents/${doc.documentId}`)
+      .subscribe({
+        next: (res) => {
+          if (res.success) {
+            this.snackBar.open('Document removed', 'Close', { duration: 3000 });
+            this.loadDocuments(this.voucher!.voucherId);
+          }
+        },
+        error: (err) => this.snackBar.open(err.error?.message || 'Failed to remove document', 'Close', { duration: 5000 })
       });
   }
 
