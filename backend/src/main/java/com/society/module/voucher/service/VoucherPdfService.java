@@ -839,44 +839,120 @@ public class VoucherPdfService {
     // ===== WATERMARK =====
 
     /**
-     * Adds a diagonal watermark with society name and registration number on all pages.
-     * The watermark is semi-transparent light gray text drawn behind content.
+     * Adds a light stamp-style circular watermark at the center of each page.
+     * A single thin ring with the society name, registration number and
+     * registration date running continuously around it in one line, using a
+     * light font weight. Drawn semi-transparent light gray behind the content.
      */
     private void addWatermarkToAllPages(PdfDocument pdfDoc, SocietySettings settings) {
         try {
-            String watermarkText = settings.getSocietyName() + " | Reg. No: " + settings.getRegistrationNumber();
-            PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+            // Build one continuous line of text that wraps around the ring.
+            StringBuilder sb = new StringBuilder();
+            if (settings.getSocietyName() != null && !settings.getSocietyName().isBlank()) {
+                sb.append(settings.getSocietyName().toUpperCase());
+            }
+            if (settings.getRegistrationNumber() != null && !settings.getRegistrationNumber().isBlank()) {
+                sb.append("  \u2022  REG. NO: ").append(settings.getRegistrationNumber());
+            }
+            if (settings.getRegistrationDate() != null && !settings.getRegistrationDate().isBlank()) {
+                sb.append("  \u2022  REG. DATE: ").append(settings.getRegistrationDate());
+            }
+            String ringText = sb.toString();
+            if (ringText.isBlank()) {
+                return;
+            }
 
-            PdfExtGState gs = new PdfExtGState().setFillOpacity(0.06f);
+            // Light font weight.
+            PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+
+            PdfExtGState gs = new PdfExtGState().setFillOpacity(0.08f).setStrokeOpacity(0.08f);
 
             for (int i = 1; i <= pdfDoc.getNumberOfPages(); i++) {
                 PdfPage page = pdfDoc.getPage(i);
                 float pageWidth = page.getPageSize().getWidth();
                 float pageHeight = page.getPageSize().getHeight();
 
+                float centerX = pageWidth / 2f;
+                float centerY = pageHeight / 2f;
+
+                // Ring radius: a share of the smaller page dimension so it always fits.
+                float radius = Math.min(pageWidth, pageHeight) * 0.30f;
+
+                // Fit the whole line onto the ring's circumference (with a small gap).
+                float circumference = (float) (2 * Math.PI * radius) * 0.92f;
+                float fontSize = 12f;
+                float textWidth = font.getWidth(ringText, fontSize);
+                if (textWidth > circumference) {
+                    fontSize = fontSize * (circumference / textWidth);
+                }
+                fontSize = Math.max(fontSize, 5f);
+
                 PdfCanvas canvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdfDoc);
                 canvas.saveState();
                 canvas.setExtGState(gs);
-                canvas.beginText();
-                canvas.setFontAndSize(font, 28);
+                canvas.setFontAndSize(font, fontSize);
+                canvas.setStrokeColor(new DeviceRgb(150, 150, 150));
                 canvas.setFillColor(new DeviceRgb(150, 150, 150));
 
-                // Position at center of page, rotated 45 degrees diagonally
-                float centerX = pageWidth / 2;
-                float centerY = pageHeight / 2;
-                double angle = Math.toRadians(45);
+                // Single thin ring.
+                canvas.setLineWidth(0.5f);
+                canvas.circle(centerX, centerY, radius);
+                canvas.stroke();
 
-                canvas.setTextMatrix(
-                        (float) Math.cos(angle), (float) Math.sin(angle),
-                        (float) -Math.sin(angle), (float) Math.cos(angle),
-                        centerX - 200, centerY - 50
-                );
-                canvas.showText(watermarkText);
-                canvas.endText();
+                // One continuous line of text wrapping clockwise around the ring,
+                // starting at the top (12 o'clock).
+                drawCircularText(canvas, font, ringText, fontSize, centerX, centerY, radius * 0.88f);
+
                 canvas.restoreState();
             }
         } catch (Exception e) {
             log.warn("Failed to add watermark: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Lays out text character-by-character continuously around a full circle,
+     * starting at the top (12 o'clock) and running clockwise, letters upright
+     * relative to the ring (facing outward).
+     *
+     * @param radius radius of the baseline circle for the text
+     */
+    private void drawCircularText(PdfCanvas canvas, PdfFont font, String text, float fontSize,
+                                  float cx, float cy, float radius) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+
+        // Start at the top of the circle and move clockwise.
+        double startAngle = Math.PI / 2.0;
+        double direction = -1.0; // clockwise
+
+        double currentAngle = startAngle;
+        for (int c = 0; c < text.length(); c++) {
+            String ch = String.valueOf(text.charAt(c));
+            float chWidth = font.getWidth(ch, fontSize);
+            double charAngle = chWidth / radius;
+
+            // Place the glyph at the midpoint of its own arc segment.
+            double a = currentAngle + direction * (charAngle / 2.0);
+            float x = cx + (float) (radius * Math.cos(a));
+            float y = cy + (float) (radius * Math.sin(a));
+
+            // Tangent orientation so each glyph sits upright facing outward.
+            double rotation = a - Math.PI / 2.0;
+            float cos = (float) Math.cos(rotation);
+            float sin = (float) Math.sin(rotation);
+
+            // Offset back by half the glyph width along the tangent so it's centered.
+            float gx = x - cos * (chWidth / 2f);
+            float gy = y - sin * (chWidth / 2f);
+
+            canvas.beginText();
+            canvas.setTextMatrix(cos, sin, -sin, cos, gx, gy);
+            canvas.showText(ch);
+            canvas.endText();
+
+            currentAngle += direction * charAngle;
         }
     }
 }
