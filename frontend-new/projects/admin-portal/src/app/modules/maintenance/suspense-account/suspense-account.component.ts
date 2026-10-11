@@ -43,7 +43,8 @@ interface SuspenseEntry {
 interface UnitOption {
   unitId: number;
   unitNumber: string;
-  ownerNames: string;
+  primaryOwnerName?: string;
+  allOwnerNames?: string;
 }
 
 @Component({
@@ -123,6 +124,7 @@ interface UnitOption {
                 <mat-option value="BANK_TRANSFER">Bank Transfer</mat-option>
                 <mat-option value="UPI">UPI</mat-option>
                 <mat-option value="NEFT">NEFT</mat-option>
+                <mat-option value="IMPS">IMPS</mat-option>
               </mat-select>
             </mat-form-field>
           </div>
@@ -300,10 +302,82 @@ interface UnitOption {
       <!-- Audit Trail Dialog (inline) -->
       <mat-card *ngIf="showAuditTrail" class="dialog-card">
         <mat-card-header>
-          <mat-card-title>Audit Trail - Entry #{{ selectedEntry?.suspenseId }}</mat-card-title>
+          <mat-card-title>Suspense Entry #{{ auditDetail?.suspenseId }}</mat-card-title>
+          <span class="status-badge header-status" *ngIf="auditDetail?.status"
+                [ngClass]="auditDetail!.status.toLowerCase()">{{ auditDetail?.status }}</span>
+          <span class="spacer"></span>
           <button mat-icon-button (click)="showAuditTrail = false"><mat-icon>close</mat-icon></button>
         </mat-card-header>
         <mat-card-content>
+          <!-- Transaction Details -->
+          <h4 class="section-title">Transaction Details</h4>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Amount</span>
+              <span class="detail-value amount">{{ auditDetail?.amount | currency:'INR' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Received Date</span>
+              <span class="detail-value">{{ auditDetail?.receivedDate || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Payment Mode</span>
+              <span class="detail-value">{{ auditDetail?.paymentMode || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Reference / Cheque No</span>
+              <span class="detail-value">{{ auditDetail?.referenceNumber || '-' }}</span>
+            </div>
+            <div class="detail-item full-span" *ngIf="auditDetail?.description">
+              <span class="detail-label">Description</span>
+              <span class="detail-value">{{ auditDetail?.description }}</span>
+            </div>
+          </div>
+
+          <!-- Assignment Details -->
+          <ng-container *ngIf="auditDetail?.assignedToUnitNumber">
+            <h4 class="section-title">Assignment</h4>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <span class="detail-label">Assigned To</span>
+                <span class="detail-value">
+                  {{ auditDetail?.assignedToUnitNumber }}
+                  <span *ngIf="auditDetail?.assignedToOwnerName">({{ auditDetail?.assignedToOwnerName }})</span>
+                </span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Assigned By</span>
+                <span class="detail-value">{{ auditDetail?.assignedBy || '-' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Assigned On</span>
+                <span class="detail-value">{{ auditDetail?.assignedOn ? (auditDetail?.assignedOn | date:'dd-MM-yyyy HH:mm') : '-' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Opening Balance</span>
+                <span class="detail-value">{{ auditDetail?.applyToOpeningBalance ? 'Applied to opening balance' : 'No' }}</span>
+              </div>
+              <div class="detail-item full-span" *ngIf="auditDetail?.assignmentRemarks">
+                <span class="detail-label">Remarks</span>
+                <span class="detail-value">{{ auditDetail?.assignmentRemarks }}</span>
+              </div>
+            </div>
+          </ng-container>
+
+          <!-- Entry Metadata -->
+          <div class="detail-grid meta-grid">
+            <div class="detail-item">
+              <span class="detail-label">Created By</span>
+              <span class="detail-value">{{ auditDetail?.createdBy || '-' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Created On</span>
+              <span class="detail-value">{{ auditDetail?.createdOn ? (auditDetail?.createdOn | date:'dd-MM-yyyy HH:mm') : '-' }}</span>
+            </div>
+          </div>
+
+          <!-- Audit Trail -->
+          <h4 class="section-title">History</h4>
           <div *ngIf="auditTrail.length === 0" class="text-muted">No audit trail available.</div>
           <div class="audit-list">
             <div *ngFor="let a of auditTrail" class="audit-item">
@@ -345,7 +419,19 @@ interface UnitOption {
     .status-badge.unassigned { background: #fff3e0; color: #e65100; }
     .status-badge.assigned { background: #e8f5e9; color: #2e7d32; }
     .status-badge.reversed { background: #ffebee; color: #c62828; }
-    .audit-list { display: flex; flex-direction: column; gap: 12px; }
+    .section-title { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: #1976d2;
+      text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; }
+    .section-title:first-of-type { margin-top: 4px; }
+    .spacer { flex: 1 1 auto; }
+    .header-status { margin-left: 12px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; }
+    .meta-grid { margin-top: 12px; }
+    .detail-item { display: flex; flex-direction: column; }
+    .detail-item.full-span { grid-column: 1 / -1; }
+    .detail-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .3px; }
+    .detail-value { font-size: 14px; color: #222; }
+    .detail-value.amount { font-size: 16px; font-weight: 600; color: #1976d2; }
+    .audit-list { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
     .audit-item { padding: 10px; background: #fafafa; border-radius: 6px; border-left: 3px solid #1976d2; }
     .audit-header { display: flex; justify-content: space-between; align-items: center; }
     .audit-action { font-weight: 600; font-size: 12px; padding: 2px 8px; border-radius: 4px; }
@@ -360,6 +446,7 @@ interface UnitOption {
     @media (max-width: 768px) {
       .form-row { flex-direction: column; gap: 0; }
       .summary-cards { flex-direction: column; }
+      .detail-grid { grid-template-columns: 1fr; }
       .audit-header { flex-direction: column; align-items: flex-start; gap: 4px; }
     }
   `]
@@ -370,9 +457,11 @@ export class SuspenseAccountComponent implements OnInit {
 
   /** Display label for a unit option in the searchable dropdown. */
   readonly unitLabel = (u: UnitOption): string =>
-    `${u.unitNumber} - ${u.ownerNames || 'No owner'}`;
+    `${u.unitNumber} - ${u.allOwnerNames || u.primaryOwnerName || 'No owner'}`;
   summary: any = null;
   auditTrail: any[] = [];
+  /** Full detail of the entry being viewed in the audit trail dialog (from GET /suspense/{id}). */
+  auditDetail: SuspenseEntry | null = null;
 
   displayedColumns = ['receivedDate', 'amount', 'paymentMode', 'referenceNumber', 'status', 'assignedTo', 'actions'];
   totalElements = 0;
@@ -509,9 +598,12 @@ export class SuspenseAccountComponent implements OnInit {
     this.showAuditTrail = true;
     this.showAssignDialog = false;
     this.showReverseDialog = false;
+    this.auditDetail = entry;
+    this.auditTrail = [];
 
     this.http.get<any>(`${this.apiUrl}/suspense/${entry.suspenseId}`).subscribe(res => {
       if (res.success) {
+        this.auditDetail = res.data;
         this.auditTrail = res.data.auditTrail || [];
       }
     });

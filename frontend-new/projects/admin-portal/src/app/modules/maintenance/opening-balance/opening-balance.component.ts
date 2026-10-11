@@ -35,7 +35,8 @@ interface OpeningBalance {
 interface UnitOption {
   unitId: number;
   unitNumber: string;
-  ownerNames: string;
+  primaryOwnerName?: string;
+  allOwnerNames?: string;
 }
 
 @Component({
@@ -192,7 +193,8 @@ interface UnitOption {
     .summary-value { font-size: 1.5rem; font-weight: 500; color: #1976d2; }
     .form-card { margin-bottom: 20px; }
     .form-row { display: flex; gap: 16px; }
-    .form-row mat-form-field { flex: 1; }
+    .form-row > mat-form-field,
+    .form-row > app-searchable-select { flex: 1 1 0; min-width: 0; }
     .full-width { width: 100%; }
     .text-warn { color: #c62828; font-weight: 500; }
     .no-data { text-align: center; padding: 32px; color: #999; }
@@ -210,7 +212,7 @@ export class OpeningBalanceComponent implements OnInit {
 
   /** Display label for a unit option in the searchable dropdown. */
   readonly unitLabel = (u: UnitOption): string =>
-    `${u.unitNumber} - ${u.ownerNames || 'No owner'}`;
+    `${u.unitNumber} - ${u.allOwnerNames || u.primaryOwnerName || 'No owner'}`;
   summary: any = null;
   showAddForm = false;
   editingId: number | null = null;

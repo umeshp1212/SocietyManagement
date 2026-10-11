@@ -43,9 +43,10 @@ import { BackButtonComponent } from '@shared/components/back-button';
           <form [formGroup]="penaltyForm" (ngSubmit)="onSubmit()">
             <div class="form-row">
               <app-searchable-select
+                class="col-owner"
                 formControlName="unitId"
-                label="Select Unit *"
-                placeholder="Search by unit number..."
+                label="Unit / Owner *"
+                placeholder="Search by unit number or owner name..."
                 [options]="units"
                 valueKey="unitId"
                 [labelWith]="unitLabel"
@@ -53,7 +54,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 errorText="Please select a unit">
               </app-searchable-select>
 
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" class="col-quarter">
                 <mat-label>Category *</mat-label>
                 <mat-select formControlName="category">
                   <mat-option value="WATER_WASTAGE">Water Wastage</mat-option>
@@ -65,7 +66,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 </mat-select>
               </mat-form-field>
 
-              <mat-form-field appearance="outline">
+              <mat-form-field appearance="outline" class="col-quarter">
                 <mat-label>Amount (₹) *</mat-label>
                 <input matInput type="number" formControlName="amount">
                 <mat-error *ngIf="penaltyForm.get('amount')?.hasError('required')">Amount is required</mat-error>
@@ -165,6 +166,10 @@ import { BackButtonComponent } from '@shared/components/back-button';
     .form-card { margin-bottom: 24px; }
     .form-row { display: flex; gap: 16px; flex-wrap: wrap; }
     .form-row mat-form-field { flex: 1; min-width: 180px; }
+    /* First-row proportions: Unit/Owner 50%, Category 25%, Amount 25% */
+    .form-row .col-owner { flex: 0 0 calc(50% - 8px); min-width: 220px; }
+    .form-row app-searchable-select.col-owner { display: block; }
+    .form-row .col-quarter { flex: 0 0 calc(25% - 12px); min-width: 150px; }
     .full-width { width: 100%; }
     .action-buttons { display: flex; justify-content: flex-end; margin-top: 8px; }
     .amount-cell { font-weight: 600; font-family: monospace; }
@@ -179,8 +184,9 @@ export class PenaltyManagementComponent implements OnInit {
   penalties: any[] = [];
   units: any[] = [];
 
-  /** Display label for a unit option in the searchable dropdown. */
-  readonly unitLabel = (u: any): string => `${u.unitNumber}`;
+  /** Display label for a unit option: unit number + owner name. */
+  readonly unitLabel = (u: any): string =>
+    u.primaryOwnerName ? `${u.unitNumber} - ${u.primaryOwnerName}` : `${u.unitNumber}`;
   displayedColumns = ['unitNumber', 'category', 'reason', 'amount', 'billMonth', 'status', 'actions'];
   months = [
     { value: 1, label: 'January' }, { value: 2, label: 'February' },

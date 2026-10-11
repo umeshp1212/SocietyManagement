@@ -335,9 +335,9 @@ public class VoucherPdfService {
                                    PdfFont boldFont, PdfFont regularFont) {
         // Society Name
         document.add(new Paragraph(settings.getSocietyName())
-                .setFont(boldFont).setFontSize(16)
+                .setFont(boldFont).setFontSize(14)
                 .setTextAlignment(TextAlignment.CENTER)
-                .setMarginBottom(2));
+                .setMarginBottom(1));
 
         // Registration Number
         document.add(new Paragraph("Reg. No: " + settings.getRegistrationNumber()
@@ -381,18 +381,17 @@ public class VoucherPdfService {
             case CONTRA -> "CONTRA VOUCHER";
         };
 
-        document.add(new Paragraph("\n"));
         Table titleTable = new Table(UnitValue.createPercentArray(new float[]{1}))
-                .setWidth(UnitValue.createPercentValue(100));
+                .setWidth(UnitValue.createPercentValue(100))
+                .setMarginTop(8).setMarginBottom(8);
         titleTable.addCell(new Cell()
-                .add(new Paragraph(title).setFont(boldFont).setFontSize(14)
+                .add(new Paragraph(title).setFont(boldFont).setFontSize(12)
                         .setFontColor(ColorConstants.WHITE)
                         .setTextAlignment(TextAlignment.CENTER))
                 .setBackgroundColor(HEADER_BG)
                 .setBorder(Border.NO_BORDER)
-                .setPadding(8));
+                .setPadding(5));
         document.add(titleTable);
-        document.add(new Paragraph("\n"));
     }
 
     private void addVoucherInfoSection(Document document, Voucher voucher,
@@ -481,9 +480,9 @@ public class VoucherPdfService {
 
         // ===== TDS DEDUCTION (only when applicable) =====
         if (Boolean.TRUE.equals(voucher.getTdsApplicable()) && voucher.getTdsAmount() != null) {
-            document.add(new Paragraph("\n"));
             document.add(new Paragraph("TDS Deduction")
                     .setFont(boldFont).setFontSize(11)
+                    .setMarginTop(8)
                     .setBorderBottom(new SolidBorder(0.5f))
                     .setPaddingBottom(3));
 
@@ -524,7 +523,7 @@ public class VoucherPdfService {
                                       PdfFont boldFont, PdfFont regularFont) {
         Table sigTable = new Table(UnitValue.createPercentArray(new float[]{1, 1, 1}))
                 .setWidth(UnitValue.createPercentValue(100))
-                .setMarginTop(24);
+                .setMarginTop(12);
 
         // Signature lines
         sigTable.addCell(createSignatureCell("Approved By", settings.getChairmanName(),
@@ -539,7 +538,7 @@ public class VoucherPdfService {
         // ===== RECEIVER SIGNATURE (below Chairman/Secretary/Treasurer) =====
         Table receiverTable = new Table(UnitValue.createPercentArray(new float[]{1, 1, 1}))
                 .setWidth(UnitValue.createPercentValue(100))
-                .setMarginTop(16);
+                .setMarginTop(10);
         // Empty spacer cell, receiver cell (centered), empty spacer cell
         receiverTable.addCell(new Cell().setBorder(Border.NO_BORDER));
         receiverTable.addCell(createSignatureCell("Received By", "",
