@@ -134,6 +134,21 @@ app:
     # Dashboard-configured webhook secret; REQUIRED in prod to verify X-Razorpay-Signature.
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
 
+  # ---- Firebase Cloud Messaging (free web push for visitor/delivery approvals) ----
+  # Disabled by default; the app falls back to in-app polling when off. To enable:
+  # set FCM_ENABLED=true, FCM_PROJECT_ID, and mount the service-account JSON at
+  # FCM_CREDENTIALS_PATH (see DOCKER-DEPLOYMENT.md "Visitor/Delivery Gate Approval").
+  fcm:
+    enabled: ${FCM_ENABLED:false}
+    project-id: ${FCM_PROJECT_ID:}
+    credentials-path: ${FCM_CREDENTIALS_PATH:}
+
+  # ---- Visitor/Delivery gate approval ----
+  visitor:
+    # How often the scheduler scans for expired PENDING requests (ms). The per-request
+    # timeout itself is the society setting "visitorApprovalTimeoutMinutes".
+    expiry-scan-ms: ${VISITOR_EXPIRY_SCAN_MS:60000}
+
   base-url: ${APP_BASE_URL:http://YOUR_ELASTIC_IP/api}
   frontend-url: ${FRONTEND_URL:http://YOUR_ELASTIC_IP}
   # The Angular production build sets baseHref "/app/", so the SPA is served under /app.

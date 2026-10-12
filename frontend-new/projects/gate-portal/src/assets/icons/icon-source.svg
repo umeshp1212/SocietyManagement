@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Source icon for the Society Member Portal PWA.
+  Designed as a 512x512 MASKABLE icon: the full square is the brand-blue
+  background, and all meaningful content sits within the center ~80% safe
+  zone so Android's maskable crop (circle/squircle) never clips it.
+  Render to PNGs with scripts/generate-pwa-icons.sh (uses this file).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Full-bleed brand background (fills maskable area edge to edge) -->
+  <rect width="512" height="512" fill="#1976d2"/>
+
+  <!-- Content group kept within the 80% safe zone (approx x/y 52..460) -->
+  <g fill="#ffffff">
+    <!-- Apartment building -->
+    <rect x="150" y="150" width="150" height="230" rx="6"/>
+    <!-- Taller tower beside it -->
+    <rect x="300" y="120" width="110" height="260" rx="6" fill="#e3f2fd"/>
+
+    <!-- Windows on main building (3 cols x 4 rows) -->
+    <g fill="#1976d2">
+      <rect x="168" y="172" width="24" height="24" rx="3"/>
+      <rect x="213" y="172" width="24" height="24" rx="3"/>
+      <rect x="258" y="172" width="24" height="24" rx="3"/>
+      <rect x="168" y="214" width="24" height="24" rx="3"/>
+      <rect x="213" y="214" width="24" height="24" rx="3"/>
+      <rect x="258" y="214" width="24" height="24" rx="3"/>
+      <rect x="168" y="256" width="24" height="24" rx="3"/>
+      <rect x="213" y="256" width="24" height="24" rx="3"/>
+      <rect x="258" y="256" width="24" height="24" rx="3"/>
+      <!-- Door -->
+      <rect x="205" y="320" width="40" height="60" rx="4"/>
+    </g>
+
+    <!-- Windows on tower (2 cols x 5 rows) -->
+    <g fill="#1976d2">
+      <rect x="318" y="142" width="20" height="20" rx="3"/>
+      <rect x="358" y="142" width="20" height="20" rx="3"/>
+      <rect x="318" y="180" width="20" height="20" rx="3"/>
+      <rect x="358" y="180" width="20" height="20" rx="3"/>
+      <rect x="318" y="218" width="20" height="20" rx="3"/>
+      <rect x="358" y="218" width="20" height="20" rx="3"/>
+      <rect x="318" y="256" width="20" height="20" rx="3"/>
+      <rect x="358" y="256" width="20" height="20" rx="3"/>
+      <rect x="318" y="294" width="20" height="20" rx="3"/>
+      <rect x="358" y="294" width="20" height="20" rx="3"/>
+    </g>
+
+    <!-- Ground line -->
+    <rect x="120" y="380" width="300" height="12" rx="6"/>
+  </g>
+</svg>

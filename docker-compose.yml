@@ -69,6 +69,14 @@ services:
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
 
+      # ---- Firebase Cloud Messaging (free web push for visitor/delivery approvals) ----
+      # Off by default; the gate flow still works via in-app polling. To enable push,
+      # set FCM_ENABLED=true + FCM_PROJECT_ID in .env and drop the service-account JSON
+      # at ./secrets/fcm-service-account.json (mounted below). See DOCKER-DEPLOYMENT.md.
+      FCM_ENABLED: ${FCM_ENABLED:-false}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CREDENTIALS_PATH: /app/secrets/fcm-service-account.json
+
       # ---- App URLs ----
       APP_BASE_URL: ${APP_BASE_URL:-https://ppvcd.in/api}
       FRONTEND_URL: ${FRONTEND_URL:-https://ppvcd.in}
@@ -78,6 +86,9 @@ services:
     volumes:
       - uploads_data:/app/uploads
       - backend_logs:/app/logs
+      # FCM service-account JSON (read-only). Harmless when FCM is disabled or the
+      # file is absent; create ./secrets/fcm-service-account.json to enable push.
+      - ./secrets:/app/secrets:ro
     networks:
       - society-network
     # Not published to the host — only nginx reaches it over the compose network.

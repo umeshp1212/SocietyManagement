@@ -7,7 +7,7 @@ production stack:
 | ---------- | ----------------------------------------------------------- | ------------ |
 | `mysql`    | Database                                                    | internal     |
 | `backend`  | Spring Boot API (`prod` profile, context-path `/api`)       | internal     |
-| `frontend` | nginx: TLS + admin at `/` + member PWA at `/member/` + `/api/` proxy | 80, 443 |
+| `frontend` | nginx: TLS + admin at `/` + member PWA at `/member/` + gate PWA at `/gate/` + `/api/` proxy | 80, 443 |
 
 Only `frontend` is reachable from outside. It proxies `/api/` to `backend`, and
 `backend` talks to `mysql`, all over a private Docker network.
@@ -215,14 +215,16 @@ docker compose exec frontend nginx -t
 # From the server (or your laptop):
 curl -I  https://ppvcd.in/                      # admin + public landing -> 200
 curl -I  https://ppvcd.in/member/               # member PWA shell -> 200
+curl -I  https://ppvcd.in/gate/                 # gate (guard) PWA shell -> 200
 curl -sI https://ppvcd.in/api/settings/public   # backend reachable via proxy
 ```
 
 In a browser:
 - `https://ppvcd.in/` — public landing + admin login
 - `https://ppvcd.in/member/` — member portal
-- DevTools → Application → Service Workers: `ngsw-worker.js` active, scope `/member/`
-- DevTools → Application → Manifest: member manifest loads
+- `https://ppvcd.in/gate/` — gate (security guard) portal
+- DevTools → Application → Service Workers: `ngsw-worker.js` active, scope `/member/` (and `/gate/`)
+- DevTools → Application → Manifest: member & gate manifests load
 
 > ⚠️ **PWA icons are still missing** — `frontend-new/projects/member-portal/src/assets/icons/`
 > is empty while the manifest references 8 sizes. The install / "Add to Home
@@ -267,6 +269,114 @@ renewals use them too.
 
 ---
 
+## Step 9b — Visitor / Delivery Gate Approval feature
+
+This feature adds a **guard PWA** at `/gate/`, an **owner approval screen** in the
+member PWA, and **free push notifications** (Firebase Cloud Messaging). It works out
+of the box with **no extra config** — guards and owners use it immediately, and the
+owner's approval list updates via in-app polling. Push notifications (so the owner is
+alerted even when the app is closed) are **optional** and enabled as below.
+
+### What ships automatically (no config)
+
+- `/gate/` — the security-guard PWA. Guards log in with a **username/password** that
+  has the `SECURITY` role (create these users from the admin portal → Users, assign
+  the `SECURITY` role). The `SECURITY` role and the `VISITOR_*` permissions are seeded
+  automatically on backend startup.
+- Member portal → **Visitor Approvals** screen + a bell badge on the dashboard.
+- A scheduler auto-expires unanswered requests. The timeout (minutes) is a society
+  setting (`visitorApprovalTimeoutMinutes`, default 10); the scan interval is
+  `VISITOR_EXPIRY_SCAN_MS` (default 60000 ms).
+
+Create at least one guard user after the stack is up:
+
+```
+Admin portal (https://ppvcd.in/) → Users → Add User
+  → assign the "Security" role → share the username/password with the guard.
+```
+
+The guard opens `https://ppvcd.in/gate/`, logs in, and can "Add to Home Screen"
+(it's a PWA).
+
+### Enabling free push notifications (Firebase Cloud Messaging) — optional
+
+Push is **free** on FCM's standard tier. Skip this entirely to run with in-app
+polling only. To enable, configure **both** the backend (sends the push) and the
+member frontend (receives it).
+
+**1) Create a Firebase project (one-time)**
+
+1. https://console.firebase.google.com → add a project (no billing needed for FCM).
+2. Project settings → **General** → copy the web app config
+   (`apiKey`, `authDomain`, `projectId`, `messagingSenderId`, `appId`).
+3. Project settings → **Cloud Messaging** → **Web Push certificates** → generate a
+   key pair → copy the **VAPID public key**.
+4. Project settings → **Service accounts** → **Generate new private key** → download
+   the JSON (this is the server credential).
+
+**2) Backend (sends push)**
+
+```bash
+# Drop the service-account JSON on the server:
+mkdir -p secrets
+cp /path/to/downloaded-service-account.json secrets/fcm-service-account.json
+# (The ./secrets folder is mounted read-only into the backend at /app/secrets.)
+```
+
+In `.env`:
+
+```env
+FCM_ENABLED=true
+FCM_PROJECT_ID=your-firebase-project-id
+```
+
+> The backend reads the file at `FCM_CREDENTIALS_PATH=/app/secrets/fcm-service-account.json`
+> (already wired in `docker-compose.yml`). `secrets/` is git-ignored — never commit it.
+
+**3) Member frontend (receives push)** — build-time config
+
+The frontend config is compiled into the image, so edit these **before** building:
+
+- `frontend-new/projects/member-portal/src/environments/environment.prod.ts` — set
+  `fcm.enabled: true` and fill `apiKey`, `authDomain`, `projectId`,
+  `messagingSenderId`, `appId`, and `vapidKey` (web app config + VAPID key from
+  step 1).
+- `frontend-new/projects/member-portal/src/firebase-messaging-sw.js` — fill the same
+  `firebaseConfig` values (these are public client config; required for background
+  pushes when the app is closed).
+
+**4) Rebuild and restart**
+
+```bash
+docker compose build backend frontend
+docker compose up -d backend frontend
+```
+
+**5) Verify**
+
+- Backend log on startup/first request shows no FCM credential error.
+  (When disabled or misconfigured, you'll see `FCM disabled` / `Push not configured`
+  log lines and the app keeps working via polling.)
+- On the member portal, after login the browser asks for notification permission;
+  granting it registers the device (POST `/api/member/device-tokens`).
+- Create a request from `/gate/` for a flat whose owner has the member app open on a
+  phone → the owner gets a push; approving/rejecting flips the guard's live status.
+
+### How it hangs together
+
+```
+Guard PWA (/gate/)  --POST /api/gate/visitor-requests-->  backend
+backend  --resolves owners+active tenant, saves PENDING, FCM push-->  owner device
+Owner member PWA (/member/)  --approve/reject-->  backend  (first decision wins)
+Guard PWA polls GET /api/gate/visitor-requests/{id}  -->  sees APPROVED/REJECTED
+Scheduler flips stale PENDING  -->  TIMED_OUT
+```
+
+Nothing new is exposed to the host: `/gate/` is served by the same nginx container,
+and all `/api/**` calls proxy to the backend over the private compose network.
+
+---
+
 ## Step 10 — Day-to-day operations
 
 ```bash
@@ -295,12 +405,13 @@ docker compose down -v
 
 ## Data & persistence reference
 
-| Volume            | Container path                | Contents               |
-| ----------------- | ----------------------------- | ---------------------- |
-| `mysql_data`      | `/var/lib/mysql`              | Database               |
-| `uploads_data`    | `/app/uploads`                | Uploaded files         |
-| `backend_logs`    | `/app/logs`                   | App logs               |
-| `certbot_webroot` | `/var/www/certbot` (frontend) | ACME challenge files   |
+| Volume / mount    | Container path                | Contents                              |
+| ----------------- | ----------------------------- | ------------------------------------- |
+| `mysql_data`      | `/var/lib/mysql`              | Database (incl. `visitor_requests`, `device_tokens`) |
+| `uploads_data`    | `/app/uploads`                | Uploaded files (incl. `visitors/<unitId>/` photos)   |
+| `backend_logs`    | `/app/logs`                   | App logs                              |
+| `certbot_webroot` | `/var/www/certbot` (frontend) | ACME challenge files                  |
+| `./secrets` (bind, ro) | `/app/secrets`           | FCM service-account JSON (optional push) |
 
 The backend's `application-prod.yml` hardcodes `/opt/society-management/...` for
 uploads/logs, but the container user can only write under `/app`. Compose
@@ -317,7 +428,10 @@ overrides those paths via `APP_UPLOAD_DIR`, `LOGGING_FILE_PATH`, and
 | Backend restarts / "JWT_SECRET" error     | `JWT_SECRET` not set in `.env`.                                           |
 | 502 on `/api/...`                         | Backend not healthy yet — `docker compose logs backend`.                  |
 | nginx won't start, cert error             | Certs missing/wrong path — verify `/etc/letsencrypt/live/ppvcd.in/`.      |
-| `/member/` 404s on refresh                | Rebuild frontend; confirm member files landed in `.../html/member`.      |
+| `/member/` or `/gate/` 404s on refresh    | Rebuild frontend; confirm files landed in `.../html/member` and `.../html/gate`. |
+| Guard can't log in to `/gate/`            | User lacks the `SECURITY` role — assign it in admin → Users.             |
+| Owner gets no push (but list still works) | FCM optional/disabled or misconfigured — see Step 9b; polling is the fallback. |
+| FCM credential error in backend log       | `FCM_ENABLED=true` but JSON missing/wrong — check `secrets/fcm-service-account.json` and `FCM_PROJECT_ID`. |
 | Uploaded files missing after migrate      | Re-run Step 6; confirm the volume name with `docker volume ls`.          |
 | Port 80/443 in use                        | Another web server (host nginx/apache) is running — stop it first.        |
 

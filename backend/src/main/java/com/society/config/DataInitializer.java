@@ -36,6 +36,18 @@ public class DataInitializer implements CommandLineRunner {
     /** Authority that gates sending templated emails to owners (design: OWNER_EMAIL_SEND). */
     private static final String OWNER_EMAIL_SEND = "OWNER_EMAIL_SEND";
 
+    /** Role for gate security guards who register incoming visitors/deliveries. */
+    private static final String SECURITY_ROLE = "SECURITY";
+
+    /** Authority that gates creating a visitor/delivery entry request from the gate. */
+    private static final String VISITOR_CREATE = "VISITOR_CREATE";
+
+    /** Authority that gates viewing visitor/delivery requests and the gate history/log. */
+    private static final String VISITOR_VIEW = "VISITOR_VIEW";
+
+    /** Authority that gates an owner/tenant approving or rejecting a visitor request. */
+    private static final String VISITOR_RESPOND = "VISITOR_RESPOND";
+
     /** Committee/admin-facing roles that may send templated emails to owners. */
     private static final List<String> OWNER_EMAIL_ROLES = List.of(
             "CHAIRMAN", "SECRETARY", "COMMITTEE_MEMBER");
@@ -62,6 +74,7 @@ public class DataInitializer implements CommandLineRunner {
         seedTransactionViewPermission();
         seedPaymentReassignPermission();
         seedOwnerEmailSendPermission();
+        seedVisitorGatePermissions();
 
         Optional<User> existingAdmin = userRepository.findByUsername("admin");
 
@@ -238,6 +251,84 @@ public class DataInitializer implements CommandLineRunner {
                 roleRepository.save(role);
                 log.info("Granted {} to role {}.", OWNER_EMAIL_SEND, roleName);
             }
+        }
+    }
+
+    /**
+     * Seeds the visitor/delivery gate-approval authorities and ensures the roles that
+     * need them exist. Mirrors the other seeding methods: idempotent on every startup,
+     * so the SECURITY role and VISITOR_* permissions are present even when
+     * {@code data.sql} is not applied.
+     *
+     * <p>Multiple guard users are not hardcoded here — admins create as many SECURITY
+     * users as they need through the existing user-management flow. This method only
+     * guarantees the SECURITY role is resolvable by name and carries the create/view
+     * authorities, and that owner/tenant-facing roles can respond to requests.</p>
+     */
+    private void seedVisitorGatePermissions() {
+        Permission visitorCreate = ensurePermission(VISITOR_CREATE, "visitor",
+                "Register an incoming visitor/delivery entry request at the gate");
+        Permission visitorView = ensurePermission(VISITOR_VIEW, "visitor",
+                "View visitor/delivery requests and the gate history/log");
+        Permission visitorRespond = ensurePermission(VISITOR_RESPOND, "visitor",
+                "Approve or reject a visitor/delivery entry request");
+
+        // Guards (SECURITY) can create and view requests.
+        grantPermissionsToRole(SECURITY_ROLE, visitorCreate, visitorView);
+
+        // Society-wide management roles can view the gate log for audit.
+        for (String roleName : SOCIETY_WIDE_ROLES) {
+            grantPermissionsToRole(roleName, visitorView);
+        }
+
+        // Members (owners/tenants) can respond to requests for their units.
+        for (String roleName : MEMBER_ROLES) {
+            grantPermissionsToRole(roleName, visitorRespond);
+        }
+    }
+
+    /** Finds or creates a permission by name. Idempotent. */
+    private Permission ensurePermission(String permissionName, String module, String description) {
+        return permissionRepository.findByPermissionName(permissionName)
+                .orElseGet(() -> {
+                    Permission permission = Permission.builder()
+                            .permissionName(permissionName)
+                            .module(module)
+                            .description(description)
+                            .build();
+                    log.info("Creating {} permission.", permissionName);
+                    return permissionRepository.save(permission);
+                });
+    }
+
+    /**
+     * Ensures a role exists (auto-provisioning it by name if missing) and grants it the
+     * given permissions, saving only when something changed. Idempotent.
+     */
+    private void grantPermissionsToRole(String roleName, Permission... permissions) {
+        Role role = roleRepository.findByRoleName(roleName)
+                .orElseGet(() -> {
+                    Role newRole = Role.builder()
+                            .roleName(roleName)
+                            .displayName(toDisplayName(roleName))
+                            .description("Auto-provisioned role")
+                            .build();
+                    log.info("Creating {} role.", roleName);
+                    return roleRepository.save(newRole);
+                });
+
+        boolean changed = false;
+        for (Permission permission : permissions) {
+            boolean alreadyGranted = role.getPermissions().stream()
+                    .anyMatch(p -> p.getPermissionName().equals(permission.getPermissionName()));
+            if (!alreadyGranted) {
+                role.getPermissions().add(permission);
+                changed = true;
+                log.info("Granted {} to role {}.", permission.getPermissionName(), roleName);
+            }
+        }
+        if (changed) {
+            roleRepository.save(role);
         }
     }
 

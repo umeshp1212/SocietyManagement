@@ -22,6 +22,10 @@ frontend/.env.*.local
 *.ipr
 .vscode/
 
+# Secrets (FCM service-account JSON, etc.) — never commit credentials
+secrets/*
+!secrets/README.md
+
 # Logs
 *.log
 

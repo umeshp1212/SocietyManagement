@@ -86,6 +86,14 @@ app:
     key-secret: ${RAZORPAY_KEY_SECRET:}
     # Dashboard-configured webhook secret; used to verify X-Razorpay-Signature.
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  # Firebase Cloud Messaging (free web push). Off by default -> in-app polling fallback.
+  fcm:
+    enabled: ${FCM_ENABLED:false}
+    project-id: ${FCM_PROJECT_ID:}
+    credentials-path: ${FCM_CREDENTIALS_PATH:}
+  # Visitor/delivery gate approval
+  visitor:
+    expiry-scan-ms: ${VISITOR_EXPIRY_SCAN_MS:60000}
   otp:
     expiry-minutes: 5
     max-attempts: 5

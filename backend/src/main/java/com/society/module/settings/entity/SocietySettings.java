@@ -96,4 +96,14 @@ public class SocietySettings {
     @Column(name = "discount_message", length = 500)
     @Builder.Default
     private String discountMessage = "Pay online before the due date and get a discount!";
+
+    // ===== Visitor / Delivery Gate-Approval Settings =====
+
+    /**
+     * Minutes a visitor/delivery entry request stays PENDING before the scheduler
+     * auto-expires it to TIMED_OUT. Configurable by the society admin.
+     */
+    @Column(name = "visitor_approval_timeout_minutes")
+    @Builder.Default
+    private Integer visitorApprovalTimeoutMinutes = 10;
 }

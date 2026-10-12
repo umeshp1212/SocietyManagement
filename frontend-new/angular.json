@@ -107,7 +107,8 @@
             "assets": [
               "projects/member-portal/src/favicon.ico",
               "projects/member-portal/src/assets",
-              "projects/member-portal/src/manifest.json"
+              "projects/member-portal/src/manifest.json",
+              "projects/member-portal/src/firebase-messaging-sw.js"
             ],
             "styles": [
               "@angular/material/prebuilt-themes/indigo-pink.css",
@@ -156,11 +157,95 @@
             "assets": [
               "projects/member-portal/src/favicon.ico",
               "projects/member-portal/src/assets",
-              "projects/member-portal/src/manifest.json"
+              "projects/member-portal/src/manifest.json",
+              "projects/member-portal/src/firebase-messaging-sw.js"
             ],
             "styles": [
               "@angular/material/prebuilt-themes/indigo-pink.css",
               "projects/member-portal/src/styles.scss"
+            ],
+            "scripts": []
+          }
+        }
+      }
+    },
+    "gate-portal": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss",
+          "standalone": true
+        }
+      },
+      "root": "projects/gate-portal",
+      "sourceRoot": "projects/gate-portal/src",
+      "prefix": "gate",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/gate-portal",
+            "index": "projects/gate-portal/src/index.html",
+            "browser": "projects/gate-portal/src/main.ts",
+            "polyfills": ["zone.js"],
+            "tsConfig": "projects/gate-portal/tsconfig.app.json",
+            "assets": [
+              "projects/gate-portal/src/favicon.ico",
+              "projects/gate-portal/src/assets",
+              "projects/gate-portal/src/manifest.json"
+            ],
+            "styles": [
+              "@angular/material/prebuilt-themes/indigo-pink.css",
+              "projects/gate-portal/src/styles.scss"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "baseHref": "/gate/",
+              "serviceWorker": "projects/gate-portal/ngsw-config.json",
+              "budgets": [
+                { "type": "initial", "maximumWarning": "1mb", "maximumError": "2mb" },
+                { "type": "anyComponentStyle", "maximumWarning": "8kb", "maximumError": "16kb" }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "projects/gate-portal/src/environments/environment.ts",
+                  "with": "projects/gate-portal/src/environments/environment.prod.ts"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": { "buildTarget": "gate-portal:build:production" },
+            "development": { "buildTarget": "gate-portal:build:development" }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "polyfills": ["zone.js", "zone.js/testing"],
+            "tsConfig": "projects/gate-portal/tsconfig.spec.json",
+            "karmaConfig": "projects/gate-portal/karma.conf.js",
+            "assets": [
+              "projects/gate-portal/src/favicon.ico",
+              "projects/gate-portal/src/assets",
+              "projects/gate-portal/src/manifest.json"
+            ],
+            "styles": [
+              "@angular/material/prebuilt-themes/indigo-pink.css",
+              "projects/gate-portal/src/styles.scss"
             ],
             "scripts": []
           }

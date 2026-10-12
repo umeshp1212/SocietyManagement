@@ -35,5 +35,11 @@ export const routes: Routes = [
     canActivate: [memberAuthGuard],
     loadComponent: () => import('./modules/member/member-apply-noc/member-apply-noc.component')
       .then(m => m.MemberApplyNocComponent)
+  },
+  {
+    path: 'visitor-approvals',
+    canActivate: [memberAuthGuard],
+    loadComponent: () => import('./modules/member/member-visitor-approvals/member-visitor-approvals.component')
+      .then(m => m.MemberVisitorApprovalsComponent)
   }
 ];

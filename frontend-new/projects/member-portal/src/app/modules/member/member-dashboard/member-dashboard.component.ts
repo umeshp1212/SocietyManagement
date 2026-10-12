@@ -17,8 +17,11 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatBadgeModule } from '@angular/material/badge';
 import { MemberAuthService, MemberDashboard, MemberUnitInfo } from '@core/services/member-auth.service';
 import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-payment-dialog.component';
+import { VisitorService } from '@core/services/visitor.service';
+import { FcmService } from '@core/services/fcm.service';
 
 @Component({
   selector: 'app-member-dashboard',
@@ -28,7 +31,7 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
     MatCardModule, MatButtonModule, MatIconModule, MatTableModule,
     MatChipsModule, MatDividerModule, MatProgressSpinnerModule,
     MatSnackBarModule, MatSelectModule, MatFormFieldModule,
-    MatInputModule, MatTabsModule, MatTooltipModule, MatDialogModule,
+    MatInputModule, MatTabsModule, MatTooltipModule, MatDialogModule, MatBadgeModule,
     CurrencyPipe, DatePipe, TitleCasePipe
   ],
   animations: [
@@ -67,6 +70,11 @@ import { MemberPaymentDialogComponent } from '../member-payment-dialog/member-pa
           </button>
           <button mat-icon-button routerLink="/apply-noc" matTooltip="Apply for NOC" color="primary">
             <mat-icon>description</mat-icon>
+          </button>
+          <button mat-icon-button routerLink="/visitor-approvals" matTooltip="Visitor Approvals" color="primary">
+            <mat-icon [matBadge]="pendingVisitorCount"
+                      [matBadgeHidden]="pendingVisitorCount === 0"
+                      matBadgeColor="warn" matBadgeSize="small">notifications_active</mat-icon>
           </button>
           <button mat-icon-button routerLink="/profile" matTooltip="My Profile" color="primary">
             <mat-icon>account_circle</mat-icon>
@@ -482,11 +490,16 @@ export class MemberDashboardComponent implements OnInit {
   paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'paymentStatus', 'receipt'];
   expandedBill: any = null;
 
+  /** Count of pending visitor/delivery requests, shown as a badge on the header icon. */
+  pendingVisitorCount = 0;
+
   constructor(
     private memberAuth: MemberAuthService,
     private router: Router,
     private snackBar: MatSnackBar,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private visitorService: VisitorService,
+    private fcmService: FcmService
   ) {}
 
   ngOnInit(): void {
@@ -506,6 +519,21 @@ export class MemberDashboardComponent implements OnInit {
       this.memberAuth.selectUnit(this.units[0]);
       this.loadDashboard();
     }
+
+    // Register for push (no-op when FCM is not configured) and show the pending count.
+    this.fcmService.init();
+    this.loadPendingVisitorCount();
+  }
+
+  private loadPendingVisitorCount(): void {
+    this.visitorService.getPending().subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          this.pendingVisitorCount = (res.data || []).length;
+        }
+      },
+      error: () => { /* non-critical */ }
+    });
   }
 
   loadDashboard(): void {
