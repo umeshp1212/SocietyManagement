@@ -138,17 +138,35 @@ public class FcmService implements VisitorNotifier {
             return;
         }
 
+        log.info("FCM: sending push for request {} to {} device token(s).",
+                request.getVisitorRequestId(), tokens.size());
         for (DeviceToken token : tokens) {
             Map<String, Object> message = buildMessage(token.getToken(), title, body,
                     String.valueOf(request.getVisitorRequestId()));
             try {
                 sendMessage(accessToken, message);
+                log.info("FCM: push accepted for request {} (token …{}).",
+                        request.getVisitorRequestId(), tail(token.getToken()));
+            } catch (org.springframework.web.client.HttpStatusCodeException e) {
+                // FCM returns the real reason in the body (UNREGISTERED, SenderId
+                // mismatch, InvalidArgument, etc.) — log it so the cause is visible.
+                log.warn("FCM send REJECTED for request {} (token …{}): {} {}",
+                        request.getVisitorRequestId(), tail(token.getToken()),
+                        e.getStatusCode(), e.getResponseBodyAsString());
             } catch (RuntimeException e) {
                 // One bad token must not stop the others.
                 log.warn("FCM send failed for a token on request {}: {}",
                         request.getVisitorRequestId(), e.toString());
             }
         }
+    }
+
+    /** Last few chars of a token, for safe log correlation. */
+    private static String tail(String token) {
+        if (token == null || token.length() <= 8) {
+            return "?";
+        }
+        return token.substring(token.length() - 8);
     }
 
     /** Builds an FCM HTTP v1 message payload for a single device token. */

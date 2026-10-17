@@ -82,15 +82,44 @@ describe('GateHomeComponent', () => {
     expect(component.photoName).toBe('id.jpg');
   });
 
-  it('submits with the selected unitId and begins tracking the created request', () => {
+  it('picks a category then a company by tapping (no typing)', () => {
+    component.chooseWing('D');
+    component.chooseFloor('1');
+    component.chooseUnit(component.flats[0]);
+
+    const courier = component.categories.find(c => c.label === 'Courier / Parcel')!;
+    component.chooseCategory(courier);
+    expect(component.selectedCategory?.label).toBe('Courier / Parcel');
+    expect(courier.companies).toContain('Amazon');
+
+    component.chooseCompany('Amazon');
+    expect(component.companyChosen).toBeTrue();
+    expect(component.companyIsOther).toBeFalse();
+    expect(component.form.company).toBe('Amazon');
+    expect(component.form.purpose).toBe('Parcel delivery'); // defaulted from category
+  });
+
+  it('"Other" company reveals a typed field and requires a value', () => {
+    component.chooseWing('D');
+    component.chooseFloor('1');
+    component.chooseUnit(component.flats[0]);
+    component.chooseCategory(component.categories[0]);
+    component.chooseCompany('__OTHER__');
+    expect(component.companyIsOther).toBeTrue();
+    expect(component.form.company).toBe('');
+  });
+
+  it('submits with the selected unitId and tapped company, and tracks the request', () => {
     gateService.create.and.returnValue(of({ success: true, data: created }));
     gateService.getById.and.returnValue(of({ success: true, data: created }));
 
     component.chooseWing('D');
     component.chooseFloor('1');
     component.chooseUnit(component.flats[0]);        // D-105, unitId 3
+    const courier = component.categories.find(c => c.label === 'Courier / Parcel')!;
+    component.chooseCategory(courier);
+    component.chooseCompany('Amazon');
     component.form.visitorName = 'Courier Guy';
-    component.form.company = 'Amazon';
     component.form.photo = new File([new Blob(['x'])], 'id.jpg', { type: 'image/jpeg' });
 
     component.submit();

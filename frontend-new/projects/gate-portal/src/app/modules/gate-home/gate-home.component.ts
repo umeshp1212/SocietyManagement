@@ -14,6 +14,73 @@ import { Subscription, interval } from 'rxjs';
 import { AuthService } from '@core/services/auth.service';
 import { GateUnit, GateVisitorRequest, GateVisitorService } from '@core/services/gate-visitor.service';
 
+/** A tappable service category with its common companies/providers. */
+interface VisitorCategory {
+  label: string;
+  icon: string;          // Material icon name
+  defaultPurpose: string;
+  companies: string[];   // common providers; the UI always also offers "Other"
+}
+
+/**
+ * Catalog of common visitor/delivery service categories and providers, so the guard
+ * taps instead of typing. "Other" is always offered under each category, and there is
+ * a catch-all "Other / Visitor" category for anything not listed. Providers are India
+ * (society-gate) oriented; extend freely — this is UI-only data, the chosen value just
+ * fills the request's company field.
+ */
+const VISITOR_CATEGORIES: VisitorCategory[] = [
+  {
+    label: 'Food', icon: 'restaurant', defaultPurpose: 'Food delivery',
+    companies: ['Swiggy', 'Zomato', 'Zepto', 'Blinkit', 'Domino\'s', 'KFC', 'McDonald\'s', 'EatSure', 'Magicpin']
+  },
+  {
+    label: 'Courier / Parcel', icon: 'local_shipping', defaultPurpose: 'Parcel delivery',
+    companies: ['Amazon', 'Flipkart', 'India Post', 'Blue Dart', 'DTDC', 'Delhivery', 'Ekart', 'FedEx',
+      'DHL', 'Shadowfax', 'Meesho', 'Myntra', 'Ajio']
+  },
+  {
+    label: 'Grocery', icon: 'shopping_cart', defaultPurpose: 'Grocery delivery',
+    companies: ['BigBasket', 'Blinkit', 'Zepto', 'Swiggy Instamart', 'JioMart', 'Amazon Fresh', 'DMart']
+  },
+  {
+    label: 'Bank Enquiry', icon: 'account_balance', defaultPurpose: 'Bank enquiry',
+    companies: ['SBI', 'HDFC Bank', 'ICICI Bank', 'Axis Bank', 'Kotak', 'Bank of Baroda', 'PNB', 'Bajaj Finserv']
+  },
+  {
+    label: 'Government', icon: 'gavel', defaultPurpose: 'Government / official visit',
+    companies: ['Police', 'Electricity Board', 'Water Dept', 'Municipal Corp', 'Gas Agency', 'Census', 'Postman']
+  },
+  {
+    label: 'Confidential', icon: 'lock', defaultPurpose: 'Confidential — ask resident',
+    companies: ['Personal Visitor', 'Relative', 'Friend']
+  },
+  {
+    label: 'Cab / Taxi', icon: 'local_taxi', defaultPurpose: 'Pickup / drop',
+    companies: ['Uber', 'Ola', 'Rapido', 'Auto']
+  },
+  {
+    label: 'Home Service', icon: 'handyman', defaultPurpose: 'Home service',
+    companies: ['Urban Company', 'Electrician', 'Plumber', 'Carpenter', 'AC Service', 'Pest Control', 'Maid / Help']
+  },
+  {
+    label: 'Healthcare', icon: 'medical_services', defaultPurpose: 'Healthcare / sample pickup',
+    companies: ['PharmEasy', 'Apollo', 'Netmeds', '1mg', 'Lab Sample Collection', 'Doctor', 'Nurse']
+  },
+  {
+    label: 'E-commerce Return', icon: 'assignment_return', defaultPurpose: 'Pickup / return',
+    companies: ['Amazon', 'Flipkart', 'Myntra', 'Meesho', 'Ajio']
+  },
+  {
+    label: 'Utilities / Telecom', icon: 'router', defaultPurpose: 'Installation / service',
+    companies: ['Jio', 'Airtel', 'ACT Fibernet', 'Tata Play', 'BSNL', 'Meter Reading']
+  },
+  {
+    label: 'Other / Visitor', icon: 'person', defaultPurpose: 'Visitor',
+    companies: ['Guest', 'Vendor', 'Interview', 'Delivery']
+  }
+];
+
 /**
  * Guard home screen. "New Visitor" is a fully tap-driven flow: pick Wing → Floor →
  * Flat (options derived from the admin-managed units), then capture the visitor name,
@@ -48,11 +115,13 @@ import { GateUnit, GateVisitorRequest, GateVisitorService } from '@core/services
             <ng-container *ngIf="!active && !unitsLoading">
               <!-- Step indicator -->
               <div class="steps">
-                <span class="step" [class.done]="selectedWing" [class.current]="!selectedWing">1 · Wing</span>
+                <span class="step" [class.done]="selectedWing" [class.current]="!selectedWing">Wing</span>
                 <mat-icon>chevron_right</mat-icon>
-                <span class="step" [class.done]="selectedFloor" [class.current]="selectedWing && !selectedFloor">2 · Floor</span>
+                <span class="step" [class.done]="selectedFloor" [class.current]="selectedWing && !selectedFloor">Floor</span>
                 <mat-icon>chevron_right</mat-icon>
-                <span class="step" [class.done]="selectedUnit" [class.current]="selectedFloor && !selectedUnit">3 · Flat</span>
+                <span class="step" [class.done]="selectedUnit" [class.current]="selectedFloor && !selectedUnit">Flat</span>
+                <mat-icon>chevron_right</mat-icon>
+                <span class="step" [class.done]="companyChosen" [class.current]="selectedUnit && !companyChosen">Service</span>
               </div>
 
               <!-- Current selection summary + change -->
@@ -103,26 +172,69 @@ import { GateUnit, GateVisitorRequest, GateVisitorService } from '@core/services
                 </mat-card-content>
               </mat-card>
 
-              <!-- STEP 4: Visitor details (only after a flat is chosen) -->
-              <mat-card *ngIf="selectedUnit">
+              <!-- STEP 4: Category (tap) -->
+              <mat-card *ngIf="selectedUnit && !selectedCategory">
                 <mat-card-content>
-                  <form (ngSubmit)="submit()" #f="ngForm">
-                    <mat-form-field appearance="outline" class="full-width">
-                      <mat-label>Visitor / Delivery Person Name</mat-label>
-                      <input matInput name="visitorName" [(ngModel)]="form.visitorName" required
-                             placeholder="e.g. Courier">
-                      <mat-icon matPrefix>person</mat-icon>
-                    </mat-form-field>
+                  <div class="pick-label">What is the visitor here for?</div>
+                  <div class="grid cats">
+                    <button mat-raised-button class="tap cat-tap" *ngFor="let c of categories"
+                            (click)="chooseCategory(c)">
+                      <mat-icon>{{ c.icon }}</mat-icon>
+                      <span>{{ c.label }}</span>
+                    </button>
+                  </div>
+                </mat-card-content>
+              </mat-card>
 
-                    <mat-form-field appearance="outline" class="full-width">
-                      <mat-label>Company (optional)</mat-label>
-                      <input matInput name="company" [(ngModel)]="form.company" placeholder="e.g. Amazon, Swiggy">
+              <!-- STEP 5: Company (tap) within the chosen category -->
+              <mat-card *ngIf="selectedUnit && selectedCategory && !companyChosen">
+                <mat-card-content>
+                  <div class="pick-label">
+                    {{ selectedCategory.label }} — select
+                    <button mat-button color="primary" class="inline-change" (click)="selectedCategory = null">
+                      <mat-icon>restart_alt</mat-icon> change
+                    </button>
+                  </div>
+                  <div class="grid">
+                    <button mat-raised-button class="tap company-tap" *ngFor="let name of selectedCategory.companies"
+                            (click)="chooseCompany(name)">{{ name }}</button>
+                    <button mat-raised-button class="tap company-tap other" (click)="chooseCompany('__OTHER__')">
+                      Other
+                    </button>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- STEP 6: Final details (name + purpose typed; company shown/typed-if-Other) -->
+              <mat-card *ngIf="selectedUnit && companyChosen">
+                <mat-card-content>
+                  <div class="selection sub">
+                    <span><strong>{{ selectedCategory?.label }}</strong>
+                      <ng-container *ngIf="form.company"> · {{ form.company }}</ng-container></span>
+                    <button mat-button color="primary" (click)="resetCategory()">
+                      <mat-icon>restart_alt</mat-icon> Change
+                    </button>
+                  </div>
+
+                  <form (ngSubmit)="submit()" #f="ngForm">
+                    <mat-form-field appearance="outline" class="full-width" *ngIf="companyIsOther">
+                      <mat-label>Company / Service name</mat-label>
+                      <input matInput name="company" [(ngModel)]="form.company"
+                             placeholder="Type the company or service">
                       <mat-icon matPrefix>local_shipping</mat-icon>
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="full-width">
-                      <mat-label>Purpose (optional)</mat-label>
-                      <input matInput name="purpose" [(ngModel)]="form.purpose" placeholder="e.g. parcel delivery">
+                      <mat-label>Visitor / Person Name</mat-label>
+                      <input matInput name="visitorName" [(ngModel)]="form.visitorName" required
+                             placeholder="Name as stated at the gate">
+                      <mat-icon matPrefix>person</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Purpose</mat-label>
+                      <input matInput name="purpose" [(ngModel)]="form.purpose"
+                             placeholder="e.g. parcel delivery, meter reading">
                     </mat-form-field>
 
                     <div class="photo-row">
@@ -137,7 +249,7 @@ import { GateUnit, GateVisitorRequest, GateVisitorService } from '@core/services
                     </div>
 
                     <button mat-raised-button color="primary" type="submit" class="full-width submit-btn"
-                            [disabled]="submitting || !form.visitorName">
+                            [disabled]="submitting || !form.visitorName || (companyIsOther && !form.company)">
                       <mat-icon *ngIf="!submitting">send</mat-icon>
                       <mat-spinner *ngIf="submitting" diameter="20"></mat-spinner>
                       <span>{{ submitting ? 'Sending...' : 'Send for Approval' }}</span>
@@ -231,6 +343,14 @@ import { GateUnit, GateVisitorRequest, GateVisitorService } from '@core/services
     .grid.wings { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
     .tap { height: 60px; font-size: 18px; font-weight: 600; }
     .wing-tap { height: 72px; font-size: 24px; }
+    .grid.cats { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+    .cat-tap { height: 88px; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 6px; font-size: 14px; line-height: 1.1; }
+    .cat-tap mat-icon { font-size: 30px; height: 30px; width: 30px; }
+    .company-tap { font-size: 15px; }
+    .company-tap.other { border: 2px dashed #b0bec5; }
+    .selection.sub { background: #e8f5e9; }
+    .inline-change { font-size: 12px; min-width: auto; padding: 0 6px; vertical-align: middle; }
 
     .photo-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
     .submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; }
@@ -273,6 +393,14 @@ export class GateHomeComponent implements OnInit, OnDestroy {
   selectedWing: string | null = null;
   selectedFloor: string | null = null;
   selectedUnit: GateUnit | null = null;
+
+  // ---- service category / company ----
+  readonly categories: VisitorCategory[] = VISITOR_CATEGORIES;
+  selectedCategory: VisitorCategory | null = null;
+  /** True once a company (or "Other") has been chosen for the selected category. */
+  companyChosen = false;
+  /** True when the guard picked "Other", so the company field is typed. */
+  companyIsOther = false;
 
   form: { visitorName: string; company: string; purpose: string; photo: File | null } =
     { visitorName: '', company: '', purpose: '', photo: null };
@@ -375,6 +503,38 @@ export class GateHomeComponent implements OnInit, OnDestroy {
     this.selectedWing = null;
     this.selectedFloor = null;
     this.selectedUnit = null;
+    this.resetCategory();
+  }
+
+  // ---- category / company ----
+
+  chooseCategory(c: VisitorCategory): void {
+    this.selectedCategory = c;
+    this.companyChosen = false;
+    this.companyIsOther = false;
+    this.form.company = '';
+  }
+
+  chooseCompany(name: string): void {
+    if (name === '__OTHER__') {
+      this.companyIsOther = true;
+      this.form.company = '';
+    } else {
+      this.companyIsOther = false;
+      this.form.company = name;
+    }
+    this.companyChosen = true;
+    // Default the purpose to the category label as a helpful starting point.
+    if (!this.form.purpose && this.selectedCategory) {
+      this.form.purpose = this.selectedCategory.defaultPurpose;
+    }
+  }
+
+  resetCategory(): void {
+    this.selectedCategory = null;
+    this.companyChosen = false;
+    this.companyIsOther = false;
+    this.form.company = '';
   }
 
   floorLabel(fl: string): string {
@@ -468,7 +628,10 @@ export class GateHomeComponent implements OnInit, OnDestroy {
   newEntry(): void {
     this.pollSub?.unsubscribe();
     this.active = null;
-    this.resetSelection();
+    this.selectedWing = null;
+    this.selectedFloor = null;
+    this.selectedUnit = null;
+    this.resetCategory();
     this.form = { visitorName: '', company: '', purpose: '', photo: null };
     this.photoName = '';
   }
