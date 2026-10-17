@@ -340,10 +340,15 @@ public class CashfreeService {
         MaintenanceBill bill = billOptional.get();
         BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
 
+        // Fetch the real instrument (UPI/Card/...) and bank/UTR reference from Cashfree so
+        // the receipt shows the actual mode and the Transaction list shows a reference.
+        CashfreePaymentDetails details = fetchCashfreePaymentDetails(orderId);
+
         MaintenancePayment payment = new MaintenancePayment();
         payment.setBill(bill);
         payment.setUnit(bill.getUnit());
-        payment.setPaymentMode(MaintenancePayment.PaymentMode.CASHFREE_LINK);
+        payment.setPaymentMode(details.mode);
+        payment.setTransactionId(details.reference);
         payment.setStatus(MaintenancePayment.PaymentStatus.SUCCESS);
         payment.setCashfreePaymentId(paymentId);
         payment.setCashfreeOrderId(orderId);
@@ -497,6 +502,112 @@ public class CashfreeService {
             errorResult.put("error", e.getMessage());
             return errorResult;
         }
+    }
+
+    /**
+     * Holds the real instrument and gateway reference for a Cashfree payment, used to
+     * enrich the recorded {@link MaintenancePayment} (so the receipt shows UPI/Card/etc.
+     * and the Transaction list shows a reference instead of a blank).
+     */
+    public static final class CashfreePaymentDetails {
+        public final MaintenancePayment.PaymentMode mode;   // never null (falls back to CASHFREE_LINK)
+        public final String reference;                      // bank/UTR ref or cf_payment_id; may be null
+        CashfreePaymentDetails(MaintenancePayment.PaymentMode mode, String reference) {
+            this.mode = mode;
+            this.reference = reference;
+        }
+    }
+
+    /**
+     * Fetches the successful payment for an order from Cashfree's
+     * {@code GET /orders/{orderId}/payments} API and extracts the real instrument
+     * (UPI/Card/Net Banking/Wallet) and a human-meaningful reference (bank reference /
+     * UTR, else the Cashfree payment id). Best-effort: on any error or when the gateway
+     * is not configured, returns a sensible fallback ({@code CASHFREE_LINK}, null ref)
+     * so a lookup failure never blocks recording the payment.
+     */
+    @SuppressWarnings("unchecked")
+    public CashfreePaymentDetails fetchCashfreePaymentDetails(String orderId) {
+        MaintenancePayment.PaymentMode fallbackMode = MaintenancePayment.PaymentMode.CASHFREE_LINK;
+        if (orderId == null || cashfreeAppId == null || cashfreeAppId.isBlank()) {
+            return new CashfreePaymentDetails(fallbackMode, null);
+        }
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String url = getBaseApiUrl() + "/orders/" + orderId + "/payments";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("x-client-id", cashfreeAppId);
+            headers.set("x-client-secret", cashfreeSecretKey);
+            headers.set("x-api-version", apiVersion);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            ResponseEntity<List> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers), List.class);
+
+            List<Map<String, Object>> payments = response.getBody();
+            if (payments == null || payments.isEmpty()) {
+                return new CashfreePaymentDetails(fallbackMode, null);
+            }
+
+            // Prefer the SUCCESS payment; else take the first entry.
+            Map<String, Object> pay = payments.stream()
+                    .filter(p -> "SUCCESS".equalsIgnoreCase(String.valueOf(p.get("payment_status"))))
+                    .findFirst()
+                    .orElse(payments.get(0));
+
+            MaintenancePayment.PaymentMode mode = mapCashfreeMethod(pay.get("payment_method"));
+            String reference = extractCashfreeReference(pay);
+            return new CashfreePaymentDetails(mode != null ? mode : fallbackMode, reference);
+        } catch (Exception e) {
+            log.warn("Could not fetch Cashfree payment details for order {}: {}", orderId, e.toString());
+            return new CashfreePaymentDetails(fallbackMode, null);
+        }
+    }
+
+    /**
+     * Maps Cashfree's {@code payment_method} object (e.g. {@code {"upi": {...}}},
+     * {@code {"card": {...}}}, {@code {"netbanking": {...}}}, {@code {"app"/"wallet": {...}}})
+     * to our {@link MaintenancePayment.PaymentMode}. Card/Net Banking/Wallet have no exact
+     * enum value, so they stay as {@code CASHFREE_LINK} (still clearly an online payment)
+     * while UPI — the common case — maps to {@code UPI}.
+     */
+    @SuppressWarnings("unchecked")
+    private MaintenancePayment.PaymentMode mapCashfreeMethod(Object paymentMethod) {
+        if (!(paymentMethod instanceof Map)) {
+            return MaintenancePayment.PaymentMode.CASHFREE_LINK;
+        }
+        Map<String, Object> m = (Map<String, Object>) paymentMethod;
+        if (m.containsKey("upi")) {
+            return MaintenancePayment.PaymentMode.UPI;
+        }
+        // card / netbanking / wallet / app: keep the online-gateway marker.
+        return MaintenancePayment.PaymentMode.CASHFREE_LINK;
+    }
+
+    /**
+     * Pulls a meaningful reference from a Cashfree payment entry: the bank reference / UTR
+     * when present (what residents recognise on their statement), else the UPI txn id, else
+     * the Cashfree payment id.
+     */
+    @SuppressWarnings("unchecked")
+    private String extractCashfreeReference(Map<String, Object> pay) {
+        Object bankRef = pay.get("bank_reference");
+        if (bankRef != null && !String.valueOf(bankRef).isBlank()) {
+            return String.valueOf(bankRef);
+        }
+        Object method = pay.get("payment_method");
+        if (method instanceof Map) {
+            Object upi = ((Map<String, Object>) method).get("upi");
+            if (upi instanceof Map) {
+                Object utr = ((Map<String, Object>) upi).get("utr");
+                if (utr != null && !String.valueOf(utr).isBlank()) {
+                    return String.valueOf(utr);
+                }
+            }
+        }
+        Object cfId = pay.get("cf_payment_id");
+        return cfId != null ? String.valueOf(cfId) : null;
     }
 
     public Map<String, Object> generateWhatsAppShareLink(MaintenanceBill bill) {
@@ -757,12 +868,16 @@ public class CashfreeService {
         String receiptNumber = receiptNumberService.next();
         BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
 
+        // Real instrument + bank/UTR reference from Cashfree (falls back gracefully).
+        CashfreePaymentDetails details = fetchCashfreePaymentDetails(request.getCashfreeOrderId());
+
         MaintenancePayment payment = MaintenancePayment.builder()
                 .bill(bill)
                 .unit(bill.getUnit())
                 .amount(payAmount)
                 .paymentDate(LocalDate.now())
-                .paymentMode(MaintenancePayment.PaymentMode.CASHFREE_LINK)
+                .paymentMode(details.mode)
+                .transactionId(details.reference)
                 .cashfreeOrderId(request.getCashfreeOrderId())
                 .payerName(owner.getFullName())
                 .payerType("OWNER")
