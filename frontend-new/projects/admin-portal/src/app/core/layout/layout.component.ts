@@ -85,6 +85,13 @@ import { AuthService, LoginResponse } from '../services/auth.service';
             <span matListItemTitle>Transactions</span>
           </a>
 
+          <a mat-list-item routerLink="/visitor-log" routerLinkActive="active"
+             *ngIf="hasPermission('VISITOR_VIEW')"
+             (click)="closeSidenavOnMobile()">
+            <mat-icon matListItemIcon>meeting_room</mat-icon>
+            <span matListItemTitle>Visitor Log</span>
+          </a>
+
           <mat-divider *ngIf="hasAnyPermission(['USER_VIEW', 'USER_ASSIGN_ROLES', 'MEMBER_REQUEST_VIEW'])"></mat-divider>
 
           <a mat-list-item routerLink="/users" routerLinkActive="active"

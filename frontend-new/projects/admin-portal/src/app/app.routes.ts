@@ -125,5 +125,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/transactions/transaction-list/transaction-list.component')
       .then(m => m.TransactionListComponent)
+  },
+  {
+    path: 'visitor-log',
+    canActivate: [permissionGuard(['VISITOR_VIEW'])],
+    loadComponent: () => import('./modules/visitor/visitor-log.component')
+      .then(m => m.VisitorLogComponent)
   }
 ];

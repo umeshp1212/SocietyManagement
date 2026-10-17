@@ -205,6 +205,29 @@ import { environment } from '@env/environment';
           </mat-card-content>
         </mat-card>
 
+        <!-- Visitor / Gate Approval -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Visitor / Gate Approval</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="gateway-hint">
+              When a security guard sends a delivery/visitor to a flat for approval, the request
+              auto-expires if the owner doesn't respond within this many minutes.
+            </p>
+            <div class="form-row">
+              <mat-form-field>
+                <mat-label>Approval Timeout (minutes)</mat-label>
+                <input matInput type="number" formControlName="visitorApprovalTimeoutMinutes" min="1" max="120">
+                <mat-hint>How long a request stays pending (1–120)</mat-hint>
+                <mat-error *ngIf="settingsForm.get('visitorApprovalTimeoutMinutes')?.invalid">
+                  Enter a value between 1 and 120
+                </mat-error>
+              </mat-form-field>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
         <div class="form-actions">
           <button mat-raised-button color="primary" type="submit" [disabled]="settingsForm.invalid">
             <mat-icon>save</mat-icon> Save Settings
@@ -368,7 +391,8 @@ export class SettingsComponent implements OnInit {
       discountEnabled: [false],
       discountPercent: [0],
       discountDueDays: [10],
-      discountMessage: ['Pay online before the due date and get a discount!']
+      discountMessage: ['Pay online before the due date and get a discount!'],
+      visitorApprovalTimeoutMinutes: [10, [Validators.min(1), Validators.max(120)]]
     });
   }
 
