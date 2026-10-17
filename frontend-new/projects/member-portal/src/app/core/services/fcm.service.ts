@@ -29,6 +29,7 @@ const FIREBASE_SCRIPTS = [
 export class FcmService {
 
   private initialized = false;
+  private swRegistration: ServiceWorkerRegistration | null = null;
 
   constructor(
     private visitorService: VisitorService,
@@ -66,11 +67,15 @@ export class FcmService {
       });
 
       const messaging = firebase.messaging();
-      const swReg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      // Register the FCM worker at its OWN scope ("/member/fcm/") so it does not
+      // collide with Angular's ngsw-worker.js, which controls the "/member/" scope.
+      // Two service workers can only coexist on distinct scopes.
+      this.swRegistration = await navigator.serviceWorker.register(
+        'firebase-messaging-sw.js', { scope: '/member/fcm/' });
 
       const token = await messaging.getToken({
         vapidKey: environment.fcm.vapidKey,
-        serviceWorkerRegistration: swReg
+        serviceWorkerRegistration: this.swRegistration
       });
 
       if (token) {
@@ -79,20 +84,49 @@ export class FcmService {
         });
       }
 
-      // Foreground messages: route to the approvals screen when received.
+      // Foreground messages: FCM does NOT auto-display a notification while the app is
+      // open, so show one ourselves (tapping it routes to the approvals screen).
+      // Without this, an open app shows nothing on the device tray — which looks
+      // exactly like "push not working".
       messaging.onMessage((payload: any) => {
-        this.zone.run(() => {
-          const click = payload?.data?.click_action;
-          if (click) {
-            this.router.navigateByUrl(click);
-          }
-        });
+        this.zone.run(() => this.showForegroundNotification(payload));
       });
 
       this.initialized = true;
     } catch {
       // Any failure (unsupported browser, CDN blocked, bad config) → silently fall back
       // to in-app polling. Push is a convenience, not a requirement.
+    }
+  }
+
+  /**
+   * Displays a notification for a message received while the app is in the foreground.
+   * Uses the FCM service-worker registration (so a tap can reopen/focus the app) when
+   * available, falling back to the Notification constructor.
+   */
+  private showForegroundNotification(payload: any): void {
+    try {
+      if (Notification.permission !== 'granted') {
+        return;
+      }
+      const title = payload?.notification?.title || 'Visitor at the gate';
+      const body = payload?.notification?.body || 'Tap to review the request.';
+      const clickAction = payload?.data?.click_action || '/member/visitor-approvals';
+      const options: NotificationOptions = {
+        body,
+        icon: 'icons/icon-192x192.png',
+        data: { click_action: clickAction },
+        tag: 'visitor-' + (payload?.data?.visitorRequestId || '')
+      };
+
+      if (this.swRegistration) {
+        this.swRegistration.showNotification(title, options);
+      } else {
+        // eslint-disable-next-line no-new
+        new Notification(title, options);
+      }
+    } catch {
+      // Notification display is best-effort; the in-app list is the source of truth.
     }
   }
 
