@@ -73,14 +73,15 @@ class FcmServiceTest {
         Map<String, Object> message = (Map<String, Object>) service.sent.get(0).get("message");
         assertThat(message.get("token")).isEqualTo("device-token-1");
 
+        // Data-only payload: no top-level "notification" block (so the SW can render
+        // Approve/Reject buttons); title/body live inside "data".
+        assertThat(message).doesNotContainKey("notification");
+
         @SuppressWarnings("unchecked")
         Map<String, Object> data = (Map<String, Object>) message.get("data");
         assertThat(data.get("type")).isEqualTo("VISITOR_REQUEST");
         assertThat(data.get("visitorRequestId")).isEqualTo("42");
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> notification = (Map<String, Object>) message.get("notification");
-        assertThat((String) notification.get("body")).contains("Courier Guy").contains("Amazon").contains("A-101");
+        assertThat((String) data.get("body")).contains("Courier Guy").contains("Amazon").contains("A-101");
     }
 
     @Test

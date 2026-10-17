@@ -118,8 +118,10 @@ export class FcmService {
       if (Notification.permission !== 'granted') {
         return;
       }
-      const title = payload?.notification?.title || 'Visitor at the gate';
-      const body = payload?.notification?.body || 'Tap to review the request.';
+      // Data-only messages: title/body are in data (the backend omits the notification
+      // block so the SW/foreground handler can render action buttons).
+      const title = payload?.data?.title || payload?.notification?.title || 'Visitor at the gate';
+      const body = payload?.data?.body || payload?.notification?.body || 'Tap to review the request.';
       const clickAction = payload?.data?.click_action || '/member/visitor-approvals';
       const requestId = payload?.data?.visitorRequestId || '';
       const options: any = {

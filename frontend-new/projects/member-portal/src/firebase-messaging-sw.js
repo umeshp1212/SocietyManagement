@@ -36,9 +36,12 @@ try {
     const messaging = firebase.messaging();
 
     messaging.onBackgroundMessage((payload) => {
+      // Data-only message (the backend omits the "notification" block on purpose) so
+      // this handler always runs and can render Approve/Reject buttons. Title/body
+      // come from data.
       const data = payload.data || {};
-      const title = (payload.notification && payload.notification.title) || 'Visitor at the gate';
-      const body = (payload.notification && payload.notification.body) || 'Tap to review the request.';
+      const title = data.title || 'Visitor at the gate';
+      const body = data.body || 'Tap to review the request.';
       const requestId = data.visitorRequestId || '';
       const options = {
         body,

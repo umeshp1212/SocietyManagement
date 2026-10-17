@@ -169,15 +169,29 @@ public class FcmService implements VisitorNotifier {
         return token.substring(token.length() - 8);
     }
 
-    /** Builds an FCM HTTP v1 message payload for a single device token. */
+    /**
+     * Builds a <b>data-only</b> FCM HTTP v1 message. We intentionally omit the top-level
+     * {@code notification} block: when it is present, the browser's FCM SDK shows its own
+     * default notification and the service worker's {@code onBackgroundMessage} does NOT
+     * fire — so our rich notification with Approve/Reject action buttons would never be
+     * built. With data-only, the service worker always handles the message and renders
+     * the buttons, vibration, etc. Title/body are carried inside {@code data}.
+     *
+     * <p>Android requires a high-priority data message to be delivered promptly while the
+     * device is idle, so we set {@code android.priority=high}.</p>
+     */
     Map<String, Object> buildMessage(String deviceToken, String title, String body, String requestId) {
         return Map.of("message", Map.of(
                 "token", deviceToken,
-                "notification", Map.of("title", title, "body", body),
                 "data", Map.of(
                         "type", "VISITOR_REQUEST",
                         "visitorRequestId", requestId,
-                        "click_action", "/member/visitor-approvals")
+                        "title", title,
+                        "body", body,
+                        "click_action", "/member/visitor-approvals"),
+                "android", Map.of("priority", "high"),
+                "webpush", Map.of(
+                        "headers", Map.of("Urgency", "high", "TTL", "600"))
         ));
     }
 
