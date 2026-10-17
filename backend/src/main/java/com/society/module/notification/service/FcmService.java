@@ -14,9 +14,13 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.annotation.PostConstruct;
+
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -56,6 +60,48 @@ public class FcmService implements VisitorNotifier {
 
     public FcmService(DeviceTokenService deviceTokenService) {
         this.deviceTokenService = deviceTokenService;
+    }
+
+    /**
+     * Logs a clear, actionable status at startup so FCM misconfiguration is obvious in
+     * the boot log rather than only on the first visitor request. Never throws — a bad
+     * FCM config must not stop the app.
+     */
+    @PostConstruct
+    void logStartupStatus() {
+        if (!enabled) {
+            log.info("FCM push disabled (app.fcm.enabled=false). Visitor approvals use in-app polling.");
+            return;
+        }
+        if (projectId == null || projectId.isBlank()) {
+            log.warn("FCM enabled but app.fcm.project-id is blank — push will fail. Set FCM_PROJECT_ID.");
+        }
+        File file = (credentialsPath == null) ? null : new File(credentialsPath);
+        if (file == null || !file.exists()) {
+            log.warn("FCM enabled but credentials file is missing at '{}'. "
+                    + "Mount the service-account JSON there (host ./secrets/fcm-service-account.json).",
+                    credentialsPath);
+            return;
+        }
+        // A complete service-account key is ~2.3 KB (the PEM private_key alone is ~1.7 KB).
+        // A much smaller file almost always means the private_key was truncated in transfer
+        // (e.g. pasted into an editor) — the usual cause of a 400 from Google's token endpoint.
+        long size = file.length();
+        if (size < 1500) {
+            log.warn("FCM credentials file at '{}' is only {} bytes — it looks truncated "
+                    + "(a valid service-account key is ~2.3 KB). Re-download the key from Firebase "
+                    + "Console > Project settings > Service accounts and copy it with scp (not paste).",
+                    credentialsPath, size);
+        }
+        try {
+            acquireAccessToken();
+            log.info("FCM push enabled and credentials verified (project '{}').", projectId);
+        } catch (Exception e) {
+            log.warn("FCM enabled but credentials at '{}' could not mint a token: {}. "
+                    + "Common causes: truncated private_key, wrong project, FCM API not enabled, "
+                    + "or server clock skew (check 'date -u' / NTP).",
+                    credentialsPath, e.getMessage());
+        }
     }
 
     @Override
@@ -120,13 +166,39 @@ public class FcmService implements VisitorNotifier {
     /**
      * Mints a short-lived OAuth2 access token from the configured service-account
      * credentials. Isolated so tests can override without real credentials.
+     *
+     * <p>Fails with an actionable message for the two common misconfigurations: a
+     * missing credentials file, and a file that is the Firebase <em>web app</em> config
+     * (apiKey/appId) rather than a <em>service-account</em> key — the latter is the
+     * usual cause of a {@code 400 Bad Request} from Google's token endpoint.</p>
      */
     protected String acquireAccessToken() throws Exception {
-        try (InputStream in = new FileInputStream(credentialsPath)) {
+        if (credentialsPath == null || credentialsPath.isBlank()) {
+            throw new IllegalStateException(
+                    "app.fcm.credentials-path is not set. Point it at the service-account JSON.");
+        }
+        File file = new File(credentialsPath);
+        if (!file.exists()) {
+            throw new FileNotFoundException(
+                    "FCM service-account file not found at '" + credentialsPath
+                    + "'. Mount the JSON there (host ./secrets/fcm-service-account.json) and "
+                    + "check the filename uses dashes, not dots.");
+        }
+
+        try (InputStream in = new FileInputStream(file)) {
             GoogleCredentials credentials = GoogleCredentials.fromStream(in)
                     .createScoped(List.of(FCM_SCOPE));
             credentials.refreshIfExpired();
             return credentials.getAccessToken().getTokenValue();
+        } catch (IOException e) {
+            // GoogleCredentials.fromStream throws IOException when the JSON is not a
+            // recognisable service-account key (e.g. the web-app config was pasted in).
+            throw new IllegalStateException(
+                    "Could not read '" + credentialsPath + "' as a Google service-account key. "
+                    + "Make sure it is the file from Firebase Console > Project settings > "
+                    + "Service accounts > Generate new private key (it must contain "
+                    + "\"type\": \"service_account\" and a \"private_key\"), not the web app config "
+                    + "(apiKey/appId). Cause: " + e.getMessage(), e);
         }
     }
 
