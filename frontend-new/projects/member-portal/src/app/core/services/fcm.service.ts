@@ -84,6 +84,11 @@ export class FcmService {
         });
       }
 
+      // Mirror the member auth token + API base into IndexedDB so the background
+      // service worker can act on notification Approve/Reject buttons without the app
+      // being open (a service worker cannot read localStorage).
+      await this.storeSwContext();
+
       // Foreground messages: FCM does NOT auto-display a notification while the app is
       // open, so show one ourselves (tapping it routes to the approvals screen).
       // Without this, an open app shows nothing on the device tray — which looks
@@ -106,17 +111,30 @@ export class FcmService {
    */
   private showForegroundNotification(payload: any): void {
     try {
+      // Play a distinct in-app chime (only possible while the page is open; the OS
+      // controls the sound for background push, which the web platform cannot override).
+      this.playChime();
+
       if (Notification.permission !== 'granted') {
         return;
       }
       const title = payload?.notification?.title || 'Visitor at the gate';
       const body = payload?.notification?.body || 'Tap to review the request.';
       const clickAction = payload?.data?.click_action || '/member/visitor-approvals';
-      const options: NotificationOptions = {
+      const requestId = payload?.data?.visitorRequestId || '';
+      const options: any = {
         body,
         icon: 'icons/icon-192x192.png',
-        data: { click_action: clickAction },
-        tag: 'visitor-' + (payload?.data?.visitorRequestId || '')
+        badge: 'icons/icon-96x96.png',
+        vibrate: [200, 100, 200, 100, 300],   // distinct vibration pattern
+        requireInteraction: true,              // stays until the owner acts
+        tag: 'visitor-' + requestId,
+        renotify: true,
+        data: { click_action: clickAction, visitorRequestId: requestId },
+        actions: [
+          { action: 'approve', title: '✓ Approve' },
+          { action: 'reject', title: '✕ Reject' }
+        ]
       };
 
       if (this.swRegistration) {
@@ -128,6 +146,65 @@ export class FcmService {
     } catch {
       // Notification display is best-effort; the in-app list is the source of truth.
     }
+  }
+
+  /** Plays a short distinct chime using the Web Audio API (foreground only). */
+  private playChime(): void {
+    try {
+      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) {
+        return;
+      }
+      const ctx = new Ctx();
+      const now = ctx.currentTime;
+      // Two-tone "ding-dong" so it is recognisably the gate alert, not a generic beep.
+      [{ f: 880, t: 0 }, { f: 660, t: 0.18 }].forEach(({ f, t }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = f;
+        gain.gain.setValueAtTime(0.0001, now + t);
+        gain.gain.exponentialRampToValueAtTime(0.25, now + t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + t);
+        osc.stop(now + t + 0.18);
+      });
+    } catch {
+      /* audio is best-effort */
+    }
+  }
+
+  /**
+   * Mirrors the member auth token and API base URL into IndexedDB so the background
+   * service worker can call the approve/reject endpoints when the owner taps a
+   * notification action button (a service worker cannot read localStorage).
+   */
+  private storeSwContext(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      try {
+        const token = localStorage.getItem('member_access_token') || '';
+        const req = indexedDB.open('gate-sw', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('ctx');
+        req.onsuccess = () => {
+          try {
+            const db = req.result;
+            const tx = db.transaction('ctx', 'readwrite');
+            const store = tx.objectStore('ctx');
+            store.put(environment.apiUrl, 'apiUrl');
+            store.put(token, 'memberToken');
+            tx.oncomplete = () => { db.close(); resolve(); };
+            tx.onerror = () => { db.close(); resolve(); };
+          } catch {
+            resolve();
+          }
+        };
+        req.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
   }
 
   /** Loads the Firebase compat scripts from the CDN once. */
