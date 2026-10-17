@@ -12,7 +12,20 @@
  */
 const fs = require('fs');
 const path = require('path');
-const sharp = require('sharp');
+
+let sharp;
+try {
+  sharp = require('sharp');
+} catch {
+  console.error(
+    '[icons] "sharp" is not installed. It is intentionally NOT a project dependency ' +
+    '(it needs Node >= 20 and is only used to regenerate icons on demand).\n' +
+    '[icons] The icon PNGs are already committed under projects/*/src/assets/icons, ' +
+    'so you only need this when you change an icon-source.svg.\n' +
+    '[icons] To regenerate: run with Node >= 20 and first `npm i -D sharp`, then `npm run icons`.'
+  );
+  process.exit(1);
+}
 
 const SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
 

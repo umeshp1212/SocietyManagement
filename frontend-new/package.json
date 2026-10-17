@@ -13,7 +13,7 @@
     "build:gate": "ng build gate-portal",
     "build:shared": "ng build shared",
     "icons": "node scripts/generate-pwa-icons.js",
-    "build:all": "node scripts/generate-pwa-icons.js && ng build shared && ng build admin-portal && ng build member-portal && ng build gate-portal",
+    "build:all": "ng build shared && ng build admin-portal && ng build member-portal && ng build gate-portal",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:admin": "ng test admin-portal",
@@ -53,7 +53,6 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "ng-packagr": "^17.3.0",
-    "sharp": "^0.35.5",
     "typescript": "~5.3.0"
   }
 }
