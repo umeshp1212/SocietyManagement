@@ -12,6 +12,10 @@ RUN npm ci
 # Copy the rest of the workspace
 COPY . .
 
+# Generate the PWA icon PNGs from each portal's icon-source.svg (sharp, no system
+# tools needed). Without real 192/512 icons the browser never offers "install".
+RUN node scripts/generate-pwa-icons.js
+
 # Build admin portal (root /), member portal PWA (/member/) and gate portal PWA (/gate/)
 RUN npx ng build admin-portal --configuration production \
  && npx ng build member-portal --configuration production \

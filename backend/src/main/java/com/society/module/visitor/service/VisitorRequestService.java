@@ -156,6 +156,69 @@ public class VisitorRequestService {
                 .build();
     }
 
+    // ==================== GUARD: UNIT PICKER ====================
+
+    /**
+     * All active units as lightweight descriptors for the gate portal's tappable
+     * Wing &rarr; Floor &rarr; Flat picker. Prefers the unit's {@code wing}/{@code floor}
+     * columns; when a column is blank it derives the value from the unit number using
+     * the society's numbering convention (e.g. {@code D-105} / {@code D1105} / {@code C101}
+     * &rarr; wing letter, last two digits = flat, the remaining leading digits = floor).
+     */
+    public List<com.society.module.visitor.dto.GateUnitDTO> getActiveUnitsForGate() {
+        return unitRepository.findAll().stream()
+                .filter(u -> u.getStatus() == null || "ACTIVE".equalsIgnoreCase(u.getStatus()))
+                .map(u -> {
+                    String[] wf = deriveWingFloor(u.getUnitNumber(), u.getWing(), u.getFloor());
+                    return com.society.module.visitor.dto.GateUnitDTO.builder()
+                            .unitId(u.getUnitId())
+                            .unitNumber(u.getUnitNumber())
+                            .wing(wf[0])
+                            .floor(wf[1])
+                            .build();
+                })
+                .sorted((a, b) -> {
+                    String an = a.getUnitNumber() == null ? "" : a.getUnitNumber();
+                    String bn = b.getUnitNumber() == null ? "" : b.getUnitNumber();
+                    return an.compareTo(bn);
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns {@code [wing, floor]} for a unit, trusting the stored columns when present
+     * and otherwise parsing the unit number. Parsing rule, matching the society's scheme:
+     * leading letters are the wing; the digit block (after an optional '-') has its last
+     * two characters as the flat and the remaining leading digits as the floor. A unit
+     * number that doesn't fit leaves the derived part null (grouped as "Other" in the UI).
+     */
+    static String[] deriveWingFloor(String unitNumber, String wingColumn, String floorColumn) {
+        String wing = (wingColumn != null && !wingColumn.isBlank()) ? wingColumn.trim() : null;
+        String floor = (floorColumn != null && !floorColumn.isBlank()) ? floorColumn.trim() : null;
+        if (wing != null && floor != null) {
+            return new String[]{wing, floor};
+        }
+
+        String parsedWing = null;
+        String parsedFloor = null;
+        if (unitNumber != null && !unitNumber.isBlank()) {
+            String un = unitNumber.trim().toUpperCase();
+            java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile("^([A-Z]+)-?(\\d+)$").matcher(un);
+            if (m.matches()) {
+                parsedWing = m.group(1);
+                String digits = m.group(2);
+                if (digits.length() > 2) {
+                    parsedFloor = String.valueOf(Integer.parseInt(digits.substring(0, digits.length() - 2)));
+                } else {
+                    // 1–2 digit block: no floor part (e.g. a ground-floor/shop style number).
+                    parsedFloor = "0";
+                }
+            }
+        }
+        return new String[]{wing != null ? wing : parsedWing, floor != null ? floor : parsedFloor};
+    }
+
     // ==================== GUARD: READ ====================
 
     public VisitorRequestDTO getById(Long requestId) {

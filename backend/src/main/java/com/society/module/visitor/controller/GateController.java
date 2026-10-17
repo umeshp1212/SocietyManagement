@@ -48,6 +48,16 @@ public class GateController {
                         "Visitor request sent to the flat for approval.", dto));
     }
 
+    /**
+     * Active units for the gate's tappable Wing → Floor → Flat picker. Lets the guard
+     * select a flat instead of typing it; stays in sync with the admin Units screen.
+     */
+    @GetMapping("/units")
+    @PreAuthorize("hasRole('SECURITY') or hasAuthority('VISITOR_CREATE')")
+    public ResponseEntity<ApiResponse<List<com.society.module.visitor.dto.GateUnitDTO>>> units() {
+        return ResponseEntity.ok(ApiResponse.success(service.getActiveUnitsForGate()));
+    }
+
     /** Poll a single request for its current decision (approved/rejected/timed out). */
     @GetMapping("/{requestId}")
     @PreAuthorize("hasRole('SECURITY') or hasAuthority('VISITOR_VIEW')")

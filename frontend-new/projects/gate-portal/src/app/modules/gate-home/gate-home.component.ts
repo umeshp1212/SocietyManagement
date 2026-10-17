@@ -12,12 +12,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Subscription, interval } from 'rxjs';
 import { AuthService } from '@core/services/auth.service';
-import { GateVisitorRequest, GateVisitorService } from '@core/services/gate-visitor.service';
+import { GateUnit, GateVisitorRequest, GateVisitorService } from '@core/services/gate-visitor.service';
 
 /**
- * Guard home screen. "New Visitor" captures a delivery/visitor for a flat (number,
- * name, company, photo), submits it, then shows a live status that polls until the
- * flat owner approves/rejects or the request times out. "History" lists the gate log.
+ * Guard home screen. "New Visitor" is a fully tap-driven flow: pick Wing → Floor →
+ * Flat (options derived from the admin-managed units), then capture the visitor name,
+ * company and photo and send for approval. A live status then polls until the owner
+ * decides or it times out. "History" lists the gate log.
  */
 @Component({
   selector: 'gate-home',
@@ -41,54 +42,110 @@ import { GateVisitorRequest, GateVisitorService } from '@core/services/gate-visi
         <!-- New Visitor -->
         <mat-tab label="New Visitor">
           <div class="tab-body">
-            <mat-card *ngIf="!active">
-              <mat-card-content>
-                <form (ngSubmit)="submit()" #f="ngForm">
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Flat / Unit Number</mat-label>
-                    <input matInput name="unitNumber" [(ngModel)]="form.unitNumber" required
-                           placeholder="e.g. A-101">
-                    <mat-icon matPrefix>home</mat-icon>
-                  </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Visitor / Delivery Person Name</mat-label>
-                    <input matInput name="visitorName" [(ngModel)]="form.visitorName" required
-                           placeholder="e.g. Courier">
-                    <mat-icon matPrefix>person</mat-icon>
-                  </mat-form-field>
+            <div class="loading" *ngIf="unitsLoading"><mat-spinner diameter="32"></mat-spinner></div>
 
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Company (optional)</mat-label>
-                    <input matInput name="company" [(ngModel)]="form.company" placeholder="e.g. Amazon, Swiggy">
-                    <mat-icon matPrefix>local_shipping</mat-icon>
-                  </mat-form-field>
+            <ng-container *ngIf="!active && !unitsLoading">
+              <!-- Step indicator -->
+              <div class="steps">
+                <span class="step" [class.done]="selectedWing" [class.current]="!selectedWing">1 · Wing</span>
+                <mat-icon>chevron_right</mat-icon>
+                <span class="step" [class.done]="selectedFloor" [class.current]="selectedWing && !selectedFloor">2 · Floor</span>
+                <mat-icon>chevron_right</mat-icon>
+                <span class="step" [class.done]="selectedUnit" [class.current]="selectedFloor && !selectedUnit">3 · Flat</span>
+              </div>
 
-                  <mat-form-field appearance="outline" class="full-width">
-                    <mat-label>Purpose (optional)</mat-label>
-                    <input matInput name="purpose" [(ngModel)]="form.purpose" placeholder="e.g. parcel delivery">
-                  </mat-form-field>
+              <!-- Current selection summary + change -->
+              <div class="selection" *ngIf="selectedWing">
+                <span>
+                  <strong>{{ selectedWing }}</strong>
+                  <ng-container *ngIf="selectedFloor"> · Floor {{ selectedFloor }}</ng-container>
+                  <ng-container *ngIf="selectedUnit"> · Flat {{ selectedUnit.unitNumber }}</ng-container>
+                </span>
+                <button mat-button color="primary" (click)="resetSelection()">
+                  <mat-icon>restart_alt</mat-icon> Change
+                </button>
+              </div>
 
-                  <div class="photo-row">
-                    <button mat-stroked-button type="button" (click)="fileInput.click()">
-                      <mat-icon>photo_camera</mat-icon>
-                      {{ photoName || 'Capture / attach photo' }}
-                    </button>
-                    <input #fileInput type="file" accept="image/*" capture="environment"
-                           hidden (change)="onPhoto($event)">
-                    <button mat-icon-button type="button" *ngIf="form.photo" (click)="clearPhoto()"
-                            aria-label="Remove photo"><mat-icon>close</mat-icon></button>
+              <!-- STEP 1: Wing -->
+              <mat-card *ngIf="!selectedWing">
+                <mat-card-content>
+                  <div class="pick-label">Select Wing</div>
+                  <div class="grid wings">
+                    <button mat-raised-button class="tap wing-tap" *ngFor="let w of wings"
+                            (click)="chooseWing(w)">{{ w }}</button>
                   </div>
+                  <div class="empty" *ngIf="wings.length === 0">
+                    No units configured. Ask the admin to add flats in the Units screen.
+                  </div>
+                </mat-card-content>
+              </mat-card>
 
-                  <button mat-raised-button color="primary" type="submit" class="full-width submit-btn"
-                          [disabled]="submitting || !form.unitNumber || !form.visitorName">
-                    <mat-icon *ngIf="!submitting">send</mat-icon>
-                    <mat-spinner *ngIf="submitting" diameter="20"></mat-spinner>
-                    <span>{{ submitting ? 'Sending...' : 'Send for Approval' }}</span>
-                  </button>
-                </form>
-              </mat-card-content>
-            </mat-card>
+              <!-- STEP 2: Floor -->
+              <mat-card *ngIf="selectedWing && !selectedFloor">
+                <mat-card-content>
+                  <div class="pick-label">Select Floor — Wing {{ selectedWing }}</div>
+                  <div class="grid">
+                    <button mat-raised-button class="tap" *ngFor="let fl of floors"
+                            (click)="chooseFloor(fl)">{{ floorLabel(fl) }}</button>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- STEP 3: Flat -->
+              <mat-card *ngIf="selectedFloor && !selectedUnit">
+                <mat-card-content>
+                  <div class="pick-label">Select Flat — Wing {{ selectedWing }}, Floor {{ selectedFloor }}</div>
+                  <div class="grid">
+                    <button mat-raised-button class="tap" *ngFor="let u of flats"
+                            (click)="chooseUnit(u)">{{ u.unitNumber }}</button>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+
+              <!-- STEP 4: Visitor details (only after a flat is chosen) -->
+              <mat-card *ngIf="selectedUnit">
+                <mat-card-content>
+                  <form (ngSubmit)="submit()" #f="ngForm">
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Visitor / Delivery Person Name</mat-label>
+                      <input matInput name="visitorName" [(ngModel)]="form.visitorName" required
+                             placeholder="e.g. Courier">
+                      <mat-icon matPrefix>person</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Company (optional)</mat-label>
+                      <input matInput name="company" [(ngModel)]="form.company" placeholder="e.g. Amazon, Swiggy">
+                      <mat-icon matPrefix>local_shipping</mat-icon>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="full-width">
+                      <mat-label>Purpose (optional)</mat-label>
+                      <input matInput name="purpose" [(ngModel)]="form.purpose" placeholder="e.g. parcel delivery">
+                    </mat-form-field>
+
+                    <div class="photo-row">
+                      <button mat-stroked-button type="button" (click)="fileInput.click()">
+                        <mat-icon>photo_camera</mat-icon>
+                        {{ photoName || 'Capture / attach photo' }}
+                      </button>
+                      <input #fileInput type="file" accept="image/*" capture="environment"
+                             hidden (change)="onPhoto($event)">
+                      <button mat-icon-button type="button" *ngIf="form.photo" (click)="clearPhoto()"
+                              aria-label="Remove photo"><mat-icon>close</mat-icon></button>
+                    </div>
+
+                    <button mat-raised-button color="primary" type="submit" class="full-width submit-btn"
+                            [disabled]="submitting || !form.visitorName">
+                      <mat-icon *ngIf="!submitting">send</mat-icon>
+                      <mat-spinner *ngIf="submitting" diameter="20"></mat-spinner>
+                      <span>{{ submitting ? 'Sending...' : 'Send for Approval' }}</span>
+                    </button>
+                  </form>
+                </mat-card-content>
+              </mat-card>
+            </ng-container>
 
             <!-- Live status after submit -->
             <mat-card *ngIf="active" class="status-card" [class]="'status-' + active.status.toLowerCase()">
@@ -158,6 +215,23 @@ import { GateVisitorRequest, GateVisitorService } from '@core/services/gate-visi
     .content { max-width: 560px; margin: 0 auto; }
     .tab-body { padding: 16px; }
     .full-width { width: 100%; }
+
+    .steps { display: flex; align-items: center; gap: 4px; justify-content: center;
+      color: #90a4ae; font-size: 13px; margin-bottom: 12px; }
+    .steps .step { padding: 4px 8px; border-radius: 12px; }
+    .steps .step.current { background: #e3f2fd; color: #1565c0; font-weight: 600; }
+    .steps .step.done { color: #2e7d32; font-weight: 600; }
+    .steps mat-icon { font-size: 18px; height: 18px; width: 18px; }
+
+    .selection { display: flex; justify-content: space-between; align-items: center;
+      background: #eceff1; border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; font-size: 15px; }
+
+    .pick-label { font-weight: 600; color: #455a64; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px; }
+    .grid.wings { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+    .tap { height: 60px; font-size: 18px; font-weight: 600; }
+    .wing-tap { height: 72px; font-size: 24px; }
+
     .photo-row { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
     .submit-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; }
     .status-card { padding: 20px; border-left: 6px solid #90a4ae; }
@@ -192,8 +266,16 @@ import { GateVisitorRequest, GateVisitorService } from '@core/services/gate-visi
 })
 export class GateHomeComponent implements OnInit, OnDestroy {
   guardName = '';
-  form: { unitNumber: string; visitorName: string; company: string; purpose: string; photo: File | null } =
-    { unitNumber: '', visitorName: '', company: '', purpose: '', photo: null };
+
+  // ---- unit picker ----
+  units: GateUnit[] = [];
+  unitsLoading = false;
+  selectedWing: string | null = null;
+  selectedFloor: string | null = null;
+  selectedUnit: GateUnit | null = null;
+
+  form: { visitorName: string; company: string; purpose: string; photo: File | null } =
+    { visitorName: '', company: '', purpose: '', photo: null };
   photoName = '';
   submitting = false;
 
@@ -205,6 +287,9 @@ export class GateHomeComponent implements OnInit, OnDestroy {
 
   private pollSub?: Subscription;
 
+  /** Sentinel for units whose wing/floor could not be derived. */
+  private readonly OTHER = 'Other';
+
   constructor(
     private gateService: GateVisitorService,
     private authService: AuthService,
@@ -213,11 +298,110 @@ export class GateHomeComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.guardName = this.authService.getUser()?.fullName || '';
+    this.loadUnits();
   }
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
   }
+
+  // ---------------- unit picker ----------------
+
+  loadUnits(): void {
+    this.unitsLoading = true;
+    this.gateService.getUnits().subscribe({
+      next: (res: any) => {
+        this.unitsLoading = false;
+        if (res.success) {
+          this.units = res.data || [];
+        }
+      },
+      error: () => {
+        this.unitsLoading = false;
+        this.snackBar.open('Could not load the flat list. Pull to refresh or contact admin.',
+          'Close', { duration: 5000 });
+      }
+    });
+  }
+
+  get wings(): string[] {
+    const set = new Set<string>();
+    for (const u of this.units) {
+      set.add(u.wing && u.wing.trim() ? u.wing.trim() : this.OTHER);
+    }
+    return Array.from(set).sort(this.naturalCompare);
+  }
+
+  get floors(): string[] {
+    if (!this.selectedWing) {
+      return [];
+    }
+    const set = new Set<string>();
+    for (const u of this.unitsInWing(this.selectedWing)) {
+      set.add(u.floor && String(u.floor).trim() ? String(u.floor).trim() : this.OTHER);
+    }
+    return Array.from(set).sort(this.naturalCompare);
+  }
+
+  get flats(): GateUnit[] {
+    if (!this.selectedWing || !this.selectedFloor) {
+      return [];
+    }
+    return this.unitsInWing(this.selectedWing)
+      .filter(u => (u.floor && String(u.floor).trim() ? String(u.floor).trim() : this.OTHER) === this.selectedFloor)
+      .sort((a, b) => this.naturalCompare(a.unitNumber, b.unitNumber));
+  }
+
+  private unitsInWing(wing: string): GateUnit[] {
+    return this.units.filter(u => (u.wing && u.wing.trim() ? u.wing.trim() : this.OTHER) === wing);
+  }
+
+  chooseWing(w: string): void {
+    this.selectedWing = w;
+    this.selectedFloor = null;
+    this.selectedUnit = null;
+  }
+
+  chooseFloor(fl: string): void {
+    this.selectedFloor = fl;
+    this.selectedUnit = null;
+  }
+
+  chooseUnit(u: GateUnit): void {
+    this.selectedUnit = u;
+  }
+
+  resetSelection(): void {
+    this.selectedWing = null;
+    this.selectedFloor = null;
+    this.selectedUnit = null;
+  }
+
+  floorLabel(fl: string): string {
+    if (fl === this.OTHER) {
+      return fl;
+    }
+    if (fl === '0') {
+      return 'Ground';
+    }
+    return 'Floor ' + fl;
+  }
+
+  /** Sorts wings/floors/flats naturally (numbers numerically, letters alphabetically). */
+  private naturalCompare = (a: string, b: string): number => {
+    const an = Number(a);
+    const bn = Number(b);
+    const aNum = !isNaN(an);
+    const bNum = !isNaN(bn);
+    if (aNum && bNum) {
+      return an - bn;
+    }
+    if (aNum) { return -1; }
+    if (bNum) { return 1; }
+    return a.localeCompare(b);
+  };
+
+  // ---------------- photo + submit ----------------
 
   onPhoto(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -234,12 +418,12 @@ export class GateHomeComponent implements OnInit, OnDestroy {
   }
 
   submit(): void {
-    if (!this.form.unitNumber || !this.form.visitorName) {
+    if (!this.selectedUnit || !this.form.visitorName) {
       return;
     }
     this.submitting = true;
     this.gateService.create({
-      unitNumber: this.form.unitNumber.trim(),
+      unitId: this.selectedUnit.unitId,
       visitorName: this.form.visitorName.trim(),
       company: this.form.company || undefined,
       purpose: this.form.purpose || undefined,
@@ -254,7 +438,7 @@ export class GateHomeComponent implements OnInit, OnDestroy {
       },
       error: (err: any) => {
         this.submitting = false;
-        this.snackBar.open(err.error?.message || 'Could not send the request. Check the flat number.',
+        this.snackBar.open(err.error?.message || 'Could not send the request. Try again.',
           'Close', { duration: 5000 });
       }
     });
@@ -284,7 +468,8 @@ export class GateHomeComponent implements OnInit, OnDestroy {
   newEntry(): void {
     this.pollSub?.unsubscribe();
     this.active = null;
-    this.form = { unitNumber: '', visitorName: '', company: '', purpose: '', photo: null };
+    this.resetSelection();
+    this.form = { visitorName: '', company: '', purpose: '', photo: null };
     this.photoName = '';
   }
 

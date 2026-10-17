@@ -24,6 +24,14 @@ export interface GateVisitorRequest {
   notifiedRecipients?: string[];
 }
 
+/** Minimal unit descriptor for the gate's Wing → Floor → Flat picker. */
+export interface GateUnit {
+  unitId: number;
+  unitNumber: string;
+  wing?: string;
+  floor?: string;
+}
+
 /** Gate (guard) API for creating and tracking visitor/delivery entry requests. */
 @Injectable({ providedIn: 'root' })
 export class GateVisitorService {
@@ -66,6 +74,11 @@ export class GateVisitorService {
 
   getById(requestId: number): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/${requestId}`);
+  }
+
+  /** Active units for the Wing → Floor → Flat picker (derived from admin-managed units). */
+  getUnits(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/units`);
   }
 
   /** List requests; pass a status to filter, omit for the full gate history/log. */
