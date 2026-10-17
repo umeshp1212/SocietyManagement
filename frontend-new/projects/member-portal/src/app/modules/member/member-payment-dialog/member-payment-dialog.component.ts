@@ -339,6 +339,9 @@ export class MemberPaymentDialogComponent {
     };
 
     try {
+      if (typeof Razorpay === 'undefined') {
+        throw new Error('Razorpay SDK not loaded');
+      }
       const rzp = new Razorpay(options);
 
       rzp.on('payment.failed', (response: any) => {
@@ -350,8 +353,9 @@ export class MemberPaymentDialogComponent {
 
       rzp.open();
     } catch (e) {
+      console.error('Razorpay checkout failed to open:', e);
       this.step = 'failed';
-      this.errorMessage = 'Failed to open payment gateway. Please check your internet connection.';
+      this.errorMessage = 'Could not open the payment gateway. Please refresh and try again, or contact admin.';
     }
   }
 
@@ -396,7 +400,12 @@ export class MemberPaymentDialogComponent {
     this.step = 'processing';
 
     try {
-      const cashfree = new Cashfree({ mode: 'sandbox' }); // Change to 'production' for live
+      if (typeof Cashfree === 'undefined') {
+        throw new Error('Cashfree SDK not loaded');
+      }
+      // Mode comes from the backend (mirrors app.cashfree.environment) so it always
+      // matches the environment that created the order — never hardcoded.
+      const cashfree = new Cashfree({ mode: orderData.cashfreeMode || 'production' });
 
       cashfree.checkout({
         paymentSessionId: orderData.cashfreePaymentSessionId,
@@ -421,8 +430,9 @@ export class MemberPaymentDialogComponent {
       });
 
     } catch (e) {
+      console.error('Cashfree checkout failed to open:', e);
       this.step = 'failed';
-      this.errorMessage = 'Failed to open payment gateway. Please check your internet connection.';
+      this.errorMessage = 'Could not open the payment gateway. Please refresh and try again, or contact admin.';
     }
   }
 }

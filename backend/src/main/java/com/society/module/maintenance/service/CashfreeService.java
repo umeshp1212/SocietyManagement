@@ -641,6 +641,7 @@ public class CashfreeService {
                         .gateway("CASHFREE")
                         .cashfreeOrderId(cfOrderId)
                         .cashfreePaymentSessionId(paymentSessionId)
+                        .cashfreeMode("sandbox".equalsIgnoreCase(cashfreeEnv) ? "sandbox" : "production")
                         .amount(request.getAmount())
                         .currency("INR")
                         .receipt(orderId)

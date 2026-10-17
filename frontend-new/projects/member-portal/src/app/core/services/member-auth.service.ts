@@ -47,6 +47,7 @@ export interface PaymentOrderResponse {
   razorpayKeyId: string;
   cashfreeOrderId: string;
   cashfreePaymentSessionId: string;
+  cashfreeMode: string;
   amount: number;
   currency: string;
   receipt: string;

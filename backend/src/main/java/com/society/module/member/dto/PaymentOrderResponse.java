@@ -25,6 +25,8 @@ public class PaymentOrderResponse {
     // Cashfree fields
     private String cashfreeOrderId;
     private String cashfreePaymentSessionId;
+    /** Cashfree JS SDK mode: "sandbox" or "production" — mirrors the backend config. */
+    private String cashfreeMode;
 
     // Common fields
     private BigDecimal amount;

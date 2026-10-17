@@ -16,6 +16,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Society Member Portal">
   <meta name="description" content="Society Management Member Portal - Access your maintenance bills, payments, and more.">
+  <!-- Online payment gateway SDKs (loaded globally so the payment dialog can open checkout).
+       Razorpay checkout + Cashfree JS v3. Harmless if a gateway is unused. -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 </head>
 <body class="mat-typography">
   <member-app-root></member-app-root>
