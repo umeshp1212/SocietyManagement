@@ -136,6 +136,16 @@ export class LoginComponent {
       next: (res) => {
         this.loading = false;
         if (res.success) {
+          // Security guards (and member-only roles) are not allowed in the admin portal.
+          // They authenticate against the same endpoint, so gate them here and clear the
+          // session (without the logout() redirect) so the message stays visible and no
+          // admin page is reachable.
+          if (!this.authService.isAdminUser()) {
+            this.authService.clearSession();
+            this.errorMessage =
+              'This account is not permitted to use the admin portal. Security guards should use the Gate app.';
+            return;
+          }
           this.snackBar.open('Welcome, ' + res.data.fullName, 'Close', { duration: 3000 });
           this.router.navigate(['/dashboard']);
         }

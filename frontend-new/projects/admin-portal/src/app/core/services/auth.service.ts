@@ -45,11 +45,16 @@ export class AuthService {
     );
   }
 
-  logout(): void {
+  /** Clears the stored session without navigating. */
+  clearSession(): void {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('current_user');
     this.currentUserSubject.next(null);
+  }
+
+  logout(): void {
+    this.clearSession();
     this.router.navigate(['/login']);
   }
 
@@ -116,6 +121,28 @@ export class AuthService {
   hasRole(role: string): boolean {
     const user = this.getCurrentUser();
     return user?.roles?.includes(role) || false;
+  }
+
+  /**
+   * Roles that are allowed to use the admin portal. SECURITY guards and member-only
+   * roles (OWNER/TENANT) are intentionally excluded — guards belong in the gate portal
+   * and members in the member portal.
+   */
+  private static readonly ADMIN_ROLES = [
+    'SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE_MEMBER', 'ADMIN'
+  ];
+
+  /**
+   * True when the logged-in user may use the admin portal: they hold at least one
+   * admin/management role. A pure SECURITY guard (no admin role) returns false, so the
+   * admin portal refuses them even though they can authenticate against /auth/login.
+   */
+  isAdminUser(): boolean {
+    const user = this.getCurrentUser();
+    if (!user?.roles?.length) {
+      return false;
+    }
+    return user.roles.some(r => AuthService.ADMIN_ROLES.includes(r));
   }
 
   hasAnyRole(roles: string[]): boolean {

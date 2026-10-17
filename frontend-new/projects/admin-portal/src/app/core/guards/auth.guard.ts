@@ -6,12 +6,19 @@ export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
 
-  if (authService.isLoggedIn()) {
-    return true;
+  if (!authService.isLoggedIn()) {
+    router.navigate(['/login']);
+    return false;
   }
 
-  router.navigate(['/login']);
-  return false;
+  // Defense in depth: a logged-in but non-admin user (e.g. a SECURITY guard whose token
+  // works against the shared /auth/login) must not reach any admin page.
+  if (!authService.isAdminUser()) {
+    authService.logout();
+    return false;
+  }
+
+  return true;
 };
 
 export const roleGuard = (allowedRoles: string[]): CanActivateFn => {
