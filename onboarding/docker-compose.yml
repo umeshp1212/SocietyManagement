@@ -1,0 +1,136 @@
+# =============================================================
+# ONBOARDING stack for a NEW society — SEPARATE from the live deployment.
+# -------------------------------------------------------------
+# Run this from the PROJECT ROOT with this file explicitly, so the ./backend and
+# ./frontend-new build contexts resolve:
+#
+#   docker compose -f onboarding/docker-compose.yml --env-file onboarding/.env build
+#   docker compose -f onboarding/docker-compose.yml --env-file onboarding/.env up -d
+#
+# Everything the new society needs is driven by ONE variable: DOMAIN (in
+# onboarding/.env). nginx server_name + TLS cert paths + backend/frontend URLs +
+# Cashfree callbacks are all derived from it. Nothing here edits your existing
+# docker-compose.yml or frontend-new/ files.
+#
+# NOTE: container names + the published ports 80/443 mean you run this on a FRESH
+# server (the normal onboarding case = one society per server). Do not run it on
+# the same host as the live stack without changing ports/names.
+# =============================================================
+
+name: society-onboarding
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: onboarding-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in onboarding/.env}
+      MYSQL_DATABASE: society_management
+      MYSQL_USER: ${DB_USERNAME:-society_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in onboarding/.env}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - society-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  backend:
+    build:
+      # Reuses the EXISTING backend source + Dockerfile unchanged.
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: onboarding-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/society_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata&createDatabaseIfNotExist=true
+      DB_USERNAME: ${DB_USERNAME:-society_app}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in onboarding/.env}
+
+      APP_UPLOAD_DIR: /app/uploads
+      LOGGING_FILE_PATH: /app/logs
+      LOGGING_FILE_NAME: /app/logs/society-management.log
+
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in onboarding/.env}
+
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+
+      # Payment gateways — Cashfree callbacks derive from the single DOMAIN value.
+      CASHFREE_APP_ID: ${CASHFREE_APP_ID:-}
+      CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY:-}
+      CASHFREE_ENVIRONMENT: ${CASHFREE_ENVIRONMENT:-sandbox}
+      CASHFREE_RETURN_URL: https://${DOMAIN:?set DOMAIN in onboarding/.env}/maintenance/payment-status
+      CASHFREE_NOTIFY_URL: https://${DOMAIN:?set DOMAIN in onboarding/.env}/api/member/payments/webhook/cashfree
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+
+      FCM_ENABLED: ${FCM_ENABLED:-false}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      FCM_CREDENTIALS_PATH: /app/secrets/fcm-service-account.json
+
+      # Backend-built links (reset emails, etc.) + CORS origin, all from DOMAIN.
+      APP_BASE_URL: https://${DOMAIN:?set DOMAIN in onboarding/.env}/api
+      FRONTEND_URL: https://${DOMAIN:?set DOMAIN in onboarding/.env}
+      FRONTEND_BASE_PATH: ${FRONTEND_BASE_PATH:-}
+    volumes:
+      - uploads_data:/app/uploads
+      - backend_logs:/app/logs
+      # Optional FCM service-account JSON (read-only). Place it at onboarding/secrets/.
+      - ./secrets:/app/secrets:ro
+    networks:
+      - society-network
+    expose:
+      - "8080"
+
+  frontend:
+    build:
+      # Reuses the EXISTING Angular source, but with the domain-parameterized
+      # Dockerfile that lives in onboarding/. frontend-new/ files are untouched.
+      context: ../frontend-new
+      dockerfile: ../onboarding/frontend.Dockerfile
+    container_name: onboarding-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # SINGLE SOURCE OF TRUTH for the new society's domain.
+      DOMAIN: ${DOMAIN:?set DOMAIN in onboarding/.env}
+      # Blank -> the entrypoint derives www.$DOMAIN itself.
+      DOMAIN_WWW: ${DOMAIN_WWW:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Host Let's Encrypt certs (issued for $DOMAIN), read-only.
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot
+    networks:
+      - society-network
+
+volumes:
+  mysql_data:
+    driver: local
+  uploads_data:
+    driver: local
+  backend_logs:
+    driver: local
+  certbot_webroot:
+    driver: local
+
+networks:
+  society-network:
+    driver: bridge
