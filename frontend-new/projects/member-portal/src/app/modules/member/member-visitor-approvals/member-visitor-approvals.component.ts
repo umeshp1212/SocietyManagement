@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subscription, interval } from 'rxjs';
 import { MemberAuthService } from '@core/services/member-auth.service';
 import { VisitorRequest, VisitorService } from '@core/services/visitor.service';
+import { FcmService } from '@core/services/fcm.service';
 
 /**
  * Owner-facing screen listing visitor/delivery requests awaiting approval for the
@@ -128,12 +129,15 @@ export class MemberVisitorApprovalsComponent implements OnInit, OnDestroy {
   rejectReason = '';
 
   private pollSub?: Subscription;
+  /** Ids already alerted for, so the ring fires once per new request, not every poll. */
+  private alertedIds = new Set<number>();
 
   constructor(
     private visitorService: VisitorService,
     private memberAuth: MemberAuthService,
     private router: Router,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private fcmService: FcmService
   ) {}
 
   ngOnInit(): void {
@@ -148,6 +152,7 @@ export class MemberVisitorApprovalsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pollSub?.unsubscribe();
+    this.fcmService.stopAlert();
   }
 
   load(silent = false): void {
@@ -159,6 +164,16 @@ export class MemberVisitorApprovalsComponent implements OnInit, OnDestroy {
         this.loading = false;
         if (res.success) {
           this.requests = res.data || [];
+          // Ring loudly when a request we have not alerted for appears (app is open).
+          const hasNew = this.requests.some(r => !this.alertedIds.has(r.visitorRequestId));
+          if (hasNew) {
+            this.requests.forEach(r => this.alertedIds.add(r.visitorRequestId));
+            this.fcmService.ringAlert();
+          }
+          // Nothing pending → silence any ongoing ring.
+          if (this.requests.length === 0) {
+            this.fcmService.stopAlert();
+          }
         }
       },
       error: () => { this.loading = false; }
@@ -170,6 +185,7 @@ export class MemberVisitorApprovalsComponent implements OnInit, OnDestroy {
   }
 
   approve(r: VisitorRequest): void {
+    this.fcmService.stopAlert();
     this.actingId = r.visitorRequestId;
     this.visitorService.approve(r.visitorRequestId).subscribe({
       next: (res: any) => {
@@ -196,6 +212,7 @@ export class MemberVisitorApprovalsComponent implements OnInit, OnDestroy {
   }
 
   confirmReject(r: VisitorRequest): void {
+    this.fcmService.stopAlert();
     this.actingId = r.visitorRequestId;
     this.visitorService.reject(r.visitorRequestId, this.rejectReason || undefined).subscribe({
       next: (res: any) => {

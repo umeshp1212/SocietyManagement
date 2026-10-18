@@ -46,5 +46,15 @@ public interface VisitorRequestRepository extends JpaRepository<VisitorRequest, 
     List<VisitorRequest> findExpiredPending(@Param("status") VisitorStatus status,
                                             @Param("now") LocalDateTime now);
 
+    /**
+     * Still-PENDING requests that have NOT yet expired — the set the re-push ("nag")
+     * scheduler re-notifies every few seconds until the owner acts or the request
+     * times out. Unit is fetched so the notification body can name the flat.
+     */
+    @Query("SELECT r FROM VisitorRequest r JOIN FETCH r.unit " +
+           "WHERE r.status = :status AND r.expiresAt > :now")
+    List<VisitorRequest> findLivePending(@Param("status") VisitorStatus status,
+                                         @Param("now") LocalDateTime now);
+
     long countByStatus(VisitorStatus status);
 }

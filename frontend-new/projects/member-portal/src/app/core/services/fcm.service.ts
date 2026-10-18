@@ -30,6 +30,8 @@ export class FcmService {
 
   private initialized = false;
   private swRegistration: ServiceWorkerRegistration | null = null;
+  private alertCtx: AudioContext | null = null;
+  private alertTimer: number | null = null;
 
   constructor(
     private visitorService: VisitorService,
@@ -105,6 +107,33 @@ export class FcmService {
   }
 
   /**
+   * Browsers block audio until the user interacts with the page at least once. Call this
+   * once (e.g. from the app shell) so the first real alert can actually play. Attaches a
+   * one-time listener that resumes a throwaway AudioContext on the first tap/click.
+   */
+  unlockAudioOnFirstGesture(): void {
+    const unlock = () => {
+      try {
+        const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          if (ctx.state === 'suspended') {
+            ctx.resume().finally(() => ctx.close());
+          } else {
+            ctx.close();
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+  }
+
+  /**
    * Displays a notification for a message received while the app is in the foreground.
    * Uses the FCM service-worker registration (so a tap can reopen/focus the app) when
    * available, falling back to the Notification constructor.
@@ -128,8 +157,8 @@ export class FcmService {
         body,
         icon: 'icons/icon-192x192.png',
         badge: 'icons/icon-96x96.png',
-        vibrate: [200, 100, 200, 100, 300],   // distinct vibration pattern
-        requireInteraction: true,              // stays until the owner acts
+        vibrate: [400, 200, 400, 200, 600, 200, 400],   // strong, long alert pattern
+        requireInteraction: true,                        // stays until the owner acts
         tag: 'visitor-' + requestId,
         renotify: true,
         data: { click_action: clickAction, visitorRequestId: requestId },
@@ -150,31 +179,89 @@ export class FcmService {
     }
   }
 
-  /** Plays a short distinct chime using the Web Audio API (foreground only). */
+  /**
+   * Plays a loud, attention-grabbing "doorbell ring" using the Web Audio API and loops
+   * it several times so the owner is clearly alerted (foreground only — the OS controls
+   * the sound for background push). Also fires a strong repeating vibration. The ring
+   * stops automatically after a few cycles, or immediately when {@link #stopAlert} is
+   * called (e.g. the owner opened the approvals screen / acted).
+   */
   private playChime(): void {
     try {
+      this.stopAlert(); // never stack two rings
       const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
       if (!Ctx) {
         return;
       }
-      const ctx = new Ctx();
-      const now = ctx.currentTime;
-      // Two-tone "ding-dong" so it is recognisably the gate alert, not a generic beep.
-      [{ f: 880, t: 0 }, { f: 660, t: 0.18 }].forEach(({ f, t }) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = f;
-        gain.gain.setValueAtTime(0.0001, now + t);
-        gain.gain.exponentialRampToValueAtTime(0.25, now + t + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.16);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now + t);
-        osc.stop(now + t + 0.18);
-      });
+      const ctx: AudioContext = new Ctx();
+      this.alertCtx = ctx;
+
+      // One "ding-dong-dong" burst — brighter + louder than the old single chime.
+      const burst = (startAt: number) => {
+        const tones = [
+          { f: 988, t: 0.00, d: 0.22 },  // B5
+          { f: 740, t: 0.22, d: 0.22 },  // F#5
+          { f: 988, t: 0.46, d: 0.30 }   // B5
+        ];
+        for (const { f, t, d } of tones) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';            // richer/louder than a pure sine
+          osc.frequency.value = f;
+          const s = startAt + t;
+          gain.gain.setValueAtTime(0.0001, s);
+          gain.gain.exponentialRampToValueAtTime(0.6, s + 0.02);   // louder peak
+          gain.gain.exponentialRampToValueAtTime(0.0001, s + d);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(s);
+          osc.stop(s + d + 0.02);
+        }
+      };
+
+      const CYCLES = 4;           // ring ~4 times
+      const CYCLE_GAP = 1.1;      // seconds between bursts
+      for (let i = 0; i < CYCLES; i++) {
+        burst(ctx.currentTime + i * CYCLE_GAP);
+      }
+
+      // Strong repeating vibration alongside the ring (where supported).
+      if ('vibrate' in navigator) {
+        navigator.vibrate([400, 200, 400, 200, 600]);
+      }
+
+      // Auto-close the audio context after the ring finishes.
+      this.alertTimer = window.setTimeout(() => this.stopAlert(), (CYCLES * CYCLE_GAP + 1) * 1000);
     } catch {
       /* audio is best-effort */
+    }
+  }
+
+  /**
+   * Public trigger for the loud alert ring — used by the approvals screen when a new
+   * pending request appears while the app is open. Safe to call repeatedly (it resets
+   * any in-progress ring first).
+   */
+  ringAlert(): void {
+    this.playChime();
+  }
+
+  /** Stops any in-progress alert ring/vibration. */
+  stopAlert(): void {
+    try {
+      if (this.alertTimer) {
+        clearTimeout(this.alertTimer);
+        this.alertTimer = null;
+      }
+      if (this.alertCtx) {
+        this.alertCtx.close();
+        this.alertCtx = null;
+      }
+      if ('vibrate' in navigator) {
+        navigator.vibrate(0);
+      }
+    } catch {
+      /* best-effort */
     }
   }
 

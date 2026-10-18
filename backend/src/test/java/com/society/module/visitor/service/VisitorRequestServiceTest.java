@@ -241,4 +241,45 @@ class VisitorRequestServiceTest {
         assertThat(overdue.getStatus()).isEqualTo(VisitorStatus.TIMED_OUT);
         verify(requestRepository).saveAll(anyList());
     }
+
+    // ---------------- re-push (nag until action) ----------------
+
+    @Test
+    void repushNotifiesEveryLivePendingRequest() {
+        Unit unitA = unit(5L, "A-101");
+        Unit unitB = unit(6L, "A-102");
+        VisitorRequest r1 = VisitorRequest.builder()
+                .visitorRequestId(70L).unit(unitA).visitorName("Courier")
+                .status(VisitorStatus.PENDING).expiresAt(LocalDateTime.now().plusMinutes(5)).build();
+        VisitorRequest r2 = VisitorRequest.builder()
+                .visitorRequestId(71L).unit(unitB).visitorName("Food")
+                .status(VisitorStatus.PENDING).expiresAt(LocalDateTime.now().plusMinutes(5)).build();
+        when(requestRepository.findLivePending(eq(VisitorStatus.PENDING), any()))
+                .thenReturn(List.of(r1, r2));
+        when(unitOwnerRepository.findByUnit_UnitId(5L)).thenReturn(List.of(ownerLink(1L, "Alice")));
+        when(unitOwnerRepository.findByUnit_UnitId(6L)).thenReturn(List.of(ownerLink(2L, "Bob")));
+
+        int repushed = service.repushPendingRequests();
+
+        assertThat(repushed).isEqualTo(2);
+        verify(notifier, times(2)).notifyNewRequest(any(VisitorRequest.class), anyList());
+    }
+
+    @Test
+    void repushSkipsRequestWithNoRecipientsAndNeverThrows() {
+        Unit unit = unit(8L, "A-999");
+        VisitorRequest r = VisitorRequest.builder()
+                .visitorRequestId(72L).unit(unit).visitorName("Courier")
+                .status(VisitorStatus.PENDING).expiresAt(LocalDateTime.now().plusMinutes(5)).build();
+        when(requestRepository.findLivePending(eq(VisitorStatus.PENDING), any()))
+                .thenReturn(List.of(r));
+        when(unitOwnerRepository.findByUnit_UnitId(8L)).thenReturn(List.of());
+        when(tenantRepository.findActiveByUnitId(8L, com.society.enums.TenantStatus.ACTIVE))
+                .thenReturn(Optional.empty());
+
+        int repushed = service.repushPendingRequests();
+
+        assertThat(repushed).isEqualTo(0);
+        verifyNoInteractions(notifier);
+    }
 }

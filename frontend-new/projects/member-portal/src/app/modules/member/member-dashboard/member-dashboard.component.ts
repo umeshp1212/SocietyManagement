@@ -522,6 +522,7 @@ export class MemberDashboardComponent implements OnInit {
 
     // Register for push (no-op when FCM is not configured) and show the pending count.
     this.fcmService.init();
+    this.fcmService.unlockAudioOnFirstGesture();
     this.loadPendingVisitorCount();
   }
 

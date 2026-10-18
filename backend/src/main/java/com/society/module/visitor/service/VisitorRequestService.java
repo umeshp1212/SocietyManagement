@@ -303,6 +303,39 @@ public class VisitorRequestService {
     // ==================== SCHEDULER SUPPORT ====================
 
     /**
+     * Re-sends the push notification for every still-live PENDING request so the flat's
+     * owner/tenant keeps being alerted until they act or the request times out. Invoked
+     * every few seconds by {@code VisitorRepushScheduler}.
+     *
+     * <p>Stops naturally: a request that is approved/rejected/timed-out is no longer
+     * PENDING and drops out of {@code findLivePending}, so no further re-push is sent.
+     * Notification failures are swallowed per request so one bad token never stops the
+     * rest. Returns the number of requests re-notified.</p>
+     */
+    @Transactional(readOnly = true)
+    public int repushPendingRequests() {
+        LocalDateTime now = LocalDateTime.now();
+        List<VisitorRequest> live = requestRepository.findLivePending(VisitorStatus.PENDING, now);
+        int repushed = 0;
+        for (VisitorRequest request : live) {
+            try {
+                List<VisitorRecipient> recipients = resolveRecipients(request.getUnit());
+                if (!recipients.isEmpty()) {
+                    notifier.notifyNewRequest(request, recipients);
+                    repushed++;
+                }
+            } catch (RuntimeException e) {
+                log.warn("Re-push failed for visitor request {}: {}",
+                        request.getVisitorRequestId(), e.toString());
+            }
+        }
+        if (repushed > 0) {
+            log.debug("Re-pushed {} pending visitor request(s).", repushed);
+        }
+        return repushed;
+    }
+
+    /**
      * Flips every still-PENDING request past its expiry to TIMED_OUT. Returns the number
      * of requests expired. Invoked by the auto-expiry scheduler (Task 5).
      */

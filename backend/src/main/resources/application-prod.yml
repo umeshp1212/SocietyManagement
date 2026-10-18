@@ -148,6 +148,9 @@ app:
     # How often the scheduler scans for expired PENDING requests (ms). The per-request
     # timeout itself is the society setting "visitorApprovalTimeoutMinutes".
     expiry-scan-ms: ${VISITOR_EXPIRY_SCAN_MS:60000}
+    # How often a still-pending request re-pushes its notification so the owner keeps
+    # being alerted until they act or it times out (ms). Default: every 10 seconds.
+    repush-ms: ${VISITOR_REPUSH_MS:10000}
 
   base-url: ${APP_BASE_URL:http://YOUR_ELASTIC_IP/api}
   frontend-url: ${FRONTEND_URL:http://YOUR_ELASTIC_IP}

@@ -124,25 +124,28 @@ export class AuthService {
   }
 
   /**
-   * Roles that are allowed to use the admin portal. SECURITY guards and member-only
-   * roles (OWNER/TENANT) are intentionally excluded — guards belong in the gate portal
-   * and members in the member portal.
+   * Roles that must NOT use the admin portal: security guards belong in the gate portal
+   * and members in the member portal. Everyone else (any management/staff/custom role
+   * such as MANAGER, ADMIN, CHAIRMAN, etc.) is allowed in — the per-page permission
+   * guards then restrict what each role can actually do.
+   *
+   * <p>This is a denylist on purpose: an allowlist would wrongly lock out valid custom
+   * roles (e.g. MANAGER) that admins create and assign through the UI.</p>
    */
-  private static readonly ADMIN_ROLES = [
-    'SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER', 'COMMITTEE_MEMBER', 'ADMIN'
-  ];
+  private static readonly NON_ADMIN_ROLES = ['SECURITY', 'OWNER', 'TENANT'];
 
   /**
-   * True when the logged-in user may use the admin portal: they hold at least one
-   * admin/management role. A pure SECURITY guard (no admin role) returns false, so the
-   * admin portal refuses them even though they can authenticate against /auth/login.
+   * True when the logged-in user may use the admin portal. A user is allowed unless
+   * every role they hold is a gate/member-only role. So a pure SECURITY guard (only
+   * SECURITY) is blocked, but a user with any other role — including a dual-role guard
+   * who is also a MANAGER/SECRETARY — is allowed.
    */
   isAdminUser(): boolean {
     const user = this.getCurrentUser();
     if (!user?.roles?.length) {
       return false;
     }
-    return user.roles.some(r => AuthService.ADMIN_ROLES.includes(r));
+    return user.roles.some(r => !AuthService.NON_ADMIN_ROLES.includes(r));
   }
 
   hasAnyRole(roles: string[]): boolean {
