@@ -3,6 +3,7 @@ package com.society.module.voucher.controller;
 import com.society.common.ApiResponse;
 import com.society.common.PagedResponse;
 import com.society.module.voucher.dto.*;
+import com.society.module.voucher.service.IncomeExpenditureExcelService;
 import com.society.module.voucher.service.VoucherPdfService;
 import com.society.module.voucher.service.VoucherService;
 import jakarta.validation.Valid;
@@ -28,6 +29,7 @@ public class VoucherController {
 
     private final VoucherService voucherService;
     private final VoucherPdfService voucherPdfService;
+    private final IncomeExpenditureExcelService incomeExpenditureExcelService;
 
     // ==================== CRUD ====================
 
@@ -240,5 +242,32 @@ public class VoucherController {
         headers.setContentLength(pdfBytes.length);
 
         return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+    }
+
+    /**
+     * One-click monthly Income &amp; Expenditure statement as an Excel (.xlsx) download for the
+     * managing committee meeting. Expenditure = FINAL payment vouchers for the month; income =
+     * realised maintenance receipts (blank until the online maintenance module is live).
+     */
+    @GetMapping("/income-expenditure/excel")
+    public ResponseEntity<byte[]> downloadIncomeExpenditureExcel(
+            @RequestParam int year,
+            @RequestParam int month) throws IOException {
+
+        if (month < 1 || month > 12) {
+            throw new com.society.exception.BusinessException("Month must be between 1 and 12");
+        }
+
+        byte[] bytes = incomeExpenditureExcelService.generateMonthlyStatement(year, month);
+
+        String filename = String.format("Income_Expenditure_%04d_%02d.xlsx", year, month);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDispositionFormData("attachment", filename);
+        headers.setContentLength(bytes.length);
+
+        return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
     }
 }

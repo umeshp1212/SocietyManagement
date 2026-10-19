@@ -44,4 +44,17 @@ public interface MaintenancePaymentRepository extends JpaRepository<MaintenanceP
 
     @Query("SELECT COUNT(p) FROM MaintenancePayment p WHERE p.bill.billId = :billId AND p.status = 'SUCCESS'")
     long countSuccessfulByBill(@Param("billId") Long billId);
+
+    // ===== Income reporting (Income & Expenditure statement) =====
+
+    /**
+     * All realised (SUCCESS or VERIFIED) maintenance receipts in a date range, ordered by
+     * payment date. Feeds the Income side of the monthly Income & Expenditure statement.
+     * Returns empty until the online maintenance module goes live.
+     */
+    @Query("SELECT p FROM MaintenancePayment p WHERE p.status IN :statuses " +
+           "AND p.paymentDate BETWEEN :startDate AND :endDate ORDER BY p.paymentDate ASC, p.paymentId ASC")
+    List<MaintenancePayment> findIncomeBetween(@Param("statuses") List<PaymentStatus> statuses,
+                                               @Param("startDate") java.time.LocalDate startDate,
+                                               @Param("endDate") java.time.LocalDate endDate);
 }

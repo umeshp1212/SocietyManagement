@@ -39,6 +39,10 @@ import { environment } from '@env/environment';
                   *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
             <mat-icon>picture_as_pdf</mat-icon> Bulk PDF
           </button>
+          <button mat-raised-button color="accent" (click)="showIeDownload = !showIeDownload"
+                  *ngIf="hasPermission('VOUCHER_DOWNLOAD_PDF')">
+            <mat-icon>grid_on</mat-icon> Download I&amp;E Sheet
+          </button>
           <a mat-raised-button color="primary" routerLink="/vouchers/create"
              *ngIf="hasPermission('VOUCHER_CREATE')">
             <mat-icon>add</mat-icon> Create Voucher
@@ -82,6 +86,33 @@ import { environment } from '@env/environment';
           <button mat-raised-button color="accent" (click)="downloadBulkPdf(true)"
                   [disabled]="!canDownloadBulk()">
             <mat-icon>attach_file</mat-icon> Download With Bills
+          </button>
+        </div>
+      </div>
+
+      <!-- Income & Expenditure Sheet Panel -->
+      <div *ngIf="showIeDownload" class="bulk-download-panel">
+        <h4>Download Income &amp; Expenditure Sheet (Excel)</h4>
+        <p style="font-size:13px; color:#666; margin:0 0 12px;">
+          Monthly statement for the managing committee meeting. Expenditure = approved (FINAL) payment vouchers for the month.
+          Income = realised maintenance receipts (blank until the online maintenance module is live).
+        </p>
+        <div class="search-bar">
+          <mat-form-field appearance="outline">
+            <mat-label>Month</mat-label>
+            <mat-select [(ngModel)]="ieMonth">
+              <mat-option *ngFor="let m of months" [value]="m.value">{{ m.label }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Year</mat-label>
+            <mat-select [(ngModel)]="ieYear">
+              <mat-option *ngFor="let y of years" [value]="y">{{ y }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button mat-raised-button color="primary" (click)="downloadIeSheet()"
+                  [disabled]="ieDownloading">
+            <mat-icon>download</mat-icon> {{ ieDownloading ? 'Generating...' : 'Download Excel' }}
           </button>
         </div>
       </div>
@@ -161,11 +192,35 @@ export class VoucherListComponent implements OnInit {
   bulkEndDate = '';
   bulkIncludeBills = false;
 
+  // Income & Expenditure Excel download (defaults to last month)
+  showIeDownload = false;
+  ieMonth = 1;
+  ieYear = new Date().getFullYear();
+  ieDownloading = false;
+  months = [
+    { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+    { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+    { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+    { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
+  ];
+  years: number[] = [];
+
   constructor(private voucherService: VoucherService, private http: HttpClient, private breakpointObserver: BreakpointObserver, private authService: AuthService) {}
   ngOnInit(): void {
     this.breakpointObserver.observe(['(max-width: 768px)']).subscribe(result => {
       this.isMobile = result.matches;
     });
+
+    // Default the I&E picker to the previous month
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    this.ieMonth = lastMonth.getMonth() + 1;
+    this.ieYear = lastMonth.getFullYear();
+    const currentYear = now.getFullYear();
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+      this.years.push(y);
+    }
+
     this.loadVouchers();
   }
 
@@ -205,6 +260,24 @@ export class VoucherListComponent implements OnInit {
         window.URL.revokeObjectURL(blobUrl);
       },
       error: () => {}
+    });
+  }
+
+  downloadIeSheet(): void {
+    this.ieDownloading = true;
+    const url = `${environment.apiUrl}/vouchers/income-expenditure/excel?year=${this.ieYear}&month=${this.ieMonth}`;
+    const mm = String(this.ieMonth).padStart(2, '0');
+    this.http.get(url, { responseType: 'blob' }).subscribe({
+      next: (blob) => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `Income_Expenditure_${this.ieYear}_${mm}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(blobUrl);
+        this.ieDownloading = false;
+      },
+      error: () => { this.ieDownloading = false; }
     });
   }
 
