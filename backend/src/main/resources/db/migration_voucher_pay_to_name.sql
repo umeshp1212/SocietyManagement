@@ -11,17 +11,31 @@
 -- This field is MANDATORY for new vouchers. For existing rows we backfill a
 -- value so nothing is left blank:
 --   - use the linked vendor's registered name when the voucher has a vendor
---   - otherwise fall back to the voucher description-less placeholder 'N/A'
+--   - otherwise fall back to the placeholder 'N/A'
 --
--- Safe to run multiple times on MySQL 8+ (IF NOT EXISTS). For older MySQL,
--- drop the "IF NOT EXISTS" clause from the ALTER TABLE.
+-- Compatible with stock MySQL 8.0, which does NOT support
+-- "ALTER TABLE ... ADD COLUMN IF NOT EXISTS". Instead we check
+-- information_schema and add the column only when it's missing, so this
+-- script is safe to run more than once.
 -- ============================================================
 
--- 1) Add the column (nullable first so the backfill can run)
-ALTER TABLE vouchers
-    ADD COLUMN IF NOT EXISTS pay_to_name VARCHAR(200) NULL
-    COMMENT 'Payee / cheque in favour of (name the cheque is made out to)'
-    AFTER bill_invoice_number;
+-- 1) Add the column only if it doesn't already exist (idempotent on MySQL 8.0)
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'vouchers'
+      AND COLUMN_NAME = 'pay_to_name'
+);
+
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE vouchers ADD COLUMN pay_to_name VARCHAR(200) NULL COMMENT ''Payee / cheque in favour of (name the cheque is made out to)'' AFTER bill_invoice_number',
+    'SELECT ''Column pay_to_name already exists; skipping ADD COLUMN'' AS info'
+);
+
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 2) Backfill existing rows from the linked vendor's registered name
 UPDATE vouchers v
@@ -35,8 +49,9 @@ SET pay_to_name = 'N/A'
 WHERE pay_to_name IS NULL OR pay_to_name = '';
 
 -- 4) OPTIONAL: enforce NOT NULL at the DB level once every row has a value.
--- Uncomment after confirming no NULLs remain (SELECT COUNT(*) FROM vouchers
--- WHERE pay_to_name IS NULL OR pay_to_name = ''; should return 0).
--- ALTER TABLE vouchers
---     MODIFY COLUMN pay_to_name VARCHAR(200) NOT NULL
---     COMMENT 'Payee / cheque in favour of (name the cheque is made out to)';
+-- Run after confirming no blanks remain:
+--   SELECT COUNT(*) FROM vouchers WHERE pay_to_name IS NULL OR pay_to_name = '';
+-- (should return 0), then run:
+--   ALTER TABLE vouchers
+--       MODIFY COLUMN pay_to_name VARCHAR(200) NOT NULL
+--       COMMENT 'Payee / cheque in favour of (name the cheque is made out to)';
