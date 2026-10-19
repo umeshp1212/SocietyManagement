@@ -45,10 +45,12 @@ export class MaintenanceService {
     return this.http.delete<ApiResponse<any>>(`${this.apiUrl}/charge-config/${id}`);
   }
 
-  generateBills(month: number, year: number, dueDayOfMonth?: number, regenerate?: boolean): Observable<ApiResponse<any>> {
+  generateBills(month: number, year: number, dueDayOfMonth?: number, regenerate?: boolean,
+                adjustments?: { [unitId: number]: number }): Observable<ApiResponse<any>> {
     const body: any = { month, year };
     if (dueDayOfMonth) body.dueDayOfMonth = dueDayOfMonth;
     if (regenerate) body.regenerate = true;
+    if (adjustments && Object.keys(adjustments).length > 0) body.adjustments = adjustments;
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/bills/generate`, body);
   }
 

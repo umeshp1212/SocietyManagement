@@ -95,6 +95,65 @@ UPDATE maintenance_payments SET version = 0 WHERE version IS NULL;
 
 
 -- ============================================================
+-- SCHEMA MIGRATION: itemized arrears (principal + interest) + bill adjustment
+-- ============================================================
+-- The Opening Balance now stores legacy arrears split into PRINCIPAL and INTEREST, and
+-- each maintenance bill shows the full transparent ladder:
+--   Current Charges, + Interest Arrears, Principal Arrears, - Adjustment, Total Due, Payable.
+-- Hibernate ddl-auto adds these columns on entities it manages, but we also guard them
+-- here so EXISTING databases (or ddl-auto disabled) get them, and we backfill sensibly.
+-- All blocks are idempotent.
+
+-- opening_balances.principal_arrears
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'opening_balances' AND column_name = 'principal_arrears');
+SET @ddl := IF(@col = 0, 'ALTER TABLE opening_balances ADD COLUMN principal_arrears DECIMAL(12,2) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- opening_balances.interest_arrears
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'opening_balances' AND column_name = 'interest_arrears');
+SET @ddl := IF(@col = 0, 'ALTER TABLE opening_balances ADD COLUMN interest_arrears DECIMAL(12,2) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- Backfill: existing opening balances had a single `amount` = legacy arrears. Treat the
+-- whole amount as PRINCIPAL (interest = 0) wherever the split has not been set yet. Keyed
+-- so re-running is a no-op once a row has a non-zero principal split.
+UPDATE opening_balances
+SET principal_arrears = amount, interest_arrears = 0
+WHERE principal_arrears = 0 AND interest_arrears = 0 AND amount > 0;
+
+-- maintenance_bills.principal_arrears
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_bills' AND column_name = 'principal_arrears');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_bills ADD COLUMN principal_arrears DECIMAL(10,2) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- maintenance_bills.interest_arrears
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_bills' AND column_name = 'interest_arrears');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_bills ADD COLUMN interest_arrears DECIMAL(10,2) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- maintenance_bills.adjustment
+SET @col := (SELECT COUNT(*) FROM information_schema.columns
+             WHERE table_schema = DATABASE() AND table_name = 'maintenance_bills' AND column_name = 'adjustment');
+SET @ddl := IF(@col = 0, 'ALTER TABLE maintenance_bills ADD COLUMN adjustment DECIMAL(10,2) NOT NULL DEFAULT 0', 'SELECT 1');
+PREPARE s FROM @ddl; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- Backfill existing bills: carry their legacy previous_arrears/interest_on_arrears into the
+-- new itemized columns so historical bills display the same numbers under the new labels.
+-- Idempotent: only touches rows still at the 0 default while a legacy value exists.
+UPDATE maintenance_bills
+SET principal_arrears = COALESCE(previous_arrears, 0)
+WHERE principal_arrears = 0 AND COALESCE(previous_arrears, 0) <> 0;
+
+UPDATE maintenance_bills
+SET interest_arrears = COALESCE(interest_on_arrears, 0)
+WHERE interest_arrears = 0 AND COALESCE(interest_on_arrears, 0) <> 0;
+
+
+-- ============================================================
 -- SCHEMA MIGRATION: unique, sequence-based receipt numbers
 -- ============================================================
 -- Receipt numbers were previously RCP-yyyyMMdd-<random 4 digits>, which could collide and

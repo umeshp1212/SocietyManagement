@@ -23,13 +23,20 @@ public class BillDTO {
     // Current month charges (sum of line items)
     private BigDecimal amount;
 
-    // Arrears tracking
+    // Arrears tracking (legacy fields, retained for compatibility)
     private BigDecimal previousArrears;
     private BigDecimal interestOnArrears;
 
+    // Itemized arrears breakdown shown to members
+    private BigDecimal principalArrears;
+    private BigDecimal interestArrears;
+
+    // "Less: Adjustment" — manual credit/waiver applied to this bill
+    private BigDecimal adjustment;
+
     private BigDecimal lateFee;
 
-    // Grand total = amount + previousArrears + interestOnArrears
+    // Grand total (Total Due) = amount + principalArrears + interestArrears + lateFee - adjustment
     private BigDecimal totalAmount;
 
     private BigDecimal paidAmount;

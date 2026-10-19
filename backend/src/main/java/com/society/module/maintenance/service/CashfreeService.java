@@ -920,8 +920,11 @@ public class CashfreeService {
         BigDecimal currentCharges = bill.getAmount() != null ? bill.getAmount() : BigDecimal.ZERO;
         BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
         BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
+        // "Less: Adjustment" settles against principal first so principal+interest buckets
+        // always sum to the bill's (adjusted) total.
+        BigDecimal adjustment = bill.getAdjustment() != null ? bill.getAdjustment() : BigDecimal.ZERO;
         // Late fee is a fixed charge, settled with principal (before interest).
-        BigDecimal totalPrincipal = currentCharges.add(arrears).add(lateFee);
+        BigDecimal totalPrincipal = currentCharges.add(arrears).add(lateFee).subtract(adjustment).max(BigDecimal.ZERO);
         BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         return totalPrincipal.subtract(paidSoFar).max(BigDecimal.ZERO);
     }
@@ -933,7 +936,8 @@ public class CashfreeService {
         BigDecimal currentCharges = bill.getAmount() != null ? bill.getAmount() : BigDecimal.ZERO;
         BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
         BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
-        BigDecimal totalPrincipal = currentCharges.add(arrears).add(lateFee);
+        BigDecimal adjustment = bill.getAdjustment() != null ? bill.getAdjustment() : BigDecimal.ZERO;
+        BigDecimal totalPrincipal = currentCharges.add(arrears).add(lateFee).subtract(adjustment).max(BigDecimal.ZERO);
         BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         BigDecimal paidTowardsInterest = paidSoFar.subtract(totalPrincipal).max(BigDecimal.ZERO);
         return interest.subtract(paidTowardsInterest).max(BigDecimal.ZERO);

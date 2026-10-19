@@ -18,6 +18,8 @@ public class OpeningBalanceDTO {
     private Long unitId;
     private String unitNumber;
     private String ownerName;
+    private BigDecimal principalArrears;
+    private BigDecimal interestArrears;
     private BigDecimal amount;
     private LocalDate asOfDate;
     private String remarks;

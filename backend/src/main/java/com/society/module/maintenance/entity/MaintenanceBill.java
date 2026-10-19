@@ -60,25 +60,53 @@ public class MaintenanceBill extends BaseEntity {
     private BigDecimal amount;
 
     /**
-     * Arrears principal carried from previous months (unpaid balance)
+     * Arrears principal carried from previous months (unpaid balance).
+     * Retained for backward compatibility; equals {@link #principalArrears} going forward.
      */
     @Column(name = "previous_arrears", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal previousArrears = BigDecimal.ZERO;
 
     /**
-     * 1% monthly interest on previous arrears
+     * 1% monthly interest on previous arrears.
+     * Retained for backward compatibility; equals {@link #interestArrears} going forward.
      */
     @Column(name = "interest_on_arrears", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal interestOnArrears = BigDecimal.ZERO;
+
+    /**
+     * Principal Arrears shown on the bill: unpaid principal from prior bills + the
+     * principal portion of the unit's opening balance (legacy pre-go-live arrears).
+     */
+    @Column(name = "principal_arrears", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal principalArrears = BigDecimal.ZERO;
+
+    /**
+     * Interest Arrears shown on the bill: carried-forward interest from prior bills +
+     * the interest portion of the opening balance + this month's 1% interest on the
+     * outstanding principal.
+     */
+    @Column(name = "interest_arrears", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal interestArrears = BigDecimal.ZERO;
+
+    /**
+     * "Less: Adjustment" — a manual credit/waiver the committee applies to THIS bill at
+     * generation time. Subtracted from the total. Defaults to 0.
+     */
+    @Column(name = "adjustment", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal adjustment = BigDecimal.ZERO;
 
     @Column(name = "late_fee", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal lateFee = BigDecimal.ZERO;
 
     /**
-     * Grand total = amount (current charges) + previousArrears + interestOnArrears
+     * Grand total (Total Due) = amount (current charges) + interestArrears (incl. new
+     * interest) + principalArrears + lateFee - adjustment.
      */
     @Column(name = "total_amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal totalAmount;

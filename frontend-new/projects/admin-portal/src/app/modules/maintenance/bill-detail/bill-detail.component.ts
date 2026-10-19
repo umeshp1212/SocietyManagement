@@ -87,23 +87,27 @@ import { BackButtonComponent } from '@shared/components/back-button';
             </tbody>
             <tfoot>
               <tr class="subtotal-row">
-                <td colspan="3" class="text-right"><strong>Current Month Charges</strong></td>
+                <td colspan="3" class="text-right"><strong>Current Charges</strong></td>
                 <td class="amt-col"><strong>{{ bill.amount | number:'1.2-2' }}</strong></td>
               </tr>
-              <tr *ngIf="bill.previousArrears > 0" class="arrears-row">
-                <td colspan="3" class="text-right">Previous Arrears (Principal)</td>
-                <td class="amt-col">{{ bill.previousArrears | number:'1.2-2' }}</td>
+              <tr *ngIf="arrInterest(bill) > 0" class="arrears-row">
+                <td colspan="3" class="text-right">Add: Interest Arrears</td>
+                <td class="amt-col">{{ arrInterest(bill) | number:'1.2-2' }}</td>
               </tr>
-              <tr *ngIf="bill.interestOnArrears > 0" class="arrears-row">
-                <td colspan="3" class="text-right">Interest on Arrears (1% per month)</td>
-                <td class="amt-col">{{ bill.interestOnArrears | number:'1.2-2' }}</td>
+              <tr *ngIf="arrPrincipal(bill) > 0" class="arrears-row">
+                <td colspan="3" class="text-right">Principal Arrears</td>
+                <td class="amt-col">{{ arrPrincipal(bill) | number:'1.2-2' }}</td>
               </tr>
               <tr *ngIf="bill.lateFee > 0" class="arrears-row">
-                <td colspan="3" class="text-right">Late Fee</td>
+                <td colspan="3" class="text-right">Add: Late Fee</td>
                 <td class="amt-col">{{ bill.lateFee | number:'1.2-2' }}</td>
               </tr>
+              <tr *ngIf="bill.adjustment > 0" class="paid-row">
+                <td colspan="3" class="text-right">Less: Adjustment</td>
+                <td class="amt-col">- {{ bill.adjustment | number:'1.2-2' }}</td>
+              </tr>
               <tr class="total-row">
-                <td colspan="3" class="text-right"><strong>Grand Total</strong></td>
+                <td colspan="3" class="text-right"><strong>Total Due</strong></td>
                 <td class="amt-col"><strong>{{ bill.totalAmount | number:'1.2-2' }}</strong></td>
               </tr>
               <tr *ngIf="bill.paidAmount > 0" class="paid-row">
@@ -111,7 +115,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 <td class="amt-col">- {{ bill.paidAmount | number:'1.2-2' }}</td>
               </tr>
               <tr class="balance-row">
-                <td colspan="3" class="text-right"><strong>Balance Due</strong></td>
+                <td colspan="3" class="text-right"><strong>Payable</strong></td>
                 <td class="amt-col"><strong>{{ bill.balanceAmount | number:'1.2-2' }}</strong></td>
               </tr>
             </tfoot>
@@ -394,6 +398,21 @@ import { BackButtonComponent } from '@shared/components/back-button';
 })
 export class BillDetailComponent implements OnInit {
   bill: any = null;
+
+  /** Principal arrears for display; falls back to legacy previousArrears for old bills. */
+  arrPrincipal(bill: any): number {
+    const v = Number(bill?.principalArrears);
+    if (v) return v;
+    return Number(bill?.previousArrears) || 0;
+  }
+
+  /** Interest arrears for display; falls back to legacy interestOnArrears for old bills. */
+  arrInterest(bill: any): number {
+    const v = Number(bill?.interestArrears);
+    if (v) return v;
+    return Number(bill?.interestOnArrears) || 0;
+  }
+
   qrCodeBase64: string | null = null;
   paymentLink: string | null = null;
   payments: any[] = [];

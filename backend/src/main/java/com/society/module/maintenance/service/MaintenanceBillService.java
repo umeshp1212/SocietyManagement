@@ -60,6 +60,7 @@ public class MaintenanceBillService {
     private final WaterChargeConfigService waterChargeConfigService;
     private final PenaltyRepository penaltyRepository;
     private final OpeningBalanceRepository openingBalanceRepository;
+    private final OpeningBalanceService openingBalanceService;
     private final OptimisticRetry optimisticRetry;
     private final ReceiptNumberService receiptNumberService;
     private final MaintenanceLedgerService ledgerService;
@@ -261,9 +262,18 @@ public class MaintenanceBillService {
             return null;
         }
 
-        // Calculate arrears and interest from previous month's unpaid balance
-        BigDecimal previousArrears = calculatePreviousArrears(unit.getUnitId(), request.getMonth(), request.getYear());
-        BigDecimal interestOnArrears = money(previousArrears.multiply(MONTHLY_INTEREST_RATE));
+        // Carried-forward arrears, split into principal and interest for transparency.
+        ArrearsSplit carried = calculateArrearsSplit(unit.getUnitId(), request.getMonth(), request.getYear());
+        BigDecimal principalArrears = carried.principal();
+
+        // This month's new 1% interest is charged on the OUTSTANDING PRINCIPAL only
+        // (not on already-accrued interest). Total Interest Arrears = carried interest + new interest.
+        BigDecimal newInterest = money(principalArrears.multiply(MONTHLY_INTEREST_RATE));
+        BigDecimal interestArrears = money(carried.interest().add(newInterest));
+
+        // Legacy fields kept in sync so older readers/reports still work.
+        BigDecimal previousArrears = principalArrears;
+        BigDecimal interestOnArrears = interestArrears;
 
         // Late fee: a flat, configurable charge applied ONCE when a unit is carrying arrears
         // (i.e. it defaulted on a previous bill). Distinct from interest-on-arrears, which is
@@ -271,18 +281,37 @@ public class MaintenanceBillService {
         // societies see no change unless they explicitly configure app.maintenance.late-fee.
         BigDecimal lateFee = BigDecimal.ZERO;
         if (lateFeeAmount != null && lateFeeAmount.compareTo(BigDecimal.ZERO) > 0
-                && previousArrears.compareTo(BigDecimal.ZERO) > 0) {
+                && principalArrears.add(carried.interest()).compareTo(BigDecimal.ZERO) > 0) {
             lateFee = money(lateFeeAmount);
+        }
+
+        // "Less: Adjustment" — optional per-unit manual credit/waiver supplied for this run.
+        BigDecimal adjustment = BigDecimal.ZERO;
+        if (request.getAdjustments() != null) {
+            BigDecimal adj = request.getAdjustments().get(unit.getUnitId());
+            if (adj != null && adj.compareTo(BigDecimal.ZERO) > 0) {
+                adjustment = money(adj);
+            }
         }
 
         // Set bill amounts
         bill.setAmount(currentChargesTotal);
+        bill.setPrincipalArrears(principalArrears);
+        bill.setInterestArrears(interestArrears);
+        bill.setAdjustment(adjustment);
         bill.setPreviousArrears(previousArrears);
         bill.setInterestOnArrears(interestOnArrears);
         bill.setLateFee(lateFee);
 
-        // Total = current charges + previous arrears + interest + late fee
-        BigDecimal totalAmount = money(currentChargesTotal.add(previousArrears).add(interestOnArrears).add(lateFee));
+        // Total Due = current charges + principal arrears + interest arrears + late fee - adjustment.
+        BigDecimal totalAmount = money(currentChargesTotal
+                .add(principalArrears)
+                .add(interestArrears)
+                .add(lateFee)
+                .subtract(adjustment));
+        if (totalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            totalAmount = BigDecimal.ZERO; // an over-large adjustment never produces a negative bill
+        }
         bill.setTotalAmount(totalAmount);
         bill.setBalanceAmount(totalAmount);
         bill.setPaidAmount(BigDecimal.ZERO);
@@ -367,25 +396,66 @@ public class MaintenanceBillService {
      * 2. Opening balance (legacy arrears from before app deployment)
      */
     private BigDecimal calculatePreviousArrears(Long unitId, int currentMonth, int currentYear) {
+        return calculateArrearsSplit(unitId, currentMonth, currentYear).total();
+    }
+
+    /**
+     * Principal + interest breakdown of a unit's carried-forward arrears, used to show
+     * "Principal Arrears" and "Interest Arrears" transparently on the bill.
+     *
+     * <p>Principal = unpaid balance of prior bills' principal + opening-balance principal.
+     * Interest    = unpaid balance of prior bills' interest  + opening-balance interest.
+     * For prior bills we split each bill's remaining balance proportionally between its
+     * own principal (current charges + principal arrears) and interest components, so a
+     * partially-paid prior bill carries forward a faithful principal/interest ratio.</p>
+     */
+    private ArrearsSplit calculateArrearsSplit(Long unitId, int currentMonth, int currentYear) {
         List<MaintenanceBill> outstandingBills = billRepository.findOutstandingByUnit(unitId);
 
-        BigDecimal totalArrears = BigDecimal.ZERO;
-        for (MaintenanceBill existingBill : outstandingBills) {
-            // Only consider bills BEFORE the current month
-            if (isBillBeforeMonth(existingBill, currentMonth, currentYear)) {
-                BigDecimal balance = existingBill.getBalanceAmount() != null
-                        ? existingBill.getBalanceAmount() : BigDecimal.ZERO;
-                totalArrears = totalArrears.add(balance);
+        BigDecimal principal = BigDecimal.ZERO;
+        BigDecimal interest = BigDecimal.ZERO;
+
+        for (MaintenanceBill b : outstandingBills) {
+            if (!isBillBeforeMonth(b, currentMonth, currentYear)) {
+                continue;
             }
+            BigDecimal balance = b.getBalanceAmount() != null ? b.getBalanceAmount() : BigDecimal.ZERO;
+            if (balance.compareTo(BigDecimal.ZERO) <= 0) {
+                continue;
+            }
+
+            BigDecimal billInterest = b.getInterestArrears() != null && b.getInterestArrears().signum() > 0
+                    ? b.getInterestArrears()
+                    : (b.getInterestOnArrears() != null ? b.getInterestOnArrears() : BigDecimal.ZERO);
+            BigDecimal billTotal = b.getTotalAmount() != null ? b.getTotalAmount() : BigDecimal.ZERO;
+            BigDecimal billPrincipal = billTotal.subtract(billInterest).max(BigDecimal.ZERO);
+
+            if (billTotal.compareTo(BigDecimal.ZERO) <= 0) {
+                // Degenerate bill; treat the whole remaining balance as principal.
+                principal = principal.add(balance);
+                continue;
+            }
+
+            // Split the remaining balance in the same principal:interest ratio as the bill.
+            BigDecimal interestShare = money(balance.multiply(billInterest)
+                    .divide(billTotal, MONEY_SCALE, RoundingMode.HALF_UP));
+            BigDecimal principalShare = balance.subtract(interestShare).max(BigDecimal.ZERO);
+            interest = interest.add(interestShare);
+            principal = principal.add(principalShare);
         }
 
-        // Add opening balance (legacy arrears)
-        BigDecimal openingBalance = openingBalanceRepository.getTotalOpeningBalanceByUnit(unitId);
-        if (openingBalance != null && openingBalance.compareTo(BigDecimal.ZERO) > 0) {
-            totalArrears = totalArrears.add(openingBalance);
-        }
+        // Add opening balance (legacy pre-go-live arrears), split into principal + interest.
+        principal = principal.add(money(openingBalanceService.getOutstandingPrincipalForUnit(unitId)));
+        interest = interest.add(money(openingBalanceService.getOutstandingInterestForUnit(unitId)));
 
-        return totalArrears;
+        return new ArrearsSplit(money(principal), money(interest));
+    }
+
+    /** Immutable principal/interest arrears breakdown. */
+    private record ArrearsSplit(BigDecimal principal, BigDecimal interest) {
+        BigDecimal total() {
+            return principal.add(interest);
+        }
     }
 
     private boolean isBillBeforeMonth(MaintenanceBill bill, int month, int year) {
@@ -943,6 +1013,9 @@ public class MaintenanceBillService {
         dto.setAmount(bill.getAmount());
         dto.setPreviousArrears(bill.getPreviousArrears());
         dto.setInterestOnArrears(bill.getInterestOnArrears());
+        dto.setPrincipalArrears(bill.getPrincipalArrears());
+        dto.setInterestArrears(bill.getInterestArrears());
+        dto.setAdjustment(bill.getAdjustment());
         dto.setLateFee(bill.getLateFee());
         dto.setTotalAmount(bill.getTotalAmount());
         dto.setPaidAmount(bill.getPaidAmount());

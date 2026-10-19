@@ -163,7 +163,8 @@ class SuspenseIntegrationTest {
     @DisplayName("Assigning with applyToOpeningBalance reduces the unit's opening balance; reversal restores it")
     void assignAgainstOpeningBalance_reducesThenRestores() {
         openingBalanceService.createOrUpdateOpeningBalance(
-                unitA.getUnitId(), new BigDecimal("10000.00"), LocalDate.now(), "Legacy arrears", ACTOR);
+                unitA.getUnitId(), new BigDecimal("10000.00"), BigDecimal.ZERO,
+                LocalDate.now(), "Legacy arrears", ACTOR);
 
         SuspenseEntryDTO created = suspenseService.createSuspenseEntry(
                 new BigDecimal("4000.00"), LocalDate.now(), PaymentMode.BANK_TRANSFER.name(),

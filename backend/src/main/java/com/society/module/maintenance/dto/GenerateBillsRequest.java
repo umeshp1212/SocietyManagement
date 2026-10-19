@@ -26,4 +26,10 @@ public class GenerateBillsRequest {
      * Bills that are PAID or PARTIALLY_PAID will not be touched.
      */
     private Boolean regenerate;
+
+    /**
+     * Optional per-unit "Less: Adjustment" credits/waivers to apply to this run's bills,
+     * keyed by unitId. A unit absent from the map (or null map) gets adjustment = 0.
+     */
+    private java.util.Map<Long, java.math.BigDecimal> adjustments;
 }

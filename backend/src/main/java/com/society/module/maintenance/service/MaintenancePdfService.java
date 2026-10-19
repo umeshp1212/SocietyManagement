@@ -147,21 +147,35 @@ public class MaintenancePdfService {
 
         doc.add(new Paragraph("\n"));
 
-        // Arrears & Interest
-        BigDecimal arrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
-        BigDecimal interest = bill.getInterestOnArrears() != null ? bill.getInterestOnArrears() : BigDecimal.ZERO;
+        // Arrears, Interest & Adjustment. Prefer the itemized columns; fall back to the
+        // legacy previous_arrears / interest_on_arrears for bills generated before the split.
+        BigDecimal principalArrears = bill.getPrincipalArrears() != null && bill.getPrincipalArrears().signum() != 0
+                ? bill.getPrincipalArrears()
+                : (bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO);
+        BigDecimal interestArrears = bill.getInterestArrears() != null && bill.getInterestArrears().signum() != 0
+                ? bill.getInterestArrears()
+                : (bill.getInterestOnArrears() != null ? bill.getInterestOnArrears() : BigDecimal.ZERO);
+        BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
+        BigDecimal adjustment = bill.getAdjustment() != null ? bill.getAdjustment() : BigDecimal.ZERO;
 
-        if (arrears.compareTo(BigDecimal.ZERO) > 0 || interest.compareTo(BigDecimal.ZERO) > 0) {
+        if (interestArrears.signum() > 0 || principalArrears.signum() > 0
+                || lateFee.signum() > 0 || adjustment.signum() > 0) {
             Table arrearsTable = new Table(UnitValue.createPercentArray(new float[]{5, 2}))
                     .setWidth(UnitValue.createPercentValue(100));
 
             addTableHeader(arrearsTable, bold, "Description", "Amount");
 
-            if (arrears.compareTo(BigDecimal.ZERO) > 0) {
-                addTableRow(arrearsTable, regular, "Principal Outstanding (Arrears)", "₹ " + format(arrears));
+            if (interestArrears.compareTo(BigDecimal.ZERO) > 0) {
+                addTableRow(arrearsTable, regular, "Add: Interest Arrears", "₹ " + format(interestArrears));
             }
-            if (interest.compareTo(BigDecimal.ZERO) > 0) {
-                addTableRow(arrearsTable, regular, "Interest on Arrears", "₹ " + format(interest));
+            if (principalArrears.compareTo(BigDecimal.ZERO) > 0) {
+                addTableRow(arrearsTable, regular, "Principal Arrears", "₹ " + format(principalArrears));
+            }
+            if (lateFee.compareTo(BigDecimal.ZERO) > 0) {
+                addTableRow(arrearsTable, regular, "Add: Late Fee", "₹ " + format(lateFee));
+            }
+            if (adjustment.compareTo(BigDecimal.ZERO) > 0) {
+                addTableRow(arrearsTable, regular, "Less: Adjustment", "- ₹ " + format(adjustment));
             }
             doc.add(arrearsTable);
         }
@@ -172,7 +186,7 @@ public class MaintenancePdfService {
         Table summaryTable = new Table(UnitValue.createPercentArray(new float[]{5, 2}))
                 .setWidth(UnitValue.createPercentValue(100));
 
-        addSummaryRow(summaryTable, bold, "Total Bill Amount", "₹ " + format(bill.getTotalAmount()), HEADER_BG);
+        addSummaryRow(summaryTable, bold, "Total Due", "₹ " + format(bill.getTotalAmount()), HEADER_BG);
 
         BigDecimal paid = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         if (paid.compareTo(BigDecimal.ZERO) > 0) {
@@ -181,7 +195,7 @@ public class MaintenancePdfService {
 
         BigDecimal balance = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : bill.getTotalAmount();
         DeviceRgb balColor = balance.compareTo(BigDecimal.ZERO) <= 0 ? GREEN : RED;
-        addSummaryRow(summaryTable, bold, "Balance Due", "₹ " + format(balance), balColor);
+        addSummaryRow(summaryTable, bold, "Payable", "₹ " + format(balance), balColor);
 
         doc.add(summaryTable);
 

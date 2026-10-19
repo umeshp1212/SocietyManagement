@@ -23,6 +23,8 @@ interface OpeningBalance {
   unitId: number;
   unitNumber: string;
   ownerName: string;
+  principalArrears: number;
+  interestArrears: number;
   amount: number;
   asOfDate: string;
   remarks: string;
@@ -60,7 +62,8 @@ interface UnitOption {
       </div>
 
       <p class="subtitle">
-        Enter outstanding amounts from before the system was deployed. This gets added to unit's total dues.
+        Enter outstanding amounts from before the system was deployed, split into Principal Arrears
+        and Interest Arrears. These carry into each unit's bill and show transparently to members.
       </p>
 
       <!-- Summary Cards -->
@@ -102,11 +105,25 @@ interface UnitOption {
               valueKey="unitId"
               [labelWith]="unitLabel">
             </app-searchable-select>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Principal Arrears (Rs)</mat-label>
+              <input matInput type="number" min="0" [(ngModel)]="formData.principalArrears" placeholder="0.00">
+              <mat-hint>Unpaid principal carried in from before go-live</mat-hint>
+            </mat-form-field>
 
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Outstanding Amount (Rs)</mat-label>
-              <input matInput type="number" [(ngModel)]="formData.amount" placeholder="0.00">
+              <mat-label>Interest Arrears (Rs)</mat-label>
+              <input matInput type="number" min="0" [(ngModel)]="formData.interestArrears" placeholder="0.00">
+              <mat-hint>Accrued interest carried in from before go-live</mat-hint>
             </mat-form-field>
+          </div>
+
+          <div class="total-preview">
+            Total Opening Balance:
+            <strong>{{ totalArrears() | currency:'INR' }}</strong>
           </div>
 
           <div class="form-row">
@@ -124,7 +141,7 @@ interface UnitOption {
           <div class="action-buttons">
             <button mat-button (click)="showAddForm = false; resetForm()">Cancel</button>
             <button mat-raised-button color="primary" (click)="saveOpeningBalance()"
-                    [disabled]="!formData.unitId || !formData.amount">
+                    [disabled]="!formData.unitId || totalArrears() <= 0">
               <mat-icon>save</mat-icon> Save
             </button>
           </div>
@@ -143,8 +160,16 @@ interface UnitOption {
               <th mat-header-cell *matHeaderCellDef>Owner</th>
               <td mat-cell *matCellDef="let b">{{ b.ownerName || '-' }}</td>
             </ng-container>
+            <ng-container matColumnDef="principalArrears">
+              <th mat-header-cell *matHeaderCellDef>Principal Arrears</th>
+              <td mat-cell *matCellDef="let b">{{ b.principalArrears | currency:'INR' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="interestArrears">
+              <th mat-header-cell *matHeaderCellDef>Interest Arrears</th>
+              <td mat-cell *matCellDef="let b">{{ b.interestArrears | currency:'INR' }}</td>
+            </ng-container>
             <ng-container matColumnDef="amount">
-              <th mat-header-cell *matHeaderCellDef>Original Amount</th>
+              <th mat-header-cell *matHeaderCellDef>Total</th>
               <td mat-cell *matCellDef="let b">{{ b.amount | currency:'INR' }}</td>
             </ng-container>
             <ng-container matColumnDef="paidAmount">
@@ -192,6 +217,8 @@ interface UnitOption {
     .summary-label { font-size: 12px; color: #666; }
     .summary-value { font-size: 1.5rem; font-weight: 500; color: #1976d2; }
     .form-card { margin-bottom: 20px; }
+    .total-preview { margin: 4px 0 12px; font-size: 0.95rem; color: #444; }
+    .total-preview strong { color: #1976d2; font-size: 1.1rem; }
     .form-row { display: flex; gap: 16px; }
     .form-row > mat-form-field,
     .form-row > app-searchable-select { flex: 1 1 0; min-width: 0; }
@@ -216,9 +243,20 @@ export class OpeningBalanceComponent implements OnInit {
   summary: any = null;
   showAddForm = false;
   editingId: number | null = null;
-  displayedColumns = ['unitNumber', 'ownerName', 'amount', 'paidAmount', 'balanceAmount', 'asOfDate', 'remarks', 'actions'];
+  displayedColumns = ['unitNumber', 'ownerName', 'principalArrears', 'interestArrears', 'amount', 'paidAmount', 'balanceAmount', 'asOfDate', 'remarks', 'actions'];
 
-  formData = { unitId: null as number | null, amount: null as number | null, asOfDate: '', remarks: '' };
+  formData = {
+    unitId: null as number | null,
+    principalArrears: null as number | null,
+    interestArrears: null as number | null,
+    asOfDate: '',
+    remarks: ''
+  };
+
+  /** Derived total = principal + interest arrears. */
+  totalArrears(): number {
+    return (Number(this.formData.principalArrears) || 0) + (Number(this.formData.interestArrears) || 0);
+  }
 
   private apiUrl = environment.apiUrl;
 
@@ -253,11 +291,12 @@ export class OpeningBalanceComponent implements OnInit {
   }
 
   saveOpeningBalance(): void {
-    if (!this.formData.unitId || !this.formData.amount) return;
+    if (!this.formData.unitId || this.totalArrears() <= 0) return;
 
     this.http.post<any>(`${this.apiUrl}/opening-balances`, {
       unitId: this.formData.unitId,
-      amount: this.formData.amount,
+      principalArrears: Number(this.formData.principalArrears) || 0,
+      interestArrears: Number(this.formData.interestArrears) || 0,
       asOfDate: this.formData.asOfDate || null,
       remarks: this.formData.remarks || null
     }).subscribe({
@@ -279,7 +318,8 @@ export class OpeningBalanceComponent implements OnInit {
   editBalance(balance: OpeningBalance): void {
     this.formData = {
       unitId: balance.unitId,
-      amount: balance.amount,
+      principalArrears: balance.principalArrears ?? balance.amount ?? null,
+      interestArrears: balance.interestArrears ?? 0,
       asOfDate: balance.asOfDate || '',
       remarks: balance.remarks || ''
     };
@@ -288,7 +328,7 @@ export class OpeningBalanceComponent implements OnInit {
   }
 
   resetForm(): void {
-    this.formData = { unitId: null, amount: null, asOfDate: '', remarks: '' };
+    this.formData = { unitId: null, principalArrears: null, interestArrears: null, asOfDate: '', remarks: '' };
     this.editingId = null;
   }
 }

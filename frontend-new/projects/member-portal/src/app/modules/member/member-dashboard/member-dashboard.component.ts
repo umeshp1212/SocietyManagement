@@ -227,25 +227,33 @@ import { FcmService } from '@core/services/fcm.service';
                             </div>
                           </div>
 
-                          <!-- Arrears & Interest -->
+                          <!-- Arrears, Interest & Adjustment -->
                           <div class="breakdown-section"
-                               *ngIf="(bill.previousArrears && bill.previousArrears > 0)
-                                   || (bill.interestOnArrears && bill.interestOnArrears > 0)">
-                            <h4>Arrears & Interest</h4>
-                            <div class="breakdown-row" *ngIf="bill.previousArrears > 0">
-                              <span class="breakdown-label">Principal Outstanding (Arrears)</span>
-                              <span class="breakdown-value arrears">{{ bill.previousArrears | currency:'INR':'symbol':'1.0-0' }}</span>
+                               *ngIf="arrInterest(bill) > 0 || arrPrincipal(bill) > 0
+                                   || (bill.lateFee && bill.lateFee > 0) || (bill.adjustment && bill.adjustment > 0)">
+                            <h4>Arrears, Interest &amp; Adjustment</h4>
+                            <div class="breakdown-row" *ngIf="arrInterest(bill) > 0">
+                              <span class="breakdown-label">Add: Interest Arrears</span>
+                              <span class="breakdown-value arrears">{{ arrInterest(bill) | currency:'INR':'symbol':'1.0-0' }}</span>
                             </div>
-                            <div class="breakdown-row" *ngIf="bill.interestOnArrears > 0">
-                              <span class="breakdown-label">Interest on Arrears</span>
-                              <span class="breakdown-value arrears">{{ bill.interestOnArrears | currency:'INR':'symbol':'1.0-0' }}</span>
+                            <div class="breakdown-row" *ngIf="arrPrincipal(bill) > 0">
+                              <span class="breakdown-label">Principal Arrears</span>
+                              <span class="breakdown-value arrears">{{ arrPrincipal(bill) | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                            <div class="breakdown-row" *ngIf="bill.lateFee && bill.lateFee > 0">
+                              <span class="breakdown-label">Add: Late Fee</span>
+                              <span class="breakdown-value arrears">{{ bill.lateFee | currency:'INR':'symbol':'1.0-0' }}</span>
+                            </div>
+                            <div class="breakdown-row" *ngIf="bill.adjustment && bill.adjustment > 0">
+                              <span class="breakdown-label">Less: Adjustment</span>
+                              <span class="breakdown-value paid">- {{ bill.adjustment | currency:'INR':'symbol':'1.0-0' }}</span>
                             </div>
                           </div>
 
                           <!-- Total Summary -->
                           <div class="breakdown-section summary">
                             <div class="breakdown-row total">
-                              <span class="breakdown-label">Total Bill</span>
+                              <span class="breakdown-label">Total Due</span>
                               <span class="breakdown-value">{{ bill.totalAmount | currency:'INR':'symbol':'1.0-0' }}</span>
                             </div>
                             <div class="breakdown-row" *ngIf="bill.paidAmount > 0">
@@ -253,7 +261,7 @@ import { FcmService } from '@core/services/fcm.service';
                               <span class="breakdown-value paid">- {{ bill.paidAmount | currency:'INR':'symbol':'1.0-0' }}</span>
                             </div>
                             <div class="breakdown-row total">
-                              <span class="breakdown-label">Balance Due</span>
+                              <span class="breakdown-label">Payable</span>
                               <span class="breakdown-value balance">{{ bill.balanceAmount | currency:'INR':'symbol':'1.0-0' }}</span>
                             </div>
                           </div>
@@ -489,6 +497,20 @@ export class MemberDashboardComponent implements OnInit {
   billColumns = ['period', 'totalAmount', 'paidAmount', 'balanceAmount', 'status', 'action'];
   paymentColumns = ['paymentDate', 'amount', 'paymentMode', 'receiptNumber', 'paymentStatus', 'receipt'];
   expandedBill: any = null;
+
+  /** Principal arrears for display; falls back to the legacy previousArrears for old bills. */
+  arrPrincipal(bill: any): number {
+    const v = Number(bill?.principalArrears);
+    if (v) return v;
+    return Number(bill?.previousArrears) || 0;
+  }
+
+  /** Interest arrears for display; falls back to the legacy interestOnArrears for old bills. */
+  arrInterest(bill: any): number {
+    const v = Number(bill?.interestArrears);
+    if (v) return v;
+    return Number(bill?.interestOnArrears) || 0;
+  }
 
   /** Count of pending visitor/delivery requests, shown as a badge on the header icon. */
   pendingVisitorCount = 0;

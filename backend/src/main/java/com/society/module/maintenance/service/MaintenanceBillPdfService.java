@@ -222,33 +222,48 @@ public class MaintenanceBillPdfService {
         }
 
         // Subtotal - Current Month Charges
-        addTotalRow(table, "Current Month Charges", formatAmount(bill.getAmount()),
+        addTotalRow(table, "Current Charges", formatAmount(bill.getAmount()),
                 boldFont, LIGHT_GRAY);
 
-        // Arrears
-        BigDecimal previousArrears = bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO;
-        BigDecimal interest = bill.getInterestOnArrears() != null ? bill.getInterestOnArrears() : BigDecimal.ZERO;
+        // Itemized arrears breakdown. Prefer the new columns; fall back to the legacy
+        // previous_arrears / interest_on_arrears for bills generated before this feature.
+        BigDecimal principalArrears = bill.getPrincipalArrears() != null && bill.getPrincipalArrears().signum() != 0
+                ? bill.getPrincipalArrears()
+                : (bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO);
+        BigDecimal interestArrears = bill.getInterestArrears() != null && bill.getInterestArrears().signum() != 0
+                ? bill.getInterestArrears()
+                : (bill.getInterestOnArrears() != null ? bill.getInterestOnArrears() : BigDecimal.ZERO);
+        BigDecimal adjustment = bill.getAdjustment() != null ? bill.getAdjustment() : BigDecimal.ZERO;
+        BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
 
-        if (previousArrears.compareTo(BigDecimal.ZERO) > 0) {
-            addTotalRow(table, "Previous Arrears (Principal)", formatAmount(previousArrears),
+        if (interestArrears.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Add: Interest Arrears", formatAmount(interestArrears),
                     regularFont, ARREARS_BG);
         }
-        if (interest.compareTo(BigDecimal.ZERO) > 0) {
-            addTotalRow(table, "Interest on Arrears @ 1% per month", formatAmount(interest),
+        if (principalArrears.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Principal Arrears", formatAmount(principalArrears),
                     regularFont, ARREARS_BG);
         }
+        if (lateFee.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Add: Late Fee", formatAmount(lateFee),
+                    regularFont, ARREARS_BG);
+        }
+        if (adjustment.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Less: Adjustment", "- " + formatAmount(adjustment),
+                    regularFont, new DeviceRgb(232, 245, 233));
+        }
 
-        // Grand Total
-        addTotalRow(table, "GRAND TOTAL", formatAmount(bill.getTotalAmount()),
+        // Total Due
+        addTotalRow(table, "TOTAL DUE", formatAmount(bill.getTotalAmount()),
                 boldFont, TOTAL_BG);
 
-        // Paid & Balance
+        // Paid & Payable
         BigDecimal paidAmount = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
             addTotalRow(table, "Amount Paid", "- " + formatAmount(paidAmount),
                     regularFont, new DeviceRgb(232, 245, 233));
         }
-        addTotalRow(table, "BALANCE DUE", formatAmount(bill.getBalanceAmount()),
+        addTotalRow(table, "PAYABLE", formatAmount(bill.getBalanceAmount()),
                 boldFont, new DeviceRgb(255, 243, 224));
 
         document.add(table);

@@ -26,6 +26,26 @@ public class OpeningBalance extends BaseEntity {
     @JoinColumn(name = "unit_id", nullable = false)
     private Unit unit;
 
+    /**
+     * Principal portion of the legacy arrears carried in from before go-live.
+     * The member-facing bill shows this as "Principal Arrears".
+     */
+    @Column(name = "principal_arrears", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal principalArrears = BigDecimal.ZERO;
+
+    /**
+     * Interest portion of the legacy arrears carried in from before go-live.
+     * The member-facing bill shows this as "Interest Arrears".
+     */
+    @Column(name = "interest_arrears", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal interestArrears = BigDecimal.ZERO;
+
+    /**
+     * Total legacy arrears = principalArrears + interestArrears. Kept as the single
+     * figure all existing dues/outstanding logic reads, so nothing downstream breaks.
+     */
     @Column(name = "amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 

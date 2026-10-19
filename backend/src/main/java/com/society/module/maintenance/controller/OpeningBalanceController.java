@@ -46,12 +46,27 @@ public class OpeningBalanceController {
     public ResponseEntity<ApiResponse<OpeningBalanceDTO>> createOrUpdate(
             @RequestBody Map<String, Object> body, Authentication authentication) {
         Long unitId = Long.valueOf(body.get("unitId").toString());
-        BigDecimal amount = new BigDecimal(body.get("amount").toString());
+
+        // New clients send principalArrears + interestArrears. Older callers that only send
+        // a single "amount" are still honoured by treating it as principal (interest = 0).
+        BigDecimal principalArrears;
+        BigDecimal interestArrears;
+        if (body.get("principalArrears") != null || body.get("interestArrears") != null) {
+            principalArrears = body.get("principalArrears") != null
+                    ? new BigDecimal(body.get("principalArrears").toString()) : BigDecimal.ZERO;
+            interestArrears = body.get("interestArrears") != null
+                    ? new BigDecimal(body.get("interestArrears").toString()) : BigDecimal.ZERO;
+        } else {
+            principalArrears = body.get("amount") != null
+                    ? new BigDecimal(body.get("amount").toString()) : BigDecimal.ZERO;
+            interestArrears = BigDecimal.ZERO;
+        }
+
         LocalDate asOfDate = body.get("asOfDate") != null ? LocalDate.parse(body.get("asOfDate").toString()) : null;
         String remarks = body.get("remarks") != null ? body.get("remarks").toString() : null;
 
         OpeningBalanceDTO result = openingBalanceService.createOrUpdateOpeningBalance(
-                unitId, amount, asOfDate, remarks, authentication.getName());
+                unitId, principalArrears, interestArrears, asOfDate, remarks, authentication.getName());
         return ResponseEntity.ok(ApiResponse.success("Opening balance saved", result));
     }
 }
