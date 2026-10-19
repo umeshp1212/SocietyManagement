@@ -31,6 +31,7 @@ public class VoucherDTO {
     private String referenceNumber;
     private String billInvoiceNumber;
     private LocalDate billDate;
+    private String payToName;
     private VoucherStatus status;
     private String cancellationReason;
     private String cancelledBy;

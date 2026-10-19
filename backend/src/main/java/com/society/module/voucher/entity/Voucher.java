@@ -64,6 +64,14 @@ public class Voucher extends BaseEntity {
     @Column(name = "bill_date")
     private LocalDate billDate;
 
+    /**
+     * The name the payment/cheque is actually made out to, when it differs from
+     * the registered vendor name. The vendor relationship stays as the billed
+     * party (preserving the audit trail); this captures the real payee.
+     */
+    @Column(name = "pay_to_name", length = 200)
+    private String payToName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private VoucherStatus status = VoucherStatus.DRAFT;

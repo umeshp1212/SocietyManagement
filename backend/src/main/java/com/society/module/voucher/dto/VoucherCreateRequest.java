@@ -44,4 +44,8 @@ public class VoucherCreateRequest {
     private String billInvoiceNumber;
 
     private LocalDate billDate;
+
+    /** The name the cheque is made out to (may differ from the registered vendor name). */
+    @NotBlank(message = "Pay To name is required")
+    private String payToName;
 }

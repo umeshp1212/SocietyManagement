@@ -262,6 +262,7 @@ CREATE TABLE vouchers (
     reference_number VARCHAR(100) COMMENT 'Cheque no, UTR, Transaction ID',
     bill_invoice_number VARCHAR(100),
     bill_date DATE,
+    pay_to_name VARCHAR(200) COMMENT 'Payee / cheque in favour of, when different from registered vendor',
     status ENUM('DRAFT','PENDING_APPROVAL','FINAL','CANCELLED') NOT NULL DEFAULT 'DRAFT',
     cancellation_reason TEXT,
     cancelled_by VARCHAR(100),

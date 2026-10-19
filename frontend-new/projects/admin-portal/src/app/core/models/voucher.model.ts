@@ -12,6 +12,7 @@ export interface Voucher {
   referenceNumber?: string;
   billInvoiceNumber?: string;
   billDate?: string;
+  payToName?: string;
   status: 'DRAFT' | 'PENDING_APPROVAL' | 'FINAL' | 'CANCELLED';
   cancellationReason?: string;
   cancelledBy?: string;
@@ -73,6 +74,7 @@ export interface VoucherCreateRequest {
   referenceNumber?: string;
   billInvoiceNumber?: string;
   billDate?: string;
+  payToName?: string;
 }
 
 export interface VoucherUpdateRequest {
@@ -84,6 +86,7 @@ export interface VoucherUpdateRequest {
   referenceNumber?: string;
   billInvoiceNumber?: string;
   billDate?: string;
+  payToName?: string;
   updateReason: string;
 }
 

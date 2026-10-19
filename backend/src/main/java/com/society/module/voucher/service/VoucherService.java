@@ -68,6 +68,7 @@ public class VoucherService {
                 .referenceNumber(request.getReferenceNumber())
                 .billInvoiceNumber(request.getBillInvoiceNumber())
                 .billDate(request.getBillDate())
+                .payToName(request.getPayToName())
                 .status(VoucherStatus.DRAFT)
                 .financialYear(financialYear)
                 .build();
@@ -133,6 +134,7 @@ public class VoucherService {
         voucher.setReferenceNumber(request.getReferenceNumber());
         voucher.setBillInvoiceNumber(request.getBillInvoiceNumber());
         voucher.setBillDate(request.getBillDate());
+        voucher.setPayToName(request.getPayToName());
 
         if (request.getVendorId() != null) {
             Vendor vendor = vendorRepository.findById(request.getVendorId())
@@ -574,6 +576,11 @@ public class VoucherService {
                     voucher.getReferenceNumber(), request.getReferenceNumber(),
                     request.getUpdateReason(), "SYSTEM");
         }
+        if (!Objects.equals(request.getPayToName(), voucher.getPayToName())) {
+            createAuditEntry(voucher, "payToName",
+                    voucher.getPayToName(), request.getPayToName(),
+                    request.getUpdateReason(), "SYSTEM");
+        }
     }
 
     private void createAuditEntry(Voucher voucher, String field, String oldValue,
@@ -611,6 +618,7 @@ public class VoucherService {
                 .referenceNumber(voucher.getReferenceNumber())
                 .billInvoiceNumber(voucher.getBillInvoiceNumber())
                 .billDate(voucher.getBillDate())
+                .payToName(voucher.getPayToName())
                 .status(voucher.getStatus())
                 .cancellationReason(voucher.getCancellationReason())
                 .cancelledBy(voucher.getCancelledBy())

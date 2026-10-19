@@ -38,6 +38,13 @@ public class VoucherUpdateRequest {
 
     private LocalDate billDate;
 
+    /**
+     * The name the cheque is made out to (may differ from the registered vendor name).
+     * Not annotated @NotBlank so legacy vouchers created before this field existed
+     * remain editable; the UI requires it for normal edits.
+     */
+    private String payToName;
+
     @NotBlank(message = "Reason for update is required")
     private String updateReason;
 }

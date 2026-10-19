@@ -149,6 +149,14 @@ import { environment } from '@env/environment';
 
             <div class="form-row">
               <mat-form-field appearance="outline">
+                <mat-label>Pay To / Cheque in Favour Of *</mat-label>
+                <input matInput formControlName="payToName"
+                       placeholder="Name the cheque is made out to">
+                <mat-icon matSuffix matTooltip="The name the cheque is made out to. Often the registered vendor name, but enter a different name when the vendor asks the cheque in favour of their proprietor, sister concern, or a third party. The registered vendor stays on record for the bill.">info_outline</mat-icon>
+                <mat-hint>Usually the vendor name; change it if the payee differs</mat-hint>
+                <mat-error *ngIf="voucherForm.get('payToName')?.hasError('required')">Pay To name is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
                 <mat-label>Bill Date</mat-label>
                 <input matInput [matDatepicker]="billPicker" formControlName="billDate">
                 <mat-datepicker-toggle matSuffix [for]="billPicker"></mat-datepicker-toggle>
@@ -278,6 +286,7 @@ export class VoucherFormComponent implements OnInit {
       referenceNumber: [''],
       billInvoiceNumber: [''],
       billDate: [null],
+      payToName: ['', Validators.required],
       description: ['', Validators.required],
       updateReason: ['']
     });
@@ -325,6 +334,7 @@ export class VoucherFormComponent implements OnInit {
           referenceNumber: v.referenceNumber || '',
           billInvoiceNumber: v.billInvoiceNumber || '',
           billDate: v.billDate ? new Date(v.billDate) : null,
+          payToName: v.payToName || '',
           description: v.description
         });
 
@@ -333,6 +343,12 @@ export class VoucherFormComponent implements OnInit {
         if (v.status === 'FINAL') {
           this.voucherForm.get('amount')?.disable();
           this.voucherForm.get('vendorId')?.disable();
+          // Older FINAL vouchers created before this field existed may have no
+          // Pay To value. Don't let a required validator block editing them.
+          if (!v.payToName) {
+            this.voucherForm.get('payToName')?.clearValidators();
+            this.voucherForm.get('payToName')?.updateValueAndValidity();
+          }
         }
 
         // Load existing documents in edit mode
@@ -400,6 +416,7 @@ export class VoucherFormComponent implements OnInit {
         referenceNumber: formValue.referenceNumber || undefined,
         billInvoiceNumber: formValue.billInvoiceNumber || undefined,
         billDate: formValue.billDate ? this.formatDate(formValue.billDate) : undefined,
+        payToName: formValue.payToName || undefined,
         updateReason: formValue.updateReason
       };
 
@@ -422,7 +439,8 @@ export class VoucherFormComponent implements OnInit {
         paymentMode: formValue.paymentMode,
         referenceNumber: formValue.referenceNumber || undefined,
         billInvoiceNumber: formValue.billInvoiceNumber || undefined,
-        billDate: formValue.billDate ? this.formatDate(formValue.billDate) : undefined
+        billDate: formValue.billDate ? this.formatDate(formValue.billDate) : undefined,
+        payToName: formValue.payToName || undefined
       };
 
       this.voucherService.createVoucher(createRequest).subscribe({

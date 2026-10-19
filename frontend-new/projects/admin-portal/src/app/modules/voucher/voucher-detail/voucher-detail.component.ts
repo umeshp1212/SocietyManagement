@@ -62,6 +62,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
             <div><strong>Financial Year:</strong> {{ voucher.financialYear }}</div>
             <div><strong>Category:</strong> {{ voucher.category.replace('_', ' ') }}</div>
             <div><strong>Vendor:</strong> {{ voucher.vendorName || 'N/A' }}</div>
+            <div *ngIf="voucher.payToName"><strong>Pay To:</strong> {{ voucher.payToName }}</div>
             <div><strong>Amount:</strong> <span class="amount">₹ {{ voucher.amount | number:'1.2-2' }}</span></div>
             <div><strong>Payment Mode:</strong> {{ voucher.paymentMode || 'N/A' }}</div>
             <div><strong>Cheque/Txn Ref:</strong> {{ voucher.referenceNumber || 'N/A' }}</div>
