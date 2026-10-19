@@ -78,7 +78,7 @@ class OwnerEmailServiceImplEdgeCaseTest {
         // The sanitizer and plain-text renderer are pure components; the real ones pass the
         // plain-text body through unchanged so the send flow behaves exactly as before.
         service = new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder,
-                new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer());
+                new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         // mailSender is @Autowired(required=false) and fromEmail is @Value-injected.
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");

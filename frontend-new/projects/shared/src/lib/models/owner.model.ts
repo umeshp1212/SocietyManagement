@@ -123,3 +123,21 @@ export interface SendReport {
   mailConfigured: boolean;
   notEmailed: NotEmailedEntry[];
 }
+
+export type EmailJobStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+
+/**
+ * Pollable handle for an asynchronous owner-email send. The POST /email/send endpoint
+ * returns this with status PENDING; the client polls GET /email/jobs/{jobId} until the
+ * status is terminal (COMPLETED with a report, or FAILED with an error).
+ */
+export interface EmailJob {
+  jobId: string;
+  status: EmailJobStatus;
+  totalRecipients: number;
+  processed: number;
+  report: SendReport | null;
+  error: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}

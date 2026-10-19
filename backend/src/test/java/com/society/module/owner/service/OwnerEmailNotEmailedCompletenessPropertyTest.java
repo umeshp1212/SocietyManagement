@@ -92,7 +92,7 @@ class OwnerEmailNotEmailedCompletenessPropertyTest {
         // plain-text body through unchanged so the send flow behaves exactly as before.
         OwnerEmailServiceImpl service =
                 new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder,
-                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer());
+                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         // mailSender is @Autowired(required=false); may be null for the MAIL_ABSENT case.
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");

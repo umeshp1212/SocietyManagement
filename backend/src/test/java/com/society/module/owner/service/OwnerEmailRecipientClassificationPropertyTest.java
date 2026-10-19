@@ -86,7 +86,7 @@ class OwnerEmailRecipientClassificationPropertyTest {
         // send loop is reached and classification is exercised (Req 5.2).
         OwnerEmailServiceImpl service =
                 new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder,
-                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer());
+                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");
 

@@ -2,9 +2,10 @@ package com.society.module.owner.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.society.exception.GlobalExceptionHandler;
+import com.society.module.owner.dto.EmailJobDTO;
+import com.society.module.owner.dto.EmailJobStatus;
 import com.society.module.owner.dto.RecipientScope;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
-import com.society.module.owner.dto.SendReportDTO;
 import com.society.module.owner.service.OwnerEmailService;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
@@ -14,7 +15,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -133,19 +133,19 @@ class OwnerEmailMultipartFixPreservationPropertyTest {
             }
 
             reset(ownerEmailService);
-            when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class)))
-                    .thenReturn(stubReport());
+            when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                    .thenReturn(stubJob());
 
             // --- Property (3.1): a valid JSON payload is accepted and dispatched via the
-            //     single-arg service overload, returning 200 with the report envelope. ---
+            //     submit service method, returning 202 with the job envelope. ---
             mockMvc.perform(post(SEND_PATH)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(payload)))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
 
-            // Dispatch must go through the JSON (single-argument) service method exactly once.
-            verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class));
+            // Dispatch must go through the submit service method (with a null attachment list) once.
+            verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
         }
 
         assertThat(sawAllScope).as("generator should exercise the ALL recipient scope").isTrue();
@@ -304,13 +304,12 @@ class OwnerEmailMultipartFixPreservationPropertyTest {
     // Helpers
     // ------------------------------------------------------------------
 
-    private SendReportDTO stubReport() {
-        return SendReportDTO.builder()
-                .totalAttempted(0)
-                .sentCount(0)
-                .notEmailedCount(0)
-                .mailConfigured(false)
-                .notEmailed(new ArrayList<>())
+    private EmailJobDTO stubJob() {
+        return EmailJobDTO.builder()
+                .jobId("test-job-id")
+                .status(EmailJobStatus.PENDING)
+                .totalRecipients(0)
+                .processed(0)
                 .build();
     }
 }

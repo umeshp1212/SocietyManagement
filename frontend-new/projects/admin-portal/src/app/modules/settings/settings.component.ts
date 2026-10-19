@@ -205,6 +205,137 @@ import { environment } from '@env/environment';
           </mat-card-content>
         </mat-card>
 
+        <!-- Maintenance Bill Settings -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Maintenance Bill Settings</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="gateway-hint">
+              Controls the due date and late fee applied when bills are generated (manually or
+              automatically).
+            </p>
+            <div class="form-row">
+              <mat-form-field>
+                <mat-label>Bill Due Day of Month</mat-label>
+                <mat-select formControlName="billDueDay">
+                  <mat-option [value]="0">Last day of month</mat-option>
+                  <mat-option *ngFor="let d of daysOfMonth" [value]="d">{{ ordinal(d) }}</mat-option>
+                </mat-select>
+                <mat-hint>When the maintenance bill falls due each month</mat-hint>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Late Fee (&#8377;)</mat-label>
+                <input matInput type="number" formControlName="lateFeeAmount" min="0" step="1">
+                <mat-hint>Flat fee charged once when a unit carries arrears. 0 = disabled</mat-hint>
+              </mat-form-field>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Automated Bill Generation -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Automated Bill Generation</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="gateway-hint">
+              When started, the system generates each month's maintenance bills automatically on
+              the configured day. Existing bills are never touched &mdash; only missing bills are
+              created. Use the button to start or stop the automation.
+            </p>
+
+            <div class="toggle-row">
+              <div>
+                <strong>Status:</strong>
+                <span class="chip" [class.inactive]="!settingsForm.get('autoBillGenerationEnabled')?.value">
+                  {{ settingsForm.get('autoBillGenerationEnabled')?.value ? 'Running' : 'Stopped' }}
+                </span>
+              </div>
+              <button mat-raised-button type="button"
+                      [color]="settingsForm.get('autoBillGenerationEnabled')?.value ? 'warn' : 'primary'"
+                      (click)="toggleAndSave('autoBillGenerationEnabled')">
+                <mat-icon>{{ settingsForm.get('autoBillGenerationEnabled')?.value ? 'stop' : 'play_arrow' }}</mat-icon>
+                {{ settingsForm.get('autoBillGenerationEnabled')?.value ? 'Stop Automation' : 'Start Automation' }}
+              </button>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field>
+                <mat-label>Generation Day of Month</mat-label>
+                <mat-select formControlName="billGenerationDay">
+                  <mat-option [value]="0">Last day of month</mat-option>
+                  <mat-option *ngFor="let d of daysOfMonth" [value]="d">{{ ordinal(d) }}</mat-option>
+                </mat-select>
+                <mat-hint>Bills are generated on this date every month</mat-hint>
+              </mat-form-field>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Automated Payment Reminders -->
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Automated Payment Reminders</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p class="gateway-hint">
+              When started, members with outstanding dues get an email reminder on the configured
+              day, with a link to pay online via the member portal. Make sure email (SMTP) is
+              configured and owners have email addresses.
+            </p>
+
+            <div class="toggle-row">
+              <div>
+                <strong>Status:</strong>
+                <span class="chip" [class.inactive]="!settingsForm.get('autoReminderEnabled')?.value">
+                  {{ settingsForm.get('autoReminderEnabled')?.value ? 'Running' : 'Stopped' }}
+                </span>
+              </div>
+              <button mat-raised-button type="button"
+                      [color]="settingsForm.get('autoReminderEnabled')?.value ? 'warn' : 'primary'"
+                      (click)="toggleAndSave('autoReminderEnabled')">
+                <mat-icon>{{ settingsForm.get('autoReminderEnabled')?.value ? 'stop' : 'play_arrow' }}</mat-icon>
+                {{ settingsForm.get('autoReminderEnabled')?.value ? 'Stop Reminders' : 'Start Reminders' }}
+              </button>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field>
+                <mat-label>Reminder Day of Month</mat-label>
+                <mat-select formControlName="reminderDayOfMonth">
+                  <mat-option [value]="0">Last day of month</mat-option>
+                  <mat-option *ngFor="let d of daysOfMonth" [value]="d">{{ ordinal(d) }}</mat-option>
+                </mat-select>
+                <mat-hint>Reminder emails are sent on this date every month</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="reminder-actions">
+              <button mat-stroked-button color="primary" type="button" (click)="previewReminders()">
+                <mat-icon>visibility</mat-icon> Preview Recipients
+              </button>
+              <button mat-stroked-button color="accent" type="button" (click)="sendRemindersNow()"
+                      [disabled]="sendingReminders">
+                <mat-icon>send</mat-icon> {{ sendingReminders ? 'Sending...' : 'Send Reminders Now' }}
+              </button>
+            </div>
+
+            <div *ngIf="reminderPreview.length > 0" class="reminder-preview">
+              <p class="gateway-hint">
+                {{ reminderPreview.length }} unit(s) with outstanding dues.
+                {{ reminderMissingEmail }} missing an email (won't be reminded).
+              </p>
+              <div class="preview-row" *ngFor="let r of reminderPreview">
+                <span class="unit">{{ r.unitNumber }}</span>
+                <span class="owner">{{ r.ownerName }}</span>
+                <span class="email" [class.missing]="!r.email">{{ r.email || 'no email' }}</span>
+                <span class="amount">&#8377; {{ r.outstanding }}</span>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
         <!-- Visitor / Gate Approval -->
         <mat-card>
           <mat-card-header>
@@ -358,6 +489,16 @@ import { environment } from '@env/environment';
     .chip.inactive { background: #ffebee; color: #c62828; }
     .desc { color: #666; font-size: 13px; margin: 6px 0; }
     .empty { text-align: center; color: #999; padding: 40px; }
+
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+    .reminder-actions { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+    .reminder-preview { margin-top: 16px; border-top: 1px solid #eee; padding-top: 12px; }
+    .preview-row { display: flex; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px solid #f5f5f5; font-size: 13px; }
+    .preview-row .unit { font-weight: bold; min-width: 70px; }
+    .preview-row .owner { flex: 1; color: #555; }
+    .preview-row .email { color: #777; min-width: 180px; }
+    .preview-row .email.missing { color: #c62828; font-style: italic; }
+    .preview-row .amount { font-weight: bold; color: #e65100; min-width: 90px; text-align: right; }
   `]
 })
 export class SettingsComponent implements OnInit {
@@ -367,6 +508,22 @@ export class SettingsComponent implements OnInit {
   types: any[] = [];
   showAddForm = false;
   newType: any = { code: '', name: '', description: '', defaultTemplate: '', displayOrder: 0, isActive: true };
+
+  // Payment reminder preview/send state
+  reminderPreview: Array<{ unitNumber: string; ownerName: string; email: string | null; outstanding: string }> = [];
+  reminderMissingEmail = 0;
+  sendingReminders = false;
+
+  // Day-of-month options (1..31) for the bill due / generation / reminder date pickers.
+  // The value 0 (a separate option) means "last day of the month".
+  daysOfMonth: number[] = Array.from({ length: 31 }, (_, i) => i + 1);
+
+  /** 1 -> "1st", 2 -> "2nd", 23 -> "23rd" for friendly day labels. */
+  ordinal(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
 
   constructor(
     private fb: FormBuilder,
@@ -392,7 +549,16 @@ export class SettingsComponent implements OnInit {
       discountPercent: [0],
       discountDueDays: [10],
       discountMessage: ['Pay online before the due date and get a discount!'],
-      visitorApprovalTimeoutMinutes: [10, [Validators.min(1), Validators.max(120)]]
+      visitorApprovalTimeoutMinutes: [10, [Validators.min(1), Validators.max(120)]],
+      // Maintenance bill settings
+      lateFeeAmount: [0, [Validators.min(0)]],
+      billDueDay: [0, [Validators.min(0), Validators.max(31)]],
+      // Automated bill generation
+      autoBillGenerationEnabled: [false],
+      billGenerationDay: [1, [Validators.min(1), Validators.max(31)]],
+      // Automated payment reminders
+      autoReminderEnabled: [false],
+      reminderDayOfMonth: [5, [Validators.min(1), Validators.max(31)]]
     });
   }
 
@@ -453,6 +619,71 @@ export class SettingsComponent implements OnInit {
       },
       error: (err) => {
         this.snackBar.open('Failed to save settings', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  /**
+   * Flip an automation toggle (start/stop) and immediately persist. The backend PUT
+   * replaces the whole settings row, so we send the full form value (all fields are
+   * registered as controls) to avoid nulling anything.
+   */
+  toggleAndSave(controlName: 'autoBillGenerationEnabled' | 'autoReminderEnabled'): void {
+    const control = this.settingsForm.get(controlName);
+    if (!control) { return; }
+    const newValue = !control.value;
+    control.setValue(newValue);
+
+    this.http.put<{ success: boolean }>(`${environment.apiUrl}/settings`, this.settingsForm.value).subscribe({
+      next: () => {
+        const label = controlName === 'autoBillGenerationEnabled' ? 'Bill generation' : 'Payment reminders';
+        this.snackBar.open(`${label} ${newValue ? 'started' : 'stopped'}`, 'Close', { duration: 3000 });
+      },
+      error: () => {
+        // Revert the toggle on failure so the UI reflects the real state.
+        control.setValue(!newValue);
+        this.snackBar.open('Failed to update automation', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  previewReminders(): void {
+    this.http.get<{ success: boolean; data: any[] }>(`${environment.apiUrl}/maintenance/reminders/preview`).subscribe({
+      next: (res) => {
+        if (res.success) {
+          this.reminderPreview = (res.data || []).map(r => ({
+            unitNumber: r.unitNumber,
+            ownerName: r.ownerName,
+            email: r.email,
+            outstanding: r.outstanding
+          }));
+          this.reminderMissingEmail = this.reminderPreview.filter(r => !r.email).length;
+          if (this.reminderPreview.length === 0) {
+            this.snackBar.open('No units have outstanding dues right now', 'Close', { duration: 3000 });
+          }
+        }
+      },
+      error: (err) => this.snackBar.open(err.error?.message || 'Failed to load reminder preview', 'Close', { duration: 4000 })
+    });
+  }
+
+  sendRemindersNow(): void {
+    this.sendingReminders = true;
+    this.http.post<{ success: boolean; data: any }>(`${environment.apiUrl}/maintenance/reminders/send`, {}).subscribe({
+      next: (res) => {
+        this.sendingReminders = false;
+        if (res.success) {
+          const d = res.data;
+          if (!d.mailConfigured) {
+            this.snackBar.open('Email is not configured on the server. No reminders sent.', 'Close', { duration: 5000 });
+          } else {
+            this.snackBar.open(`Sent ${d.sent} reminder(s). ${d.skippedNoEmail} skipped (no email).`, 'Close', { duration: 5000 });
+          }
+        }
+      },
+      error: (err) => {
+        this.sendingReminders = false;
+        this.snackBar.open(err.error?.message || 'Failed to send reminders', 'Close', { duration: 4000 });
       }
     });
   }

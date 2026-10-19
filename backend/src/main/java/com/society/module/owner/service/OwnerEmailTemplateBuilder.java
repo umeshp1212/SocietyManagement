@@ -2,6 +2,7 @@ package com.society.module.owner.service;
 
 import com.society.exception.BusinessException;
 import com.society.module.settings.entity.SocietySettings;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.HtmlUtils;
@@ -31,6 +32,14 @@ public class OwnerEmailTemplateBuilder {
 
     private static final String LINE = System.lineSeparator();
     private static final String SECTION_BREAK = LINE + LINE;
+
+    /** Member portal host (also the CORS origin, so scheme+host only, no path). */
+    @Value("${app.frontend-url:http://localhost:4200}")
+    private String frontendUrl;
+
+    /** Angular build baseHref, e.g. "/app" in prod; empty in dev. */
+    @Value("${app.frontend-base-path:}")
+    private String frontendBasePath;
 
     /**
      * Assembles the full email body in the fixed order header -> body -> footer.
@@ -102,6 +111,7 @@ public class OwnerEmailTemplateBuilder {
         html.append("<div style=\"font-size:14px;line-height:1.6;color:#333333;\">");
         html.append(sanitizedBody == null ? "" : sanitizedBody); // sanitized HTML, inserted verbatim
         html.append("</div>");
+        html.append(buildPayOnlineSection());
         html.append("</div>");
         html.append(buildHtmlFooter(settings));
         html.append("</div>");
@@ -285,6 +295,64 @@ public class OwnerEmailTemplateBuilder {
         footer.append("</tr></table>");
         footer.append("</div>");
         return footer.toString();
+    }
+
+    /**
+     * Renders a standalone "Pay Online" call-to-action section with a prominent Pay Now
+     * button that deep-links to the member portal. Included in every email built through
+     * this template to encourage members to pay their dues online.
+     *
+     * <p>The button uses a table-based layout for reliable rendering across email clients,
+     * mirroring the maintenance reminder email. A visible fallback link is provided for
+     * clients that strip the button styling.</p>
+     */
+    private String buildPayOnlineSection() {
+        String link = memberPortalLink();
+
+        StringBuilder section = new StringBuilder();
+        // Visual divider and distinct card so the CTA reads as a separate section from the body.
+        section.append("<div style=\"margin:24px;padding:20px;background-color:#e0f2f1;")
+               .append("border:1px solid #b2dfdb;border-radius:8px;text-align:center;\">");
+
+        section.append("<div style=\"font-size:16px;font-weight:bold;color:#00695c;margin-bottom:8px;\">")
+               .append("Pay Online &mdash; Quick &amp; Secure</div>");
+        section.append("<p style=\"margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#004d40;\">")
+               .append("Skip the queue and the bank transfer hassle &mdash; pay your dues online in a few taps ")
+               .append("from your member portal. Your account is updated instantly and your receipt is ")
+               .append("available right away.</p>");
+
+        // Pay Now button (table button for email-client compatibility).
+        section.append("<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" ")
+               .append("style=\"margin:0 auto 16px auto;\"><tr>");
+        section.append("<td style=\"border-radius:6px;background-color:#00796b;\">");
+        section.append("<a href=\"").append(esc(link)).append("\" target=\"_blank\" ")
+               .append("style=\"display:inline-block;padding:14px 32px;font-size:16px;font-weight:bold;")
+               .append("color:#ffffff;text-decoration:none;border-radius:6px;\">Pay Now on Member Portal</a>");
+        section.append("</td></tr></table>");
+
+        section.append("<p style=\"margin:0 0 4px 0;font-size:12px;color:#00695c;\">")
+               .append("If the button doesn't work, copy and paste this link into your browser:</p>");
+        section.append("<p style=\"margin:0;font-size:12px;\"><a href=\"").append(esc(link))
+               .append("\" target=\"_blank\" style=\"color:#00796b;word-break:break-all;\">").append(esc(link))
+               .append("</a></p>");
+
+        section.append("</div>");
+        return section.toString();
+    }
+
+    /**
+     * Member portal deep link to the dashboard (which lists bills and the Pay button).
+     * Built from the configured frontend host and base path, mirroring the maintenance
+     * reminder email so links stay consistent across both.
+     */
+    private String memberPortalLink() {
+        String host = frontendUrl != null ? frontendUrl.replaceAll("/+$", "") : "";
+        String base = frontendBasePath != null ? frontendBasePath.trim() : "";
+        if (!base.isEmpty()) {
+            if (!base.startsWith("/")) base = "/" + base;
+            base = base.replaceAll("/+$", "");
+        }
+        return host + base + "/dashboard";
     }
 
     /**

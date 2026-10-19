@@ -87,7 +87,7 @@ class OwnerEmailVisibleTextBoundPropertyTest {
         // The service uses the SAME real sanitizer used to derive the expected outcome.
         OwnerEmailServiceImpl service =
                 new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder,
-                        sanitizer, new OwnerEmailPlainTextRenderer());
+                        sanitizer, new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");
 

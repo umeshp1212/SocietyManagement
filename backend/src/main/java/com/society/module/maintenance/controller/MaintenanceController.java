@@ -34,6 +34,7 @@ public class MaintenanceController {
     private final MaintenanceBillPdfService billPdfService;
     private final CashfreeService cashfreeService;
     private final MaintenanceBillRepository billRepository;
+    private final com.society.module.maintenance.service.PaymentReminderService paymentReminderService;
 
     // ======================== BILL MANAGEMENT ========================
 
@@ -96,6 +97,31 @@ public class MaintenanceController {
             @RequestParam int year) {
         Map<String, Object> summary = billService.getCollectionSummary(month, year);
         return ResponseEntity.ok(ApiResponse.success("Collection summary fetched", summary));
+    }
+
+    // ======================== PAYMENT REMINDERS ========================
+
+    /**
+     * Preview which units/owners would receive an email payment reminder right now (those
+     * with outstanding dues), without sending anything. Lets the admin check coverage and
+     * spot owners missing an email address before enabling the automated job.
+     */
+    @GetMapping("/reminders/preview")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CREATE')")
+    public ResponseEntity<ApiResponse<List<com.society.module.maintenance.service.PaymentReminderService.ReminderTarget>>> previewReminders() {
+        return ResponseEntity.ok(ApiResponse.success("Reminder targets",
+                paymentReminderService.collectTargets()));
+    }
+
+    /**
+     * Send email payment reminders now (manual trigger). Independent of the automated
+     * schedule and its on/off toggle, so the admin can push a reminder on demand.
+     */
+    @PostMapping("/reminders/send")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_CREATE')")
+    public ResponseEntity<ApiResponse<com.society.module.maintenance.service.PaymentReminderService.ReminderResult>> sendReminders() {
+        return ResponseEntity.ok(ApiResponse.success("Payment reminders sent",
+                paymentReminderService.sendReminders()));
     }
 
     // ======================== PAYMENT ========================

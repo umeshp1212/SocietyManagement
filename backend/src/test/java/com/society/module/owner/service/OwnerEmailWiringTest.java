@@ -83,7 +83,7 @@ class OwnerEmailWiringTest {
         // (settings -> sanitize -> builder/renderer -> transport).
         service = new OwnerEmailServiceImpl(ownerRepository, societySettingsService,
                 new OwnerEmailTemplateBuilder(), new OwnerEmailSanitizer(),
-                new OwnerEmailPlainTextRenderer());
+                new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         // JavaMailSender is @Autowired(required=false) and fromEmail is @Value-injected;
         // set both directly since this is a plain Mockito unit test (no Spring context).
         ReflectionTestUtils.setField(service, "mailSender", mailSender);

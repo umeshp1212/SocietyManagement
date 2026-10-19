@@ -71,7 +71,7 @@ class OwnerEmailPlainTextStructureIntegrationTest {
         // settings -> sanitize -> plain-text renderer -> transport.
         service = new OwnerEmailServiceImpl(ownerRepository, societySettingsService,
                 new OwnerEmailTemplateBuilder(), new OwnerEmailSanitizer(),
-                new OwnerEmailPlainTextRenderer());
+                new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", FROM_EMAIL);
 

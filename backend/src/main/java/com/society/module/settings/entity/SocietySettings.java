@@ -106,4 +106,62 @@ public class SocietySettings {
     @Column(name = "visitor_approval_timeout_minutes")
     @Builder.Default
     private Integer visitorApprovalTimeoutMinutes = 10;
+
+    // ===== Maintenance Bill Settings =====
+
+    /**
+     * Flat late fee applied once to a bill when the unit is carrying arrears. 0 = disabled.
+     * DB-driven replacement for the old static {@code app.maintenance.late-fee} property so
+     * the treasurer can change it from the admin portal without a redeploy.
+     */
+    @Column(name = "late_fee_amount", precision = 10, scale = 2)
+    @Builder.Default
+    private java.math.BigDecimal lateFeeAmount = java.math.BigDecimal.ZERO;
+
+    /**
+     * Day-of-month the maintenance bill is due. 0 (the default) means "last day of the
+     * month"; a generated bill's due date is clamped to the month's real length, so 31 on a
+     * 30-day month, or 0 anywhere, both resolve to the final calendar day.
+     */
+    @Column(name = "bill_due_day")
+    @Builder.Default
+    private Integer billDueDay = 0;
+
+    // ===== Automated Monthly Bill Generation =====
+
+    /**
+     * Master on/off switch for the scheduled monthly bill-generation job. The admin
+     * "Start/Stop" button flips this. When false the scheduler runs but does nothing.
+     */
+    @Column(name = "auto_bill_generation_enabled")
+    @Builder.Default
+    private Boolean autoBillGenerationEnabled = false;
+
+    /**
+     * Day-of-month on which bills are auto-generated (for the current month). Default 1.
+     * 0 means "last day of the month"; any day past the month's length is clamped to the
+     * last day, so 31 is safe in February.
+     */
+    @Column(name = "bill_generation_day")
+    @Builder.Default
+    private Integer billGenerationDay = 1;
+
+    // ===== Automated Payment Reminders (email) =====
+
+    /**
+     * Master on/off switch for the scheduled email payment-reminder job. The admin
+     * "Start/Stop" button flips this. When false the scheduler runs but sends nothing.
+     */
+    @Column(name = "auto_reminder_enabled")
+    @Builder.Default
+    private Boolean autoReminderEnabled = false;
+
+    /**
+     * Day-of-month on which reminder emails are sent to members with outstanding dues.
+     * Default 5. 0 means "last day of the month"; any day past the month's length is clamped
+     * to the last day.
+     */
+    @Column(name = "reminder_day_of_month")
+    @Builder.Default
+    private Integer reminderDayOfMonth = 5;
 }

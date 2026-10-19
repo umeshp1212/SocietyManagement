@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { ApiResponse, PagedResponse } from '../models/api-response.model';
-import { Owner, OwnerCreateRequest, OwnerUpdateRequest, Unit, UnitCreateRequest, UnitOwner, AddCoOwnerRequest, OwnershipHistory, OwnershipTransferRequest, SendOwnerEmailRequest, SendReport } from '../models/owner.model';
+import { Owner, OwnerCreateRequest, OwnerUpdateRequest, Unit, UnitCreateRequest, UnitOwner, AddCoOwnerRequest, OwnershipHistory, OwnershipTransferRequest, SendOwnerEmailRequest, EmailJob } from '../models/owner.model';
 
 @Injectable({ providedIn: 'root' })
 export class OwnerService {
@@ -37,12 +37,23 @@ export class OwnerService {
     return this.http.get<ApiResponse<Owner[]>>(`${this.apiUrl}/active-list`);
   }
 
-  sendOwnerEmail(request: SendOwnerEmailRequest, attachments?: File[]): Observable<ApiResponse<SendReport>> {
+  /**
+   * Submits an owner-email send. The backend validates synchronously then runs the actual
+   * delivery in the background, so this resolves with a pending {@link EmailJob} (HTTP 202)
+   * rather than the final report. Poll {@link getEmailJob} with the returned jobId for progress
+   * and the completed report.
+   */
+  sendOwnerEmail(request: SendOwnerEmailRequest, attachments?: File[]): Observable<ApiResponse<EmailJob>> {
     const formData = new FormData();
     // The request payload is sent as a JSON string part; the backend deserialises and validates it.
     formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
     (attachments || []).forEach(file => formData.append('attachments', file, file.name));
-    return this.http.post<ApiResponse<SendReport>>(`${this.apiUrl}/email/send`, formData);
+    return this.http.post<ApiResponse<EmailJob>>(`${this.apiUrl}/email/send`, formData);
+  }
+
+  /** Polls the status of a background owner-email send job. */
+  getEmailJob(jobId: string): Observable<ApiResponse<EmailJob>> {
+    return this.http.get<ApiResponse<EmailJob>>(`${this.apiUrl}/email/jobs/${jobId}`);
   }
 
   transferOwnership(request: OwnershipTransferRequest): Observable<ApiResponse<OwnershipHistory>> {

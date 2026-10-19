@@ -66,7 +66,7 @@ class OwnerEmailScriptPayloadNeverSentIntegrationTest {
         // Real collaborators: authoritative sanitization + HTML template assembly + plain text.
         service = new OwnerEmailServiceImpl(ownerRepository, settingsService,
                 new OwnerEmailTemplateBuilder(),
-                new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer());
+                new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");
     }

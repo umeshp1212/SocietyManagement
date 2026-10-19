@@ -2,6 +2,7 @@ package com.society.module.owner.service;
 
 import com.society.enums.OwnerStatus;
 import com.society.exception.BusinessException;
+import com.society.module.owner.dto.EmailJobDTO;
 import com.society.module.owner.dto.NotEmailedEntry;
 import com.society.module.owner.dto.NotEmailedReason;
 import com.society.module.owner.dto.RecipientScope;
@@ -16,9 +17,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Default implementation of {@link OwnerEmailService}.
@@ -39,6 +43,15 @@ import java.util.List;
  * is injected with {@code required = false} so its absence degrades gracefully rather
  * than failing, and a per-recipient failure never halts delivery to the remaining
  * recipients.</p>
+ *
+ * <p><b>Asynchronous delivery.</b> {@link #submitOwnerEmail} performs all fast-failing
+ * preparation (recipient resolution, sanitization, validation, template assembly, and
+ * reading attachment bytes into memory) synchronously on the request thread, then hands
+ * the actual SMTP loop to the {@code ownerEmailExecutor} and returns a pollable job id.
+ * This keeps bad requests failing fast with a 400 while a large recipient set no longer
+ * blocks the HTTP response past the client's request timeout. The pre-existing synchronous
+ * {@link #sendOwnerEmail} methods are retained for callers/tests that want the inline
+ * behaviour and share the same preparation and send-loop code.</p>
  *
  * Requirements: 2.3, 2.4, 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 7.1, 7.2, 7.3, 8.1, 8.2, 8.3, 8.4, 8.5
  */
@@ -59,6 +72,17 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
     private final OwnerEmailTemplateBuilder templateBuilder;
     private final OwnerEmailSanitizer sanitizer;
     private final OwnerEmailPlainTextRenderer plainTextRenderer;
+    private final EmailJobStore emailJobStore;
+
+    /**
+     * Self-reference through the Spring proxy. {@code @Async} advice is applied by the proxy,
+     * so the background send must be invoked via {@code self.runSendLoopAsync(...)} rather than
+     * {@code this.runSendLoopAsync(...)} (a direct {@code this} call would run inline). Injected
+     * lazily to break the self-referential construction cycle.
+     */
+    @Lazy
+    @Autowired
+    private OwnerEmailServiceImpl self;
 
     @Override
     public SendReportDTO sendOwnerEmail(SendOwnerEmailRequest request) {
@@ -67,19 +91,66 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
 
     @Override
     public SendReportDTO sendOwnerEmail(SendOwnerEmailRequest request, List<MultipartFile> attachments) {
-        // Attachments are optional: normalise to a list of non-empty files only.
-        List<MultipartFile> validAttachments = normaliseAttachments(attachments);
+        PreparedEmail prepared = prepare(request, attachments);
+        return runSendLoop(prepared, null);
+    }
+
+    @Override
+    public EmailJobDTO submitOwnerEmail(SendOwnerEmailRequest request, List<MultipartFile> attachments) {
+        // Prepare synchronously so validation/sanitization failures surface to the HTTP
+        // client as a 400 and no job is created for a request that could never send.
+        PreparedEmail prepared = prepare(request, attachments);
+
+        EmailJob job = emailJobStore.create(prepared.recipients.size());
+        // Dispatch the SMTP loop to the background executor. The self-injected proxy
+        // reference ensures the @Async advice is applied (a direct this.* call would not).
+        self.runSendLoopAsync(prepared, job);
+        return job.toDto();
+    }
+
+    @Override
+    public Optional<EmailJobDTO> getJob(String jobId) {
+        return emailJobStore.find(jobId).map(EmailJob::toDto);
+    }
+
+    /**
+     * Background entry point for the per-recipient send loop. Runs on the dedicated
+     * {@code ownerEmailExecutor}; failures are captured on the job rather than thrown
+     * (nothing awaits this method's completion).
+     */
+    @Async("ownerEmailExecutor")
+    public void runSendLoopAsync(PreparedEmail prepared, EmailJob job) {
+        try {
+            job.markInProgress();
+            SendReportDTO report = runSendLoop(prepared, job);
+            job.markCompleted(report);
+        } catch (Exception e) {
+            log.error("Owner email job {} failed: {}", job.getJobId(), e.getMessage(), e);
+            job.markFailed("Email sending failed: " + e.getMessage());
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Preparation (synchronous, fast-failing)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Resolves recipients, sanitizes and validates the body, assembles the HTML and
+     * plain-text templates, and materialises attachment bytes. All failures here are
+     * client-facing {@link BusinessException}s thrown before any send is attempted
+     * (Req 3.7, 4.4, 4.5, 4.6).
+     */
+    private PreparedEmail prepare(SendOwnerEmailRequest request, List<MultipartFile> attachments) {
+        // Attachment bytes must be read now: the MultipartFile instances are tied to the
+        // request and are not usable from a background thread after the request completes.
+        List<Attachment> materialisedAttachments = materialiseAttachments(attachments);
 
         // Resolve the authoritative recipient set server-side (Req 2.3, 2.4).
         List<Owner> recipients = resolveRecipients(request);
-        int totalAttempted = recipients.size();
 
         // Authoritative server-side sanitization, once per request, before any template
         // assembly or send. Only the Sanitized_Body is ever embedded; the raw
         // Rich_Text_Body is never used past this point (Req 3.1, 3.6).
-        // If sanitization cannot be completed, reject the request with a client-facing
-        // error and initiate no send: the BusinessException propagates before the send
-        // loop and is mapped to a 400 by GlobalExceptionHandler (Req 3.7).
         String sanitizedBody;
         String visible;
         try {
@@ -91,8 +162,6 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
         }
 
         // Visible-text validation on the sanitized body, whatever will actually be sent.
-        // A failing check throws a BusinessException that propagates before any send loop
-        // runs, so no email is sent and no partial record is kept (Req 3.7, 4.4, 4.5, 4.6).
         if (visible.isEmpty()) {
             throw new BusinessException("Message content is required"); // Req 4.4
         }
@@ -103,18 +172,12 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
             throw new BusinessException("Message body is too large"); // Req 4.6 (defence in depth)
         }
 
-        // Assemble the template up-front from the SANITIZED body. A BusinessException
-        // (missing settings / empty user fields) propagates and is mapped by
-        // GlobalExceptionHandler (Req 4.6, 4.7). The HTML template preserves the allowed
-        // formatting (Req 2.2, 2.3) and the plain-text alternative is derived from the same
-        // sanitized content (Req 2.4, 7.1, 7.2, 7.3).
+        // Assemble the template up-front from the SANITIZED body. The HTML template preserves
+        // the allowed formatting (Req 2.2, 2.3) and the plain-text alternative is derived from
+        // the same sanitized content (Req 2.4, 7.1, 7.2, 7.3).
         SocietySettings settings = societySettingsService.getSettings();
         String assembledSubject = templateBuilder.buildSubject(request.getSubject());
         String assembledHtml = templateBuilder.buildHtmlBody(settings, request.getSubject(), sanitizedBody);
-        // Derive the plain-text alternative from the sanitized body. A BusinessException
-        // (thrown by the template builder for missing settings / empty user fields) already
-        // maps to a client-facing 400; any other derivation failure is likewise turned into
-        // a client-facing rejection so no send is initiated (Req 3.7).
         String plainText;
         try {
             plainText = plainTextRenderer.render(sanitizedBody, request.getSubject(), settings);
@@ -125,12 +188,31 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
             throw new BusinessException("Message content could not be processed"); // Req 3.7
         }
 
+        return new PreparedEmail(recipients, assembledSubject, assembledHtml, plainText, materialisedAttachments);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Send loop (shared by the synchronous and asynchronous paths)
+    // ---------------------------------------------------------------------------
+
+    /**
+     * Performs the best-effort per-recipient send for an already-prepared email and builds
+     * the report. When {@code job} is non-null its processed counter is advanced per
+     * recipient so pollers see progress. A per-recipient failure never halts the rest
+     * (Req 8.3, 8.5).
+     */
+    private SendReportDTO runSendLoop(PreparedEmail prepared, EmailJob job) {
+        int totalAttempted = prepared.recipients.size();
+
         // Mail transport absent: send nothing, report every attempted recipient as
         // MAIL_NOT_CONFIGURED, and return normally without an error (Req 8.1, 8.2).
         if (mailSender == null) {
             List<NotEmailedEntry> notEmailed = new ArrayList<>();
-            for (Owner owner : recipients) {
+            for (Owner owner : prepared.recipients) {
                 notEmailed.add(toEntry(owner, NotEmailedReason.MAIL_NOT_CONFIGURED));
+                if (job != null) {
+                    job.incrementProcessed();
+                }
             }
             log.warn("Mail sender not configured. Owner email not sent to {} attempted recipient(s).",
                     totalAttempted);
@@ -140,34 +222,38 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
         int sentCount = 0;
         List<NotEmailedEntry> notEmailed = new ArrayList<>();
 
-        for (Owner owner : recipients) {
+        for (Owner owner : prepared.recipients) {
             String email = owner.getEmail();
 
             // Invalid recipient: null/blank email is never sent to (Req 5.1, 5.2, 5.3).
             if (!StringUtils.hasText(email)) {
                 notEmailed.add(toEntry(owner, NotEmailedReason.MISSING_EMAIL));
+                if (job != null) {
+                    job.incrementProcessed();
+                }
                 continue;
             }
 
-            // Best-effort send: a failure for one recipient must not stop the others (Req 8.3, 8.5).
             try {
                 // multipart=true is required so optional attachments can be added.
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true);
                 helper.setFrom(fromEmail);
                 helper.setTo(email.trim());
-                helper.setSubject(assembledSubject);
-                // multipart/alternative: plain-text first, HTML second. JavaMail nests the
-                // multipart/alternative inside the outer multipart/mixed that carries the
-                // attachments, so both readable-in-any-client and attachments work (Req 7.1).
-                helper.setText(plainText, assembledHtml);
-                attachAll(helper, validAttachments);
+                helper.setSubject(prepared.subject);
+                // multipart/alternative: plain-text first, HTML second (Req 7.1).
+                helper.setText(prepared.plainText, prepared.html);
+                attachAll(helper, prepared.attachments);
                 mailSender.send(message);
                 sentCount++;
             } catch (Exception e) {
                 log.error("Failed to email owner {} ({}): {}",
                         owner.getOwnerId(), owner.getFullName(), e.getMessage());
                 notEmailed.add(toEntry(owner, NotEmailedReason.SEND_FAILURE));
+            } finally {
+                if (job != null) {
+                    job.incrementProcessed();
+                }
             }
         }
 
@@ -196,36 +282,38 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
     }
 
     /**
-     * Filters the incoming attachment list down to the files that actually carry content.
-     * A {@code null} argument, an empty list, or entries with no content all resolve to an
-     * empty list, keeping attachments strictly optional.
+     * Reads every non-empty attachment's bytes into memory up-front so they can be reused
+     * across every recipient's message and, critically, remain usable after the originating
+     * HTTP request has completed (the background send runs on another thread).
      */
-    private List<MultipartFile> normaliseAttachments(List<MultipartFile> attachments) {
+    private List<Attachment> materialiseAttachments(List<MultipartFile> attachments) {
         if (attachments == null || attachments.isEmpty()) {
             return Collections.emptyList();
         }
-        List<MultipartFile> valid = new ArrayList<>();
+        List<Attachment> valid = new ArrayList<>();
         for (MultipartFile file : attachments) {
-            if (file != null && !file.isEmpty()) {
-                valid.add(file);
+            if (file == null || file.isEmpty()) {
+                continue;
             }
-        }
-        return valid;
-    }
-
-    /**
-     * Adds every supplied attachment to the message. Uses a {@link ByteArrayResource} so the
-     * multipart file's bytes are read once and reused across every recipient's message.
-     */
-    private void attachAll(MimeMessageHelper helper, List<MultipartFile> attachments) throws Exception {
-        for (MultipartFile file : attachments) {
             String filename = StringUtils.hasText(file.getOriginalFilename())
                     ? file.getOriginalFilename()
                     : "attachment";
             String contentType = StringUtils.hasText(file.getContentType())
                     ? file.getContentType()
                     : "application/octet-stream";
-            helper.addAttachment(filename, new ByteArrayResource(file.getBytes()), contentType);
+            try {
+                valid.add(new Attachment(filename, contentType, file.getBytes()));
+            } catch (Exception e) {
+                throw new BusinessException("Failed to read attachment '" + filename + "': " + e.getMessage());
+            }
+        }
+        return valid;
+    }
+
+    /** Adds every materialised attachment to the message. */
+    private void attachAll(MimeMessageHelper helper, List<Attachment> attachments) throws Exception {
+        for (Attachment file : attachments) {
+            helper.addAttachment(file.filename(), new ByteArrayResource(file.bytes()), file.contentType());
         }
     }
 
@@ -251,5 +339,27 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
                 .mailConfigured(mailConfigured)
                 .notEmailed(notEmailed)
                 .build();
+    }
+
+    /** Immutable, request-independent snapshot of everything a send needs. */
+    static final class PreparedEmail {
+        final List<Owner> recipients;
+        final String subject;
+        final String html;
+        final String plainText;
+        final List<Attachment> attachments;
+
+        PreparedEmail(List<Owner> recipients, String subject, String html, String plainText,
+                      List<Attachment> attachments) {
+            this.recipients = recipients;
+            this.subject = subject;
+            this.html = html;
+            this.plainText = plainText;
+            this.attachments = attachments;
+        }
+    }
+
+    /** An attachment with its bytes already read, safe to use off the request thread. */
+    record Attachment(String filename, String contentType, byte[] bytes) {
     }
 }

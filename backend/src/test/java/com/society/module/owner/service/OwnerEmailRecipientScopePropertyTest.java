@@ -161,7 +161,7 @@ class OwnerEmailRecipientScopePropertyTest {
         // plain-text body through unchanged so the send flow behaves exactly as before.
         OwnerEmailServiceImpl service =
                 new OwnerEmailServiceImpl(ownerRepository, settingsService, templateBuilder,
-                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer());
+                        new OwnerEmailSanitizer(), new OwnerEmailPlainTextRenderer(), new EmailJobStore());
         ReflectionTestUtils.setField(service, "mailSender", mailSender);
         ReflectionTestUtils.setField(service, "fromEmail", "noreply@society.com");
         return service;

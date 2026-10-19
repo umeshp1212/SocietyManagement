@@ -2,9 +2,10 @@ package com.society.module.owner.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.society.exception.GlobalExceptionHandler;
+import com.society.module.owner.dto.EmailJobDTO;
+import com.society.module.owner.dto.EmailJobStatus;
 import com.society.module.owner.dto.RecipientScope;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
-import com.society.module.owner.dto.SendReportDTO;
 import com.society.module.owner.service.OwnerEmailService;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
@@ -109,21 +110,21 @@ class OwnerEmailMultipartFixDispatchPropertyTest {
             }
 
             reset(ownerEmailService);
-            when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                    .thenReturn(stubReport());
+            when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                    .thenReturn(stubJob());
 
             byte[] json = objectMapper.writeValueAsString(payload).getBytes(StandardCharsets.UTF_8);
             MockMultipartFile requestPart =
                     new MockMultipartFile("request", "request.json", "application/json", json);
 
             mockMvc.perform(multipart(SEND_PATH).file(requestPart))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
 
             // The deserialised request handed to the service must match what was generated.
             ArgumentCaptor<SendOwnerEmailRequest> captor =
                     ArgumentCaptor.forClass(SendOwnerEmailRequest.class);
-            verify(ownerEmailService, times(1)).sendOwnerEmail(captor.capture(), any());
+            verify(ownerEmailService, times(1)).submitOwnerEmail(captor.capture(), any());
             assertRequestEquals(payload, captor.getValue());
         }
 
@@ -161,26 +162,26 @@ class OwnerEmailMultipartFixDispatchPropertyTest {
 
             byte[] json = objectMapper.writeValueAsString(payload).getBytes(StandardCharsets.UTF_8);
 
-            // --- JSON body representation -> single-arg overload ---
+            // --- JSON body representation -> submit with null attachments ---
             reset(ownerEmailService);
-            when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class)))
-                    .thenReturn(stubReport());
+            when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                    .thenReturn(stubJob());
 
             mockMvc.perform(post(SEND_PATH)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(json))
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
 
             ArgumentCaptor<SendOwnerEmailRequest> jsonCaptor =
                     ArgumentCaptor.forClass(SendOwnerEmailRequest.class);
-            verify(ownerEmailService, times(1)).sendOwnerEmail(jsonCaptor.capture());
+            verify(ownerEmailService, times(1)).submitOwnerEmail(jsonCaptor.capture(), any());
             SendOwnerEmailRequest fromJson = jsonCaptor.getValue();
 
-            // --- Multipart typed-part representation (with/without attachments) -> two-arg overload ---
+            // --- Multipart typed-part representation (with/without attachments) -> submit with list ---
             reset(ownerEmailService);
-            when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                    .thenReturn(stubReport());
+            when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                    .thenReturn(stubJob());
 
             MockMultipartFile requestPart =
                     new MockMultipartFile("request", "request.json", "application/json", json);

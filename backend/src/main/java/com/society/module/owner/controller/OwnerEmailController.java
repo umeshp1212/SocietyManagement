@@ -3,16 +3,19 @@ package com.society.module.owner.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.society.common.ApiResponse;
 import com.society.exception.BusinessException;
+import com.society.module.owner.dto.EmailJobDTO;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
-import com.society.module.owner.dto.SendReportDTO;
 import com.society.module.owner.service.OwnerEmailService;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import jakarta.validation.ConstraintViolation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,30 +47,36 @@ public class OwnerEmailController {
     private final Validator validator;
 
     /**
-     * Sends an owner email from a plain JSON body (no attachments).
+     * Accepts an owner email from a plain JSON body (no attachments) and dispatches the
+     * send to a background job.
      *
-     * <p>Retained for backward compatibility with clients that post
-     * {@code application/json}.</p>
+     * <p>Validation and template assembly happen synchronously, so an invalid request still
+     * fails fast with a 400. On success the response is {@code 202 Accepted} carrying the
+     * {@link EmailJobDTO} whose {@code jobId} the client polls via {@link #getJob(String)}.
+     * Retained for backward compatibility with clients that post {@code application/json}.</p>
      */
     @PostMapping(value = "/send", consumes = MediaType.APPLICATION_JSON_VALUE)
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('OWNER_EMAIL_SEND')")
-    public ResponseEntity<ApiResponse<SendReportDTO>> sendOwnerEmail(
+    public ResponseEntity<ApiResponse<EmailJobDTO>> sendOwnerEmail(
             @Valid @RequestBody SendOwnerEmailRequest request) {
-        SendReportDTO report = ownerEmailService.sendOwnerEmail(request);
-        return ResponseEntity.ok(ApiResponse.success("Email send processed", report));
+        EmailJobDTO job = ownerEmailService.submitOwnerEmail(request, null);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success("Email send accepted", job));
     }
 
     /**
-     * Sends an owner email with optional file attachments via {@code multipart/form-data}.
+     * Accepts an owner email with optional file attachments via {@code multipart/form-data}
+     * and dispatches the send to a background job.
      *
      * <p>The {@code request} part carries the JSON payload
      * ({@link SendOwnerEmailRequest}); the {@code attachments} part is optional and may
-     * contain zero or more files. When no attachments are supplied the behaviour is
-     * identical to the JSON endpoint.</p>
+     * contain zero or more files. Attachment bytes are read before the response returns, so
+     * the background send remains valid after the request completes. On success the response
+     * is {@code 202 Accepted} carrying the pollable {@link EmailJobDTO}.</p>
      */
     @PostMapping(value = "/send", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('OWNER_EMAIL_SEND')")
-    public ResponseEntity<ApiResponse<SendReportDTO>> sendOwnerEmailWithAttachments(
+    public ResponseEntity<ApiResponse<EmailJobDTO>> sendOwnerEmailWithAttachments(
             @RequestPart("request") MultipartFile requestPart,
             @RequestPart(value = "attachments", required = false) List<MultipartFile> attachments) {
         String requestJson;
@@ -77,8 +86,25 @@ public class OwnerEmailController {
             throw new BusinessException("Invalid email request payload: " + e.getMessage());
         }
         SendOwnerEmailRequest request = parseAndValidate(requestJson);
-        SendReportDTO report = ownerEmailService.sendOwnerEmail(request, attachments);
-        return ResponseEntity.ok(ApiResponse.success("Email send processed", report));
+        EmailJobDTO job = ownerEmailService.submitOwnerEmail(request, attachments);
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success("Email send accepted", job));
+    }
+
+    /**
+     * Returns the current state of a previously submitted send job so the client can poll
+     * for progress and the final report.
+     *
+     * <p>Responds 404 when the job id is unknown or its result has expired from the
+     * transient in-memory store.</p>
+     */
+    @GetMapping("/jobs/{jobId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('OWNER_EMAIL_SEND')")
+    public ResponseEntity<ApiResponse<EmailJobDTO>> getJob(@PathVariable String jobId) {
+        return ownerEmailService.getJob(jobId)
+                .map(job -> ResponseEntity.ok(ApiResponse.success("Job status", job)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.error("Email job not found or expired")));
     }
 
     /**

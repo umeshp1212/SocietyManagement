@@ -2,9 +2,10 @@ package com.society.module.owner.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.society.exception.GlobalExceptionHandler;
+import com.society.module.owner.dto.EmailJobDTO;
+import com.society.module.owner.dto.EmailJobStatus;
 import com.society.module.owner.dto.RecipientScope;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
-import com.society.module.owner.dto.SendReportDTO;
 import com.society.module.owner.service.OwnerEmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -96,8 +96,8 @@ class OwnerEmailMultipartFixUnitTest {
     // Feature: owner-email-attachment-multipart-fix, Property 1: typed request part reaches parseAndValidate and dispatches
     @Test
     void multipartRequestPartWithJsonContentTypeReachesParseAndValidateAndDispatches() throws Exception {
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                .thenReturn(stubReport());
+        when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                .thenReturn(stubJob());
 
         byte[] json = objectMapper.writeValueAsString(validPayload()).getBytes(StandardCharsets.UTF_8);
         // Content-Type set -> Spring resolves the part as a MultipartFile (the frontend Blob shape).
@@ -105,11 +105,11 @@ class OwnerEmailMultipartFixUnitTest {
                 new MockMultipartFile("request", "request.json", "application/json", json);
 
         mockMvc.perform(multipart(SEND_PATH).file(requestPart))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success").value(true));
 
         // Reaching parseAndValidate and dispatching proves the typed part bound successfully.
-        verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class), any());
+        verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
     }
 
     // ------------------------------------------------------------------
@@ -119,8 +119,8 @@ class OwnerEmailMultipartFixUnitTest {
     // Feature: owner-email-attachment-multipart-fix, Property 1: untyped request part still binds after the fix
     @Test
     void multipartRequestPartWithoutContentTypeStillReachesParseAndValidate() throws Exception {
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                .thenReturn(stubReport());
+        when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                .thenReturn(stubJob());
 
         byte[] json = objectMapper.writeValueAsString(validPayload()).getBytes(StandardCharsets.UTF_8);
         // Null content type -> plain form-field style part; the fix must not regress this case.
@@ -128,10 +128,10 @@ class OwnerEmailMultipartFixUnitTest {
                 new MockMultipartFile("request", "request.json", null, json);
 
         mockMvc.perform(multipart(SEND_PATH).file(requestPart))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class), any());
+        verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
     }
 
     // ------------------------------------------------------------------
@@ -190,19 +190,17 @@ class OwnerEmailMultipartFixUnitTest {
     // Feature: owner-email-attachment-multipart-fix, Property 2: Preservation - JSON endpoint still works with @Valid @RequestBody
     @Test
     void jsonOnlyEndpointStillWorksWithValidRequestBody() throws Exception {
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class)))
-                .thenReturn(stubReport());
+        when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                .thenReturn(stubJob());
 
         mockMvc.perform(post(SEND_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validPayload())))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success").value(true));
 
-        // The JSON path dispatches through the single-argument (no-attachment) overload.
-        verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class));
-        verify(ownerEmailService, times(0))
-                .sendOwnerEmail(any(SendOwnerEmailRequest.class), any());
+        // The JSON path dispatches through the two-arg submit method with a null attachment list.
+        verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
     }
 
     // ------------------------------------------------------------------
@@ -213,8 +211,8 @@ class OwnerEmailMultipartFixUnitTest {
     @Test
     @SuppressWarnings("unchecked")
     void multipartAttachmentsAreForwardedToTheService() throws Exception {
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                .thenReturn(stubReport());
+        when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                .thenReturn(stubJob());
 
         byte[] json = objectMapper.writeValueAsString(validPayload()).getBytes(StandardCharsets.UTF_8);
         MockMultipartFile requestPart =
@@ -225,12 +223,12 @@ class OwnerEmailMultipartFixUnitTest {
                 new MockMultipartFile("attachments", "b.pdf", "application/pdf", "B".getBytes(StandardCharsets.UTF_8));
 
         mockMvc.perform(multipart(SEND_PATH).file(requestPart).file(fileA).file(fileB))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success").value(true));
 
         org.mockito.ArgumentCaptor<List<MultipartFile>> captor =
                 org.mockito.ArgumentCaptor.forClass(List.class);
-        verify(ownerEmailService).sendOwnerEmail(any(SendOwnerEmailRequest.class), captor.capture());
+        verify(ownerEmailService).submitOwnerEmail(any(SendOwnerEmailRequest.class), captor.capture());
 
         List<MultipartFile> forwarded = captor.getValue();
         assertThat(forwarded).hasSize(2);
@@ -250,13 +248,12 @@ class OwnerEmailMultipartFixUnitTest {
         return request;
     }
 
-    private SendReportDTO stubReport() {
-        return SendReportDTO.builder()
-                .totalAttempted(0)
-                .sentCount(0)
-                .notEmailedCount(0)
-                .mailConfigured(false)
-                .notEmailed(List.of())
+    private EmailJobDTO stubJob() {
+        return EmailJobDTO.builder()
+                .jobId("test-job-id")
+                .status(EmailJobStatus.PENDING)
+                .totalRecipients(0)
+                .processed(0)
                 .build();
     }
 }

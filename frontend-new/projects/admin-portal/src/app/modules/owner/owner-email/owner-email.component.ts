@@ -1,4 +1,4 @@
-import { Component, OnInit, SecurityContext } from '@angular/core';
+import { Component, OnDestroy, OnInit, SecurityContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -16,20 +16,25 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { QuillModule } from 'ngx-quill';
-import { timeout } from 'rxjs/operators';
+import { Subscription, timer } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { OwnerService } from '@core/services/owner.service';
 import {
   Owner,
   RecipientScope,
   SendOwnerEmailRequest,
   SendReport,
+  EmailJob,
   NotEmailedReason
 } from '@core/models/owner.model';
 import { BackButtonComponent } from '@shared/components/back-button';
 
 const SUBJECT_MAX = 200;
 const BODY_MAX = 10000;
-const SEND_TIMEOUT_MS = 30000;
+/** How often to poll the background send job for progress/completion. */
+const POLL_INTERVAL_MS = 2000;
+/** Safety cap on polling so a stuck job can't poll forever. */
+const POLL_MAX_MS = 10 * 60 * 1000;
 
 @Component({
   selector: 'app-owner-email',
@@ -213,6 +218,9 @@ const SEND_TIMEOUT_MS = 30000;
               <mat-spinner *ngIf="sending" diameter="20" class="btn-spinner"></mat-spinner>
               {{ sending ? 'Sending...' : 'Send Email' }}
             </button>
+            <span *ngIf="sending && jobProgress" class="send-progress" aria-live="polite">
+              Sending {{ jobProgress.processed }} of {{ jobProgress.total }}...
+            </span>
           </div>
         </mat-card-content>
       </mat-card>
@@ -297,8 +305,9 @@ const SEND_TIMEOUT_MS = 30000;
     .body-error { display: block; font-size: 12px; margin-top: 4px; }
     .body-preview { display: block; margin-bottom: 16px; }
     .preview-content { border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; padding: 12px; background: #fafafa; }
-    .actions { display: flex; gap: 8px; margin-top: 8px; }
+    .actions { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
     .btn-spinner { display: inline-block; margin-right: 4px; }
+    .send-progress { color: #666; font-size: 13px; }
     .mail-warning { display: flex; align-items: center; gap: 8px; color: #e65100; margin-bottom: 12px; }
     .result-counts { display: flex; gap: 16px; flex-wrap: wrap; }
     .count-box { display: flex; flex-direction: column; align-items: center; padding: 12px 20px; border-radius: 8px; min-width: 100px; }
@@ -320,7 +329,7 @@ const SEND_TIMEOUT_MS = 30000;
     .attachment-item .file-size { font-size: 12px; color: #888; }
   `]
 })
-export class OwnerEmailComponent implements OnInit {
+export class OwnerEmailComponent implements OnInit, OnDestroy {
   readonly subjectMax = SUBJECT_MAX;
   readonly bodyMax = BODY_MAX;
 
@@ -352,6 +361,12 @@ export class OwnerEmailComponent implements OnInit {
   form: FormGroup;
   sending = false;
   report: SendReport | null = null;
+
+  /** Background-send progress, shown while the job runs. Null when no send is in flight. */
+  jobProgress: { processed: number; total: number } | null = null;
+
+  /** Active polling subscription for the in-flight send job; torn down on completion/destroy. */
+  private pollSub?: Subscription;
 
   /** Visible-text length of the current body, shown in the length hint. */
   visibleLength = 0;
@@ -718,31 +733,89 @@ export class OwnerEmailComponent implements OnInit {
 
     this.sending = true;
     this.report = null;
-    this.ownerService.sendOwnerEmail(request, this.attachments).pipe(
-      timeout(SEND_TIMEOUT_MS)
-    ).subscribe({
+    this.jobProgress = null;
+    this.pollSub?.unsubscribe();
+
+    // The send runs in the background on the server: submit returns a pending job (HTTP 202),
+    // then we poll until it reaches a terminal state. This removes the old client-side request
+    // timeout that reported "failed" while the server was still successfully sending.
+    this.ownerService.sendOwnerEmail(request, this.attachments).subscribe({
       next: (res) => {
-        this.sending = false;
-        if (res.success) {
-          this.report = res.data;
-          this.snackBar.open(
-            `Sent ${res.data.sentCount}, not emailed ${res.data.notEmailedCount}.`,
-            'Close',
-            { duration: 4000 }
-          );
+        if (res.success && res.data?.jobId) {
+          this.jobProgress = { processed: 0, total: res.data.totalRecipients };
+          this.pollJob(res.data.jobId);
         } else {
-          this.snackBar.open(res.message || 'Failed to send email', 'Close', { duration: 5000 });
+          this.sending = false;
+          this.snackBar.open(res.message || 'Failed to start sending email', 'Close', { duration: 5000 });
         }
       },
       error: (err) => {
         this.sending = false;
-        // On timeout the RxJS error carries no HTTP payload; retain content/selection and allow retry.
-        const isTimeout = err?.name === 'TimeoutError';
-        const message = isTimeout
-          ? 'The request timed out. Your message was kept, please try again.'
-          : (err?.error?.message || 'Failed to send email. Please try again.');
+        // A rejection here is a real submit failure (validation 400, auth, network) — the
+        // background send never started, so it is safe to report as not sent.
+        const message = err?.error?.message || 'Failed to send email. Please try again.';
         this.snackBar.open(message, 'Close', { duration: 6000 });
       }
     });
+  }
+
+  /**
+   * Polls the background send job until it completes or fails, updating progress as it runs.
+   * A completed job yields the final report; a failed job surfaces the server-side error.
+   */
+  private pollJob(jobId: string): void {
+    const startedAt = Date.now();
+    this.pollSub = timer(0, POLL_INTERVAL_MS).pipe(
+      switchMap(() => this.ownerService.getEmailJob(jobId))
+    ).subscribe({
+      next: (res) => {
+        if (!res.success || !res.data) {
+          // The job id is unknown/expired on the server; stop polling.
+          this.finishSending();
+          this.snackBar.open(res.message || 'Lost track of the send job.', 'Close', { duration: 5000 });
+          return;
+        }
+
+        const job: EmailJob = res.data;
+        this.jobProgress = { processed: job.processed, total: job.totalRecipients };
+
+        if (job.status === 'COMPLETED' && job.report) {
+          this.finishSending();
+          this.report = job.report;
+          this.snackBar.open(
+            `Sent ${job.report.sentCount}, not emailed ${job.report.notEmailedCount}.`,
+            'Close',
+            { duration: 4000 }
+          );
+        } else if (job.status === 'FAILED') {
+          this.finishSending();
+          this.snackBar.open(job.error || 'Sending failed. Please try again.', 'Close', { duration: 6000 });
+        } else if (Date.now() - startedAt > POLL_MAX_MS) {
+          // Give up watching, but the server keeps sending; do not claim failure.
+          this.finishSending();
+          this.snackBar.open(
+            'Sending is taking longer than expected and continues in the background.',
+            'Close',
+            { duration: 6000 }
+          );
+        }
+        // PENDING / IN_PROGRESS: keep polling.
+      },
+      error: () => {
+        // Transient poll error: keep the send flagged as running; the next tick retries.
+      }
+    });
+  }
+
+  /** Tears down the in-flight send/poll state. */
+  private finishSending(): void {
+    this.sending = false;
+    this.jobProgress = null;
+    this.pollSub?.unsubscribe();
+    this.pollSub = undefined;
+  }
+
+  ngOnDestroy(): void {
+    this.pollSub?.unsubscribe();
   }
 }

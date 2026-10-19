@@ -1,9 +1,10 @@
 package com.society.module.owner.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.society.module.owner.dto.EmailJobDTO;
+import com.society.module.owner.dto.EmailJobStatus;
 import com.society.module.owner.dto.RecipientScope;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
-import com.society.module.owner.dto.SendReportDTO;
 import com.society.module.owner.service.OwnerEmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -98,14 +99,12 @@ class OwnerEmailMultipartFixIntegrationTest {
     @BeforeEach
     void resetService() {
         reset(ownerEmailService);
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class)))
-                .thenReturn(stubReport());
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                .thenReturn(stubReport());
+        when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                .thenReturn(stubJob());
     }
 
     // ------------------------------------------------------------------
-    // 2.2 — full multipart send WITH attachments end-to-end -> 200 + report, delegated.
+    // 2.2 — full multipart send WITH attachments end-to-end -> 202 + job, delegated.
     // ------------------------------------------------------------------
 
     // Feature: owner-email-attachment-multipart-fix, Property 1: multipart send with attachments dispatches end-to-end
@@ -122,16 +121,16 @@ class OwnerEmailMultipartFixIntegrationTest {
                 new MockMultipartFile("attachments", "agenda.pdf", "application/pdf", "PDF-B".getBytes(StandardCharsets.UTF_8));
 
         mockMvc.perform(multipart(SEND_PATH).file(requestPart).file(fileA).file(fileB))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)))
-                // The SendReportDTO envelope is returned.
-                .andExpect(jsonPath("$.data.totalAttempted", is(0)))
-                .andExpect(jsonPath("$.data.mailConfigured", is(false)));
+                // The EmailJobDTO envelope is returned.
+                .andExpect(jsonPath("$.data.jobId").exists())
+                .andExpect(jsonPath("$.data.status", is("PENDING")));
 
-        // Delegation carries the two bound attachments to the two-arg service overload.
+        // Delegation carries the two bound attachments to the submit service method.
         org.mockito.ArgumentCaptor<List<MultipartFile>> captor =
                 org.mockito.ArgumentCaptor.forClass(List.class);
-        verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class), captor.capture());
+        verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), captor.capture());
         assertThat(captor.getValue()).extracting(MultipartFile::getOriginalFilename)
                 .containsExactly("notice.pdf", "agenda.pdf");
     }
@@ -150,25 +149,26 @@ class OwnerEmailMultipartFixIntegrationTest {
         mockMvc.perform(post(SEND_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.totalAttempted", is(0)));
-        verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class));
+                .andExpect(jsonPath("$.data.status", is("PENDING")));
+        // JSON handler submits with a null attachment list via the two-arg submit method.
+        verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
 
-        // Multipart with no attachments must produce the same 200 + report envelope.
+        // Multipart with no attachments must produce the same 202 + job envelope.
         reset(ownerEmailService);
-        when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                .thenReturn(stubReport());
+        when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                .thenReturn(stubJob());
 
         MockMultipartFile requestPart =
                 new MockMultipartFile("request", "request.json", "application/json", json);
         mockMvc.perform(multipart(SEND_PATH).file(requestPart))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.totalAttempted", is(0)));
+                .andExpect(jsonPath("$.data.status", is("PENDING")));
 
-        // Dispatch occurred through the two-arg overload with a null/empty attachment list.
-        verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class), any());
+        // Dispatch occurred through the submit method with a null/empty attachment list.
+        verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
     }
 
     // ------------------------------------------------------------------
@@ -228,13 +228,12 @@ class OwnerEmailMultipartFixIntegrationTest {
         return request;
     }
 
-    private SendReportDTO stubReport() {
-        return SendReportDTO.builder()
-                .totalAttempted(0)
-                .sentCount(0)
-                .notEmailedCount(0)
-                .mailConfigured(false)
-                .notEmailed(List.of())
+    private EmailJobDTO stubJob() {
+        return EmailJobDTO.builder()
+                .jobId("test-job-id")
+                .status(EmailJobStatus.PENDING)
+                .totalRecipients(0)
+                .processed(0)
                 .build();
     }
 }

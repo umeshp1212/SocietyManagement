@@ -66,13 +66,46 @@ public class MaintenanceBillService {
     private final MaintenanceLedgerService ledgerService;
     private final com.society.module.maintenance.repository.MaintenanceLedgerRepository ledgerRepository;
     private final com.society.module.maintenance.repository.UnitAdvanceCreditRepository advanceCreditRepository;
+    private final com.society.module.settings.service.SocietySettingsService societySettingsService;
 
     /**
-     * Flat late fee applied once to a bill when the unit is carrying arrears. Default 0
-     * (disabled). Configure via app.maintenance.late-fee to enable for a society.
+     * Legacy fallback late fee. The authoritative value now comes from
+     * {@code SocietySettings.lateFeeAmount} (admin-configurable, no redeploy). This static
+     * property is only used when the society has not set a late fee (null), preserving the
+     * previous {@code app.maintenance.late-fee} behaviour for existing deployments.
      */
     @org.springframework.beans.factory.annotation.Value("${app.maintenance.late-fee:0}")
-    private BigDecimal lateFeeAmount;
+    private BigDecimal lateFeeAmountFallback;
+
+    /**
+     * Resolve the effective late fee: society setting takes precedence; fall back to the
+     * legacy property when the setting is null.
+     */
+    private BigDecimal effectiveLateFee() {
+        BigDecimal fromSettings = societySettingsService.getSettings().getLateFeeAmount();
+        return fromSettings != null ? fromSettings : lateFeeAmountFallback;
+    }
+
+    /**
+     * Resolve the due date for a bill. {@code dueDayOfMonth} may be null (fall back to the
+     * society's configured {@code billDueDay}), 0 (meaning "last day of the month"), or any
+     * day number; values past the month's length are clamped to the final calendar day. So
+     * 0, 31-on-a-30-day-month, and 31-in-February all safely resolve to month-end.
+     */
+    private LocalDate resolveDueDate(int year, int month, Integer dueDayOfMonth) {
+        Integer day = dueDayOfMonth;
+        if (day == null) {
+            day = societySettingsService.getSettings().getBillDueDay();
+        }
+        LocalDate firstOfMonth = LocalDate.of(year, month, 1);
+        int lastDay = firstOfMonth.lengthOfMonth();
+        // 0 (or null settings) => last day of month; otherwise clamp into [1, lastDay].
+        if (day == null || day <= 0) {
+            return firstOfMonth.withDayOfMonth(lastDay);
+        }
+        int clamped = Math.min(day, lastDay);
+        return firstOfMonth.withDayOfMonth(clamped);
+    }
 
     /**
      * Self-reference (through the Spring proxy) so retry can re-invoke the @Transactional
@@ -201,8 +234,7 @@ public class MaintenanceBillService {
         bill.setBillDate(LocalDate.of(request.getYear(), request.getMonth(), 1));
         bill.setUnitAreaSqft(areaSqft);
 
-        int dueDayOfMonth = request.getDueDayOfMonth() != null ? request.getDueDayOfMonth() : 10;
-        bill.setDueDate(LocalDate.of(request.getYear(), request.getMonth(), dueDayOfMonth));
+        bill.setDueDate(resolveDueDate(request.getYear(), request.getMonth(), request.getDueDayOfMonth()));
 
         // Compute line items from charge configs
         List<BillLineItem> lineItems = new ArrayList<>();
@@ -280,9 +312,10 @@ public class MaintenanceBillService {
         // the time-value cost of the outstanding amount. Defaults to 0 (disabled) so existing
         // societies see no change unless they explicitly configure app.maintenance.late-fee.
         BigDecimal lateFee = BigDecimal.ZERO;
-        if (lateFeeAmount != null && lateFeeAmount.compareTo(BigDecimal.ZERO) > 0
+        BigDecimal configuredLateFee = effectiveLateFee();
+        if (configuredLateFee != null && configuredLateFee.compareTo(BigDecimal.ZERO) > 0
                 && principalArrears.add(carried.interest()).compareTo(BigDecimal.ZERO) > 0) {
-            lateFee = money(lateFeeAmount);
+            lateFee = money(configuredLateFee);
         }
 
         // "Less: Adjustment" — optional per-unit manual credit/waiver supplied for this run.
