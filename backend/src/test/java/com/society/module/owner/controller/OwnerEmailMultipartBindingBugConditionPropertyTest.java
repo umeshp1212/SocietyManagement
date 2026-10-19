@@ -2,9 +2,10 @@ package com.society.module.owner.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.society.exception.GlobalExceptionHandler;
+import com.society.module.owner.dto.EmailJobDTO;
+import com.society.module.owner.dto.EmailJobStatus;
 import com.society.module.owner.dto.RecipientScope;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
-import com.society.module.owner.dto.SendReportDTO;
 import com.society.module.owner.service.OwnerEmailService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -127,21 +128,17 @@ class OwnerEmailMultipartBindingBugConditionPropertyTest {
             }
 
             reset(ownerEmailService);
-            when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                    .thenReturn(stubReport());
+            when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                    .thenReturn(stubJob());
 
             // --- Expected behavior (Property 1): typed part is read, deserialised, validated,
-            //     and dispatched, returning 200 with the report envelope. ---
-            // On UNFIXED code this fails: the request part binds as MultipartFile, the
-            // @RequestParam("request") String conversion fails, and the response is a 500
-            // with "Failed to convert value of type '...StandardMultipartFile' to required
-            // type 'java.lang.String'".
+            //     and dispatched, returning 202 with the job envelope. ---
             mockMvc.perform(builder)
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
 
             // Dispatch must occur with the deserialised request and the bound attachment list.
-            verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class), any());
+            verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), any());
         }
     }
 
@@ -161,13 +158,12 @@ class OwnerEmailMultipartBindingBugConditionPropertyTest {
         return request;
     }
 
-    private SendReportDTO stubReport() {
-        return SendReportDTO.builder()
-                .totalAttempted(0)
-                .sentCount(0)
-                .notEmailedCount(0)
-                .mailConfigured(false)
-                .notEmailed(List.of())
+    private EmailJobDTO stubJob() {
+        return EmailJobDTO.builder()
+                .jobId("test-job-id")
+                .status(EmailJobStatus.PENDING)
+                .totalRecipients(0)
+                .processed(0)
                 .build();
     }
 }

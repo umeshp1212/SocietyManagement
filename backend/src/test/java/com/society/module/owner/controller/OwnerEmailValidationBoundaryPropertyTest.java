@@ -2,6 +2,8 @@ package com.society.module.owner.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.society.exception.GlobalExceptionHandler;
+import com.society.module.owner.dto.EmailJobDTO;
+import com.society.module.owner.dto.EmailJobStatus;
 import com.society.module.owner.dto.RecipientScope;
 import com.society.module.owner.dto.SendOwnerEmailRequest;
 import com.society.module.owner.service.OwnerEmailService;
@@ -12,8 +14,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -148,13 +148,14 @@ class OwnerEmailValidationBoundaryPropertyTest {
         // This proves the boundary isolates the invalid case rather than rejecting every
         // request. Uses the same standalone pipeline; the service returns a stub report.
         reset(ownerEmailService);
-        org.mockito.Mockito.when(ownerEmailService.sendOwnerEmail(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(com.society.module.owner.dto.SendReportDTO.builder()
-                        .totalAttempted(0)
-                        .sentCount(0)
-                        .notEmailedCount(0)
-                        .mailConfigured(false)
-                        .notEmailed(List.of())
+        org.mockito.Mockito.when(ownerEmailService.submitOwnerEmail(
+                        org.mockito.ArgumentMatchers.any(SendOwnerEmailRequest.class),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(EmailJobDTO.builder()
+                        .jobId("test-job-id")
+                        .status(EmailJobStatus.PENDING)
+                        .totalRecipients(0)
+                        .processed(0)
                         .build());
 
         SendOwnerEmailRequest valid = new SendOwnerEmailRequest();
@@ -164,9 +165,11 @@ class OwnerEmailValidationBoundaryPropertyTest {
         mockMvc.perform(post(SEND_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(valid)))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success").value(true));
-        org.mockito.Mockito.verify(ownerEmailService).sendOwnerEmail(org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verify(ownerEmailService).submitOwnerEmail(
+                org.mockito.ArgumentMatchers.any(SendOwnerEmailRequest.class),
+                org.mockito.ArgumentMatchers.any());
 
         // Coverage assertions: every rejection path in the task was exercised.
         assertThat(sawEmptySubject).as("generator should exercise an empty subject").isTrue();

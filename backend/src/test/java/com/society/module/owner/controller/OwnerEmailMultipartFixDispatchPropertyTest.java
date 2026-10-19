@@ -193,12 +193,12 @@ class OwnerEmailMultipartFixDispatchPropertyTest {
             }
 
             mockMvc.perform(builder)
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
 
             ArgumentCaptor<SendOwnerEmailRequest> mpCaptor =
                     ArgumentCaptor.forClass(SendOwnerEmailRequest.class);
-            verify(ownerEmailService, times(1)).sendOwnerEmail(mpCaptor.capture(), any());
+            verify(ownerEmailService, times(1)).submitOwnerEmail(mpCaptor.capture(), any());
             SendOwnerEmailRequest fromMultipart = mpCaptor.getValue();
 
             // Preservation: both representations must yield the identical request object.
@@ -238,8 +238,8 @@ class OwnerEmailMultipartFixDispatchPropertyTest {
             }
 
             reset(ownerEmailService);
-            when(ownerEmailService.sendOwnerEmail(any(SendOwnerEmailRequest.class), any()))
-                    .thenReturn(stubReport());
+            when(ownerEmailService.submitOwnerEmail(any(SendOwnerEmailRequest.class), any()))
+                    .thenReturn(stubJob());
 
             MockMultipartFile requestPart =
                     new MockMultipartFile("request", "request.json", "application/json", json);
@@ -251,11 +251,11 @@ class OwnerEmailMultipartFixDispatchPropertyTest {
             }
 
             mockMvc.perform(builder)
-                    .andExpect(status().isOk())
+                    .andExpect(status().isAccepted())
                     .andExpect(jsonPath("$.success").value(true));
 
             ArgumentCaptor<List<MultipartFile>> captor = ArgumentCaptor.forClass(List.class);
-            verify(ownerEmailService, times(1)).sendOwnerEmail(any(SendOwnerEmailRequest.class), captor.capture());
+            verify(ownerEmailService, times(1)).submitOwnerEmail(any(SendOwnerEmailRequest.class), captor.capture());
 
             List<MultipartFile> forwarded = captor.getValue();
             if (names.isEmpty()) {
@@ -330,13 +330,12 @@ class OwnerEmailMultipartFixDispatchPropertyTest {
         return request;
     }
 
-    private SendReportDTO stubReport() {
-        return SendReportDTO.builder()
-                .totalAttempted(0)
-                .sentCount(0)
-                .notEmailedCount(0)
-                .mailConfigured(false)
-                .notEmailed(new ArrayList<>())
+    private EmailJobDTO stubJob() {
+        return EmailJobDTO.builder()
+                .jobId("test-job-id")
+                .status(EmailJobStatus.PENDING)
+                .totalRecipients(0)
+                .processed(0)
                 .build();
     }
 }

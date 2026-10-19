@@ -216,7 +216,7 @@ class OwnerEmailRichTextAuthorizationIntegrationTest {
     }
 
     // ------------------------------------------------------------------
-    // 5.5 Authenticated WITH OWNER_EMAIL_SEND -> request processed (200 + report)
+    // 5.5 Authenticated WITH OWNER_EMAIL_SEND -> request accepted (202 + job)
     // ------------------------------------------------------------------
 
     @Test
@@ -225,10 +225,11 @@ class OwnerEmailRichTextAuthorizationIntegrationTest {
         mockMvc.perform(post(SEND_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(validRichTextRequest())))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)))
-                // The active owner is resolved as an attempted recipient, proving the
-                // authorized rich-text request reached the service for processing.
-                .andExpect(jsonPath("$.data.totalAttempted", is(1)));
+                // The authorized rich-text request is accepted for background processing,
+                // proving it reached the service and a pollable job was created.
+                .andExpect(jsonPath("$.data.jobId").exists())
+                .andExpect(jsonPath("$.data.status", is("PENDING")));
     }
 }

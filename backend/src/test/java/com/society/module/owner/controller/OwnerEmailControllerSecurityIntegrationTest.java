@@ -262,7 +262,7 @@ class OwnerEmailControllerSecurityIntegrationTest {
     }
 
     // ------------------------------------------------------------------
-    // 6.3 Authenticated WITH OWNER_EMAIL_SEND -> request processed (200 + report)
+    // 6.3 Authenticated WITH OWNER_EMAIL_SEND -> request accepted (202 + job)
     // ------------------------------------------------------------------
 
     @Test
@@ -271,11 +271,12 @@ class OwnerEmailControllerSecurityIntegrationTest {
         mockMvc.perform(post(SEND_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(validAllScopeRequest())))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)))
-                // The active owner is resolved as an attempted recipient, proving the
-                // request reached the service for processing.
-                .andExpect(jsonPath("$.data.totalAttempted", is(1)));
+                // The send is accepted for background processing, proving the request
+                // reached the service and a pollable job was created.
+                .andExpect(jsonPath("$.data.jobId").exists())
+                .andExpect(jsonPath("$.data.status", is("PENDING")));
 
         // An authorized request must not be recorded as a security rejection.
         assertThat(auditMessages()).noneSatisfy(msg ->
@@ -283,7 +284,7 @@ class OwnerEmailControllerSecurityIntegrationTest {
     }
 
     // ------------------------------------------------------------------
-    // 6.3 SUPER_ADMIN -> request processed
+    // 6.3 SUPER_ADMIN -> request accepted
     // ------------------------------------------------------------------
 
     @Test
@@ -292,9 +293,10 @@ class OwnerEmailControllerSecurityIntegrationTest {
         mockMvc.perform(post(SEND_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(validAllScopeRequest())))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.totalAttempted", is(1)));
+                .andExpect(jsonPath("$.data.jobId").exists())
+                .andExpect(jsonPath("$.data.status", is("PENDING")));
     }
 
     // ------------------------------------------------------------------
