@@ -21,6 +21,13 @@ public class EmailJob {
     private final int totalRecipients;
     private final Instant createdAt;
 
+    /**
+     * The prepared, request-independent payload this job must deliver. Set by the submit
+     * path before the background loop starts; the async worker reads it back by job id so
+     * no package-private type has to cross the service proxy boundary.
+     */
+    private volatile OwnerEmailServiceImpl.PreparedEmail prepared;
+
     private volatile EmailJobStatus status;
     private final AtomicInteger processed = new AtomicInteger(0);
     private volatile SendReportDTO report;
@@ -37,6 +44,14 @@ public class EmailJob {
 
     String getJobId() {
         return jobId;
+    }
+
+    OwnerEmailServiceImpl.PreparedEmail getPrepared() {
+        return prepared;
+    }
+
+    void setPrepared(OwnerEmailServiceImpl.PreparedEmail prepared) {
+        this.prepared = prepared;
     }
 
     void markInProgress() {

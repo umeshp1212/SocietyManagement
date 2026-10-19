@@ -68,4 +68,16 @@ public interface OwnerEmailService {
      * @return the job snapshot, or empty if the id is unknown or its result has expired
      */
     java.util.Optional<EmailJobDTO> getJob(String jobId);
+
+    /**
+     * Runs the background per-recipient send for an already-prepared job, identified by id.
+     *
+     * <p>Declared on the interface (with only a {@code String} parameter) so it can be invoked
+     * through the Spring proxy — the mechanism that applies the {@code @Async} advice. It is not
+     * meant to be called directly by application code; {@link #submitOwnerEmail} dispatches it
+     * after registering the job and its prepared payload.</p>
+     *
+     * @param jobId the id of a job previously registered by {@link #submitOwnerEmail}
+     */
+    void runSendLoopAsync(String jobId);
 }

@@ -77,12 +77,14 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
     /**
      * Self-reference through the Spring proxy. {@code @Async} advice is applied by the proxy,
      * so the background send must be invoked via {@code self.runSendLoopAsync(...)} rather than
-     * {@code this.runSendLoopAsync(...)} (a direct {@code this} call would run inline). Injected
-     * lazily to break the self-referential construction cycle.
+     * {@code this.runSendLoopAsync(...)} (a direct {@code this} call would run inline). Typed as
+     * the {@link OwnerEmailService} interface — the bean is exposed as a JDK dynamic proxy of the
+     * interface, not a subclass of this concrete type, so injecting the concrete type would fail.
+     * Injected lazily to break the self-referential construction cycle.
      */
     @Lazy
     @Autowired
-    private OwnerEmailServiceImpl self;
+    private OwnerEmailService self;
 
     @Override
     public SendReportDTO sendOwnerEmail(SendOwnerEmailRequest request) {
@@ -102,9 +104,11 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
         PreparedEmail prepared = prepare(request, attachments);
 
         EmailJob job = emailJobStore.create(prepared.recipients.size());
+        job.setPrepared(prepared);
         // Dispatch the SMTP loop to the background executor. The self-injected proxy
         // reference ensures the @Async advice is applied (a direct this.* call would not).
-        self.runSendLoopAsync(prepared, job);
+        // Only the job id crosses the call so no package-private type touches the interface.
+        self.runSendLoopAsync(job.getJobId());
         return job.toDto();
     }
 
@@ -116,16 +120,29 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
     /**
      * Background entry point for the per-recipient send loop. Runs on the dedicated
      * {@code ownerEmailExecutor}; failures are captured on the job rather than thrown
-     * (nothing awaits this method's completion).
+     * (nothing awaits this method's completion). Looks the job up by id so the method
+     * signature on the interface carries only a {@code String}.
      */
+    @Override
     @Async("ownerEmailExecutor")
-    public void runSendLoopAsync(PreparedEmail prepared, EmailJob job) {
+    public void runSendLoopAsync(String jobId) {
+        EmailJob job = emailJobStore.find(jobId).orElse(null);
+        if (job == null) {
+            log.warn("Owner email job {} not found when the background send started.", jobId);
+            return;
+        }
+        PreparedEmail prepared = job.getPrepared();
+        if (prepared == null) {
+            log.error("Owner email job {} has no prepared payload; aborting send.", jobId);
+            job.markFailed("Internal error: prepared email missing");
+            return;
+        }
         try {
             job.markInProgress();
             SendReportDTO report = runSendLoop(prepared, job);
             job.markCompleted(report);
         } catch (Exception e) {
-            log.error("Owner email job {} failed: {}", job.getJobId(), e.getMessage(), e);
+            log.error("Owner email job {} failed: {}", jobId, e.getMessage(), e);
             job.markFailed("Email sending failed: " + e.getMessage());
         }
     }
