@@ -352,7 +352,7 @@ public class OwnerEmailTemplateBuilder {
             if (!base.startsWith("/")) base = "/" + base;
             base = base.replaceAll("/+$", "");
         }
-        return host + base + "/dashboard";
+        return host + base + "/member/login";
     }
 
     /**

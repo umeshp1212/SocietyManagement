@@ -191,7 +191,7 @@ public class PaymentReminderService {
             if (!base.startsWith("/")) base = "/" + base;
             base = base.replaceAll("/+$", "");
         }
-        return host + base + "/dashboard";
+        return host + base + "/member/login";
     }
 
     private String buildSubject(SocietySettings settings, ReminderTarget t) {
