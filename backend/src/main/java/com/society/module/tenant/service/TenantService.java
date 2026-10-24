@@ -5,6 +5,8 @@ import com.society.enums.*;
 import com.society.exception.BusinessException;
 import com.society.exception.ResourceNotFoundException;
 import com.society.module.owner.entity.Unit;
+import com.society.module.notification.service.ApprovalNotificationService;
+import com.society.module.owner.entity.Owner;
 import com.society.module.owner.repository.UnitOwnerRepository;
 import com.society.module.owner.repository.UnitRepository;
 import com.society.module.tenant.dto.*;
@@ -33,6 +35,7 @@ public class TenantService {
     private final TenantDocumentRepository tenantDocumentRepository;
     private final UnitRepository unitRepository;
     private final UnitOwnerRepository unitOwnerRepository;
+    private final ApprovalNotificationService approvalNotificationService;
 
     // ==================== MEMBER-PORTAL SUBMISSION (requires admin approval) ====================
 
@@ -78,6 +81,14 @@ public class TenantService {
 
         tenant = tenantRepository.save(tenant);
         // NOTE: unit occupancy is intentionally left unchanged until approval.
+
+        // Notify the society inbox that a tenant registration awaits approval (best-effort).
+        Owner primaryOwner = unit.getPrimaryOwner();
+        approvalNotificationService.notifySocietyOfTenantRequest(
+                tenant.getTenantName(),
+                unit.getUnitNumber(),
+                primaryOwner != null ? primaryOwner.getFullName() : null);
+
         return mapToDTO(tenant);
     }
 
@@ -211,7 +222,15 @@ public class TenantService {
         tenant.setAadharNumber(request.getAadharNumber());
         tenant.setPanNumber(request.getPanNumber());
         tenant.setPermanentAddress(request.getPermanentAddress());
-        tenant.setRentEndDate(request.getRentEndDate());
+
+        // Renewal: if the agreement end date is being extended, re-arm the renewal reminder
+        // so the owner is reminded again ahead of the new expiry.
+        LocalDate previousEndDate = tenant.getRentEndDate();
+        LocalDate newEndDate = request.getRentEndDate();
+        if (newEndDate != null && !newEndDate.equals(previousEndDate)) {
+            tenant.setRenewalReminderSentOn(null);
+        }
+        tenant.setRentEndDate(newEndDate);
         tenant.setMonthlyRentAmount(request.getMonthlyRentAmount());
         tenant.setSecurityDeposit(request.getSecurityDeposit());
 

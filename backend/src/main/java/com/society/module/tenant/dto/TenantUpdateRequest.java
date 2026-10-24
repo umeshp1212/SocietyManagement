@@ -1,6 +1,7 @@
 package com.society.module.tenant.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,7 @@ public class TenantUpdateRequest {
 
     private String permanentAddress;
 
+    @NotNull(message = "Rent end date is required")
     private LocalDate rentEndDate;
 
     private BigDecimal monthlyRentAmount;

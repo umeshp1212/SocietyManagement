@@ -105,10 +105,11 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 <mat-error *ngIf="tenantForm.get('rentStartDate')?.hasError('required')">Rent start date is required</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Rent End Date</mat-label>
+                <mat-label>Rent End Date *</mat-label>
                 <input matInput [matDatepicker]="endPicker" formControlName="rentEndDate">
                 <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
                 <mat-datepicker #endPicker></mat-datepicker>
+                <mat-error *ngIf="tenantForm.get('rentEndDate')?.hasError('required')">Rent end date is required</mat-error>
               </mat-form-field>
             </div>
 
@@ -261,7 +262,7 @@ export class TenantFormComponent implements OnInit {
       panNumber: [''],
       permanentAddress: [''],
       rentStartDate: [null, Validators.required],
-      rentEndDate: [null],
+      rentEndDate: [null, Validators.required],
       monthlyRentAmount: [null],
       securityDeposit: [null],
       familyMembers: this.fb.array([]),

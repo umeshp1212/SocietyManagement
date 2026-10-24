@@ -102,8 +102,8 @@ import { SearchableSelectComponent } from '@shared/components/searchable-select'
                 <mat-hint>Non-occupancy charge applies from this date</mat-hint>
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Agreement End Date (optional)</mat-label>
-                <input matInput [matDatepicker]="endPicker" [(ngModel)]="rentEndDate" name="rentEndDate">
+                <mat-label>Agreement End Date</mat-label>
+                <input matInput [matDatepicker]="endPicker" [(ngModel)]="rentEndDate" name="rentEndDate" required>
                 <mat-datepicker-toggle matSuffix [for]="endPicker"></mat-datepicker-toggle>
                 <mat-datepicker #endPicker></mat-datepicker>
               </mat-form-field>
@@ -191,7 +191,8 @@ export class MemberTenantRegisterComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (!this.form.unitId || !this.form.tenantName || !this.form.contactNumber || !this.rentStartDate) {
+    if (!this.form.unitId || !this.form.tenantName || !this.form.contactNumber
+        || !this.rentStartDate || !this.rentEndDate) {
       this.snackBar.open('Please fill in the required fields.', 'Close', { duration: 3000 });
       return;
     }
@@ -205,7 +206,7 @@ export class MemberTenantRegisterComponent implements OnInit {
       monthlyRentAmount: this.form.monthlyRentAmount || undefined,
       securityDeposit: this.form.securityDeposit || undefined,
       rentStartDate: this.toIsoDate(this.rentStartDate),
-      rentEndDate: this.rentEndDate ? this.toIsoDate(this.rentEndDate) : undefined
+      rentEndDate: this.toIsoDate(this.rentEndDate)
     };
 
     this.submitting = true;

@@ -162,15 +162,44 @@ public class TdsConfigService {
 
     @Transactional
     public TdsConfigDTO createTdsConfig(TdsConfigDTO dto) {
-        TdsConfig config = TdsConfig.builder()
-                .vendorCategory(dto.getVendorCategory())
-                .voucherCategory(dto.getVoucherCategory())
-                .tdsSection(dto.getTdsSection())
-                .tdsRate(dto.getTdsRate())
-                .thresholdAmount(dto.getThresholdAmount())
-                .description(dto.getDescription())
-                .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
-                .build();
+        // A row may already exist for this voucher/vendor category -- including a
+        // soft-disabled one (is_active = false) that is hidden from the active list.
+        // The unique constraint on voucher_category/vendor_category does not consider
+        // is_active, so a blind insert would fail with a duplicate-key error. Upsert
+        // instead: reuse the existing row and update it in place.
+        TdsConfig existing = null;
+        if (dto.getVoucherCategory() != null && !dto.getVoucherCategory().isEmpty()) {
+            existing = tdsConfigRepository.findByVoucherCategory(dto.getVoucherCategory()).orElse(null);
+        }
+        if (existing == null && dto.getVendorCategory() != null && !dto.getVendorCategory().isEmpty()) {
+            existing = tdsConfigRepository.findByVendorCategory(dto.getVendorCategory()).orElse(null);
+        }
+
+        TdsConfig config;
+        if (existing != null) {
+            config = existing;
+            if (dto.getVendorCategory() != null) {
+                config.setVendorCategory(dto.getVendorCategory());
+            }
+            if (dto.getVoucherCategory() != null) {
+                config.setVoucherCategory(dto.getVoucherCategory());
+            }
+            config.setTdsSection(dto.getTdsSection());
+            config.setTdsRate(dto.getTdsRate());
+            config.setThresholdAmount(dto.getThresholdAmount());
+            config.setDescription(dto.getDescription());
+            config.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        } else {
+            config = TdsConfig.builder()
+                    .vendorCategory(dto.getVendorCategory())
+                    .voucherCategory(dto.getVoucherCategory())
+                    .tdsSection(dto.getTdsSection())
+                    .tdsRate(dto.getTdsRate())
+                    .thresholdAmount(dto.getThresholdAmount())
+                    .description(dto.getDescription())
+                    .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
+                    .build();
+        }
 
         config = tdsConfigRepository.save(config);
         return mapToDTO(config);

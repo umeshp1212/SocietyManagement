@@ -4,6 +4,8 @@ import com.society.common.ApiResponse;
 import com.society.common.PagedResponse;
 import com.society.enums.PoliceVerificationStatus;
 import com.society.module.tenant.dto.*;
+import com.society.module.tenant.service.AgreementRenewalReminderService;
+import com.society.module.tenant.service.AgreementRenewalReminderService.ReminderResult;
 import com.society.module.tenant.service.TenantApprovalService;
 import com.society.module.tenant.service.TenantService;
 import jakarta.validation.Valid;
@@ -24,6 +26,7 @@ public class TenantController {
 
     private final TenantService tenantService;
     private final TenantApprovalService tenantApprovalService;
+    private final AgreementRenewalReminderService renewalReminderService;
 
     // ==================== MEMBER-SUBMITTED REGISTRATION APPROVAL (SUPER_ADMIN) ====================
 
@@ -163,6 +166,20 @@ public class TenantController {
     public ResponseEntity<ApiResponse<List<TenantDTO>>> getPendingPoliceVerification() {
         List<TenantDTO> tenants = tenantService.getTenantsWithPendingPoliceVerification();
         return ResponseEntity.ok(ApiResponse.success(tenants));
+    }
+
+    /**
+     * Manually trigger agreement-renewal reminder emails to owners for tenants whose
+     * agreement expires within {@code days} (default 15). The scheduled job runs this daily;
+     * this endpoint lets an admin send on demand.
+     */
+    @PostMapping("/renewal-reminders/send")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TENANT_APPROVE_REGISTRATION')")
+    public ResponseEntity<ApiResponse<ReminderResult>> sendRenewalReminders(
+            @RequestParam(defaultValue = "15") int days) {
+        ReminderResult result = renewalReminderService.sendRenewalReminders(days);
+        return ResponseEntity.ok(ApiResponse.success(
+                result.sent() + " renewal reminder(s) sent to owners.", result));
     }
 
     // ==================== SUMMARY ====================

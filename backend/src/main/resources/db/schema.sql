@@ -187,6 +187,7 @@ CREATE TABLE tenants (
     status ENUM('PENDING_APPROVAL','ACTIVE','NOTICE_PERIOD','VACATED','REJECTED') NOT NULL DEFAULT 'ACTIVE',
     move_out_date DATE,
     move_out_reason VARCHAR(500),
+    renewal_reminder_sent_on DATE COMMENT 'Last date the owner was emailed an agreement-renewal reminder; cleared on renewal',
     created_by VARCHAR(100),
     created_on DATETIME DEFAULT CURRENT_TIMESTAMP,
     modified_by VARCHAR(100),

@@ -98,6 +98,15 @@ public class Tenant extends BaseEntity {
     @Column(name = "move_out_reason", length = 500)
     private String moveOutReason;
 
+    /**
+     * Date on which the "agreement expiring soon" reminder email was last sent to the owner.
+     * Used to avoid re-sending the reminder every day while the agreement is inside the
+     * 15-day window. Reset to null whenever {@code rentEndDate} changes (renewal), so a
+     * renewed tenant is eligible for a fresh reminder in the next cycle.
+     */
+    @Column(name = "renewal_reminder_sent_on")
+    private LocalDate renewalReminderSentOn;
+
     @OneToMany(mappedBy = "tenant", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<TenantFamilyMember> familyMembers = new ArrayList<>();

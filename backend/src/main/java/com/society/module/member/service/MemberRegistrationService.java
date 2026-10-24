@@ -7,6 +7,7 @@ import com.society.module.member.repository.MemberRegistrationRequestRepository;
 import com.society.module.owner.entity.Owner;
 import com.society.module.owner.entity.Unit;
 import com.society.module.owner.entity.UnitOwner;
+import com.society.module.notification.service.ApprovalNotificationService;
 import com.society.module.owner.repository.OwnerRepository;
 import com.society.module.owner.repository.UnitOwnerRepository;
 import com.society.module.owner.repository.UnitRepository;
@@ -30,6 +31,7 @@ public class MemberRegistrationService {
     private final OwnerRepository ownerRepository;
     private final UnitRepository unitRepository;
     private final UnitOwnerRepository unitOwnerRepository;
+    private final ApprovalNotificationService approvalNotificationService;
 
     /**
      * Step 1: Member submits email + mobile + unit. OTP is sent to email.
@@ -103,6 +105,9 @@ public class MemberRegistrationService {
         registrationRepository.save(request);
 
         log.info("Registration request created - email: {}, mobile: {}, unit: {}", email, mobile, unit.getUnitNumber());
+
+        // Notify the society inbox that a new registration request awaits approval (best-effort).
+        approvalNotificationService.notifySocietyOfRegistrationRequest(email, mobile, unit.getUnitNumber());
 
         return mapToDTO(request);
     }
@@ -183,6 +188,10 @@ public class MemberRegistrationService {
 
         log.info("Registration request {} approved - linked to owner {} ({}) by {}",
                 requestId, ownerId, owner.getFullName(), adminName);
+
+        // Notify the owner (requester) that their registration was approved (best-effort).
+        approvalNotificationService.notifyOwnerRegistrationApproved(
+                req.getEmail(), owner.getFullName(), req.getUnitNumber());
 
         return mapToDTO(req);
     }

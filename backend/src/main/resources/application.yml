@@ -110,3 +110,10 @@ app:
   maintenance:
     # Flat late fee applied once to a bill when the unit is carrying arrears. 0 = disabled.
     late-fee: ${MAINTENANCE_LATE_FEE:0}
+  tenant:
+    # Rent-agreement renewal reminder emails to owners.
+    renewal-reminder-enabled: ${TENANT_RENEWAL_REMINDER_ENABLED:true}
+    # Days before agreement expiry to start reminding (business rule: 15).
+    renewal-reminder-window-days: ${TENANT_RENEWAL_REMINDER_WINDOW_DAYS:15}
+    # Daily scan time (server time). Override to change when reminders go out.
+    renewal-reminder-cron: ${TENANT_RENEWAL_REMINDER_CRON:0 0 9 * * *}

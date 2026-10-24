@@ -42,6 +42,7 @@ public class TenantCreateRequest {
     @NotNull(message = "Rent start date is required")
     private LocalDate rentStartDate;
 
+    @NotNull(message = "Rent end date is required")
     private LocalDate rentEndDate;
 
     private BigDecimal monthlyRentAmount;

@@ -4,6 +4,7 @@ import com.society.exception.BusinessException;
 import com.society.module.member.dto.*;
 import com.society.module.member.entity.ProfileUpdateRequest;
 import com.society.module.member.repository.ProfileUpdateRequestRepository;
+import com.society.module.notification.service.ApprovalNotificationService;
 import com.society.module.owner.entity.Owner;
 import com.society.module.owner.entity.UnitOwner;
 import com.society.module.owner.repository.OwnerRepository;
@@ -25,6 +26,7 @@ public class MemberProfileService {
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
     private final ProfileUpdateRequestRepository requestRepository;
+    private final ApprovalNotificationService approvalNotificationService;
 
     /**
      * Get member's profile with masked personal info.
@@ -97,6 +99,10 @@ public class MemberProfileService {
 
         log.info("Profile update request submitted - ownerId: {}, type: {}", ownerId, fieldType);
 
+        // Notify the society inbox that a profile update request awaits approval (best-effort).
+        approvalNotificationService.notifySocietyOfProfileUpdateRequest(
+                owner.getFullName(), resolveUnitNumber(ownerId), fieldType, request.getReason());
+
         return mapToDTO(entity, false);
     }
 
@@ -153,6 +159,11 @@ public class MemberProfileService {
 
         log.info("Profile update request {} approved by {}", requestId, adminName);
 
+        // Notify the owner (requester) that their profile update was approved (best-effort).
+        // owner.getEmail() now reflects the new email when the email was one of the updated fields.
+        approvalNotificationService.notifyOwnerProfileUpdateApproved(
+                owner.getEmail(), owner.getFullName(), resolveUnitNumber(owner.getOwnerId()));
+
         return mapToDTO(req, true);
     }
 
@@ -180,6 +191,16 @@ public class MemberProfileService {
     }
 
     // ==================== HELPERS ====================
+
+    private String resolveUnitNumber(Long ownerId) {
+        try {
+            UnitOwner uo = unitOwnerRepository.findByOwner_OwnerId(ownerId).stream()
+                    .findFirst().orElse(null);
+            return uo != null ? uo.getUnit().getUnitNumber() : null;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
 
     private ProfileUpdateRequestDTO mapToDTO(ProfileUpdateRequest r, boolean showFullValues) {
         String unitNumber = null;

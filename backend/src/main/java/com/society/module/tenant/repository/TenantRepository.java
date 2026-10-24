@@ -49,6 +49,16 @@ public interface TenantRepository extends JpaRepository<Tenant, Long> {
     List<Tenant> findTenantsWithExpiringAgreements(@Param("today") LocalDate today,
                                                    @Param("expiryDate") LocalDate expiryDate);
 
+    // Active agreements expiring within the window that have NOT yet been reminded for the
+    // CURRENT end date. A tenant qualifies when no reminder was sent, or the previous
+    // reminder predates the current rentEndDate (i.e. the agreement was renewed/extended
+    // since the last reminder).
+    @Query("SELECT t FROM Tenant t JOIN FETCH t.unit WHERE t.status = 'ACTIVE' AND " +
+           "t.rentEndDate IS NOT NULL AND t.rentEndDate BETWEEN :today AND :expiryDate AND " +
+           "(t.renewalReminderSentOn IS NULL OR t.renewalReminderSentOn < :today)")
+    List<Tenant> findTenantsNeedingRenewalReminder(@Param("today") LocalDate today,
+                                                    @Param("expiryDate") LocalDate expiryDate);
+
     // Police verification pending beyond days
     @Query("SELECT t FROM Tenant t JOIN FETCH t.unit WHERE t.status = 'ACTIVE' AND " +
            "t.policeVerificationStatus IN ('NOT_INITIATED', 'SUBMITTED') AND " +
