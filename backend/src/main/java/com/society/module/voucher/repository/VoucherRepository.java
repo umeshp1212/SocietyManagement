@@ -20,6 +20,20 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
 
     Optional<Voucher> findByVoucherNumber(String voucherNumber);
 
+    /**
+     * Highest numeric suffix actually present in {@code voucher_number} for the
+     * given financial year, across ALL voucher types (numbers share the
+     * {@code PPV/CD} prefix and are globally unique). Used to self-heal the
+     * shared voucher-number series so a stale sequence cannot regenerate an
+     * existing number. Returns 0 when no vouchers exist for the year.
+     *
+     * <p>Native query: relies on MySQL {@code SUBSTRING_INDEX} to read the digits
+     * after the final '/'. The project runs on MySQL (InnoDB).
+     */
+    @Query(value = "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(voucher_number, '/', -1) AS UNSIGNED)), 0) "
+            + "FROM vouchers WHERE financial_year = :fy", nativeQuery = true)
+    int findMaxSequenceNumberByFinancialYear(@Param("fy") String financialYear);
+
     Page<Voucher> findByVoucherType(VoucherType voucherType, Pageable pageable);
 
     Page<Voucher> findByStatus(VoucherStatus status, Pageable pageable);

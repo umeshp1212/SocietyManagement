@@ -512,7 +512,25 @@ public class VoucherService {
 
     // ==================== HELPER METHODS ====================
 
+    /**
+     * Generates the next voucher number for a financial year.
+     *
+     * <p>Voucher numbers form a <b>single shared series per financial year</b>,
+     * independent of voucher type (the prefix {@code PPV/CD} is identical for
+     * every type and {@code vouchers.voucher_number} is globally unique). Keeping
+     * a separate counter per type produced cross-type collisions — e.g. the first
+     * RECEIPT of the year generated {@code PPV/CD/FY/001} while a PAYMENT already
+     * owned that exact number.
+     *
+     * <p>The counter is also reconciled against the real maximum already present
+     * in the {@code vouchers} table before incrementing, so a stale or reset
+     * {@code voucher_sequences} row (e.g. re-seeded to 0 by data.sql, or vouchers
+     * imported without bumping the sequence) can no longer cause a duplicate key.
+     */
     private String generateVoucherNumber(VoucherType type, String financialYear) {
+        // Lock the per-type row as the concurrency anchor (preserves existing
+        // pessimistic-write behaviour). The value it holds is treated as part of
+        // the shared, FY-wide series.
         VoucherSequence sequence = sequenceRepository
                 .findByVoucherTypeAndFinancialYearForUpdate(type, financialYear)
                 .orElseGet(() -> {
@@ -524,11 +542,18 @@ public class VoucherService {
                     return sequenceRepository.save(newSeq);
                 });
 
-        sequence.setLastNumber(sequence.getLastNumber() + 1);
+        // Reconcile against the highest number actually used across ALL types for
+        // this FY: the stored counters AND the real vouchers table. This makes the
+        // series self-healing and globally unique by construction.
+        int maxStored = sequenceRepository.findMaxLastNumberByFinancialYear(financialYear);
+        int maxUsed = voucherRepository.findMaxSequenceNumberByFinancialYear(financialYear);
+        int next = Math.max(sequence.getLastNumber(), Math.max(maxStored, maxUsed)) + 1;
+
+        sequence.setLastNumber(next);
         sequenceRepository.save(sequence);
 
         String prefix = getVoucherPrefix(type);
-        return String.format("%s/%s/%03d", prefix, financialYear, sequence.getLastNumber());
+        return String.format("%s/%s/%03d", prefix, financialYear, next);
     }
 
     private String getVoucherPrefix(VoucherType type) {

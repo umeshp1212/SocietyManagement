@@ -21,4 +21,12 @@ public interface VoucherSequenceRepository extends JpaRepository<VoucherSequence
             @Param("fy") String financialYear);
 
     Optional<VoucherSequence> findByVoucherTypeAndFinancialYear(VoucherType voucherType, String financialYear);
+
+    /**
+     * Highest {@code last_number} stored across ALL voucher types for the given
+     * financial year. Used to keep the shared, FY-wide number series consistent
+     * regardless of which type's row is locked. Returns 0 when no rows exist.
+     */
+    @Query("SELECT COALESCE(MAX(vs.lastNumber), 0) FROM VoucherSequence vs WHERE vs.financialYear = :fy")
+    int findMaxLastNumberByFinancialYear(@Param("fy") String financialYear);
 }
