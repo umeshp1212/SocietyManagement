@@ -143,13 +143,11 @@ public class TdsConfigService {
         TdsConfig config = tdsConfigRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TdsConfig", "tdsConfigId", id));
 
-        // Note: vendorCategory is kept for backward compatibility, voucherCategory is primary
-        if (dto.getVendorCategory() != null) {
-            config.setVendorCategory(dto.getVendorCategory());
-        }
-        if (dto.getVoucherCategory() != null) {
-            config.setVoucherCategory(dto.getVoucherCategory());
-        }
+        // Note: vendorCategory is kept for backward compatibility, voucherCategory is primary.
+        // Normalize blanks to NULL so an edit never writes '' into a uniquely-constrained
+        // category column (see createTdsConfig for why '' collides but NULL does not).
+        config.setVendorCategory(blankToNull(dto.getVendorCategory()));
+        config.setVoucherCategory(blankToNull(dto.getVoucherCategory()));
         config.setTdsSection(dto.getTdsSection());
         config.setTdsRate(dto.getTdsRate());
         config.setThresholdAmount(dto.getThresholdAmount());
@@ -162,28 +160,32 @@ public class TdsConfigService {
 
     @Transactional
     public TdsConfigDTO createTdsConfig(TdsConfigDTO dto) {
+        // Normalize blank category codes to NULL. The unique constraints on
+        // vendor_category and voucher_category treat an empty string '' as a real,
+        // collidable value (unlike NULL, which MySQL allows to repeat). Persisting ''
+        // therefore succeeds the first time and then fails every subsequent insert with
+        // a duplicate-key error on the '' value. NULL is the intended "not set" marker.
+        String voucherCategory = blankToNull(dto.getVoucherCategory());
+        String vendorCategory = blankToNull(dto.getVendorCategory());
+
         // A row may already exist for this voucher/vendor category -- including a
         // soft-disabled one (is_active = false) that is hidden from the active list.
         // The unique constraint on voucher_category/vendor_category does not consider
         // is_active, so a blind insert would fail with a duplicate-key error. Upsert
         // instead: reuse the existing row and update it in place.
         TdsConfig existing = null;
-        if (dto.getVoucherCategory() != null && !dto.getVoucherCategory().isEmpty()) {
-            existing = tdsConfigRepository.findByVoucherCategory(dto.getVoucherCategory()).orElse(null);
+        if (voucherCategory != null) {
+            existing = tdsConfigRepository.findByVoucherCategory(voucherCategory).orElse(null);
         }
-        if (existing == null && dto.getVendorCategory() != null && !dto.getVendorCategory().isEmpty()) {
-            existing = tdsConfigRepository.findByVendorCategory(dto.getVendorCategory()).orElse(null);
+        if (existing == null && vendorCategory != null) {
+            existing = tdsConfigRepository.findByVendorCategory(vendorCategory).orElse(null);
         }
 
         TdsConfig config;
         if (existing != null) {
             config = existing;
-            if (dto.getVendorCategory() != null) {
-                config.setVendorCategory(dto.getVendorCategory());
-            }
-            if (dto.getVoucherCategory() != null) {
-                config.setVoucherCategory(dto.getVoucherCategory());
-            }
+            config.setVendorCategory(vendorCategory);
+            config.setVoucherCategory(voucherCategory);
             config.setTdsSection(dto.getTdsSection());
             config.setTdsRate(dto.getTdsRate());
             config.setThresholdAmount(dto.getThresholdAmount());
@@ -191,8 +193,8 @@ public class TdsConfigService {
             config.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         } else {
             config = TdsConfig.builder()
-                    .vendorCategory(dto.getVendorCategory())
-                    .voucherCategory(dto.getVoucherCategory())
+                    .vendorCategory(vendorCategory)
+                    .voucherCategory(voucherCategory)
                     .tdsSection(dto.getTdsSection())
                     .tdsRate(dto.getTdsRate())
                     .thresholdAmount(dto.getThresholdAmount())
@@ -203,6 +205,11 @@ public class TdsConfigService {
 
         config = tdsConfigRepository.save(config);
         return mapToDTO(config);
+    }
+
+    /** Treat null/blank/whitespace-only category codes as "not set" (NULL). */
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private TdsConfigDTO mapToDTO(TdsConfig config) {
