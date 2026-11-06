@@ -225,9 +225,9 @@ import { environment } from '@env/environment';
                 <mat-hint>When the maintenance bill falls due each month</mat-hint>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Late Fee (&#8377;)</mat-label>
-                <input matInput type="number" formControlName="lateFeeAmount" min="0" step="1">
-                <mat-hint>Flat fee charged once when a unit carries arrears. 0 = disabled</mat-hint>
+                <mat-label>Late Fee (%)</mat-label>
+                <input matInput type="number" formControlName="lateFeePercent" min="0" max="100" step="0.01">
+                <mat-hint>% of outstanding principal charged when a unit carries arrears past the due date. 0 = disabled</mat-hint>
               </mat-form-field>
             </div>
           </mat-card-content>
@@ -551,7 +551,7 @@ export class SettingsComponent implements OnInit {
       discountMessage: ['Pay online before the due date and get a discount!'],
       visitorApprovalTimeoutMinutes: [10, [Validators.min(1), Validators.max(120)]],
       // Maintenance bill settings
-      lateFeeAmount: [0, [Validators.min(0)]],
+      lateFeePercent: [0, [Validators.min(0), Validators.max(100)]],
       billDueDay: [0, [Validators.min(0), Validators.max(31)]],
       // Automated bill generation
       autoBillGenerationEnabled: [false],

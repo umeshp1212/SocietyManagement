@@ -10,6 +10,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDividerModule } from '@angular/material/divider';
 import { OwnerService } from '@core/services/owner.service';
+import { MaintenanceService } from '@core/services/maintenance.service';
 import { BackButtonComponent } from '@shared/components/back-button';
 
 @Component({
@@ -88,21 +89,32 @@ import { BackButtonComponent } from '@shared/components/back-button';
               <mat-form-field appearance="outline">
                 <mat-label>Water Charges (Rs)</mat-label>
                 <input matInput type="number" formControlName="waterCharges"
-                       placeholder="Based on tank config">
-                <mat-hint>1RK=550, 1BHK/2BHK=850, 3BHK=1150</mat-hint>
+                       [readonly]="hasActiveWaterConfig"
+                       placeholder="Manual amount (used only if no water config)">
+                <mat-hint *ngIf="waterConfigLoaded && hasActiveWaterConfig">
+                  Auto-calculated from Water Charge Configuration. Not editable while a config is active.
+                </mat-hint>
+                <mat-hint *ngIf="waterConfigLoaded && !hasActiveWaterConfig">
+                  No active Water Charge Configuration. Enter a manual amount for this unit.
+                </mat-hint>
               </mat-form-field>
             </div>
             <div class="form-row">
               <mat-form-field appearance="outline">
-                <mat-label>Parking Type</mat-label>
-                <mat-select formControlName="parkingType">
-                  <mat-option value="NONE">No Parking</mat-option>
-                  <mat-option value="TWO_WHEELER">Two Wheeler</mat-option>
-                  <mat-option value="FOUR_WHEELER">Four Wheeler</mat-option>
-                  <mat-option value="BOTH">Both (Two + Four Wheeler)</mat-option>
-                </mat-select>
+                <mat-label>Two Wheeler Slots</mat-label>
+                <input matInput type="number" formControlName="twoWheelerCount" min="0" step="1">
+                <mat-hint>No. of bike parkings. Billed as (two-wheeler rate x count)</mat-hint>
+                <mat-error *ngIf="unitForm.get('twoWheelerCount')?.hasError('min')">Cannot be negative</mat-error>
               </mat-form-field>
-              <mat-form-field appearance="outline" *ngIf="isEdit">
+              <mat-form-field appearance="outline">
+                <mat-label>Four Wheeler Slots</mat-label>
+                <input matInput type="number" formControlName="fourWheelerCount" min="0" step="1">
+                <mat-hint>No. of car parkings. Billed as (four-wheeler rate x count)</mat-hint>
+                <mat-error *ngIf="unitForm.get('fourWheelerCount')?.hasError('min')">Cannot be negative</mat-error>
+              </mat-form-field>
+            </div>
+            <div class="form-row" *ngIf="isEdit">
+              <mat-form-field appearance="outline">
                 <mat-label>Occupancy Status</mat-label>
                 <mat-select formControlName="occupancyStatus">
                   <mat-option value="VACANT">Vacant</mat-option>
@@ -113,24 +125,13 @@ import { BackButtonComponent } from '@shared/components/back-button';
               </mat-form-field>
             </div>
 
-            <!-- BHK Water Info -->
-            <div class="info-box" *ngIf="unitForm.get('bhkType')?.value">
-              <strong>Water Charge (₹300/tank + ₹500 fixed):</strong>
-              <span *ngIf="unitForm.get('bhkType')?.value === 'RK_1'">
-                2 tanks → (2 × ₹300) + ₹500 = ₹1,100
-              </span>
-              <span *ngIf="unitForm.get('bhkType')?.value === 'BHK_1'">
-                3 tanks → (3 × ₹300) + ₹500 = ₹1,400
-              </span>
-              <span *ngIf="unitForm.get('bhkType')?.value === 'BHK_2'">
-                3 tanks → (3 × ₹300) + ₹500 = ₹1,400
-              </span>
-              <span *ngIf="unitForm.get('bhkType')?.value === 'BHK_3'">
-                4 tanks → (4 × ₹300) + ₹500 = ₹1,700
-              </span>
-              <span *ngIf="unitForm.get('bhkType')?.value === 'BHK_4'">
-                5 tanks → (5 × ₹300) + ₹500 = ₹2,000
-              </span>
+            <!-- Live Water Charge Info (from active Water Charge Configuration) -->
+            <div class="info-box" *ngIf="waterInfo">
+              {{ waterInfo }}
+            </div>
+            <div class="info-box warn" *ngIf="waterConfigLoaded && !hasActiveWaterConfig">
+              No active Water Charge Configuration found. Bills will use the manual Water Charges
+              amount entered above. Configure it under Maintenance &rsaquo; Charges &rsaquo; Water Charges.
             </div>
 
             <div class="action-buttons">
@@ -159,6 +160,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
       margin: 8px 0 16px;
       color: #1565c0;
     }
+    .info-box.warn { background: #fff3e0; color: #e65100; }
   `]
 })
 export class UnitFormComponent implements OnInit {
@@ -166,9 +168,15 @@ export class UnitFormComponent implements OnInit {
   isEdit = false;
   unitId?: number;
 
+  waterConfig: any = null;
+  waterConfigLoaded = false;
+  hasActiveWaterConfig = false;
+  waterInfo = '';
+
   constructor(
     private fb: FormBuilder,
     private ownerService: OwnerService,
+    private maintenanceService: MaintenanceService,
     private route: ActivatedRoute,
     private router: Router,
     private snackBar: MatSnackBar
@@ -184,26 +192,27 @@ export class UnitFormComponent implements OnInit {
       areaSqft: [null],
       monthlyMaintenanceAmount: [null, Validators.required],
       waterCharges: [null],
-      parkingType: ['NONE'],
+      twoWheelerCount: [0, [Validators.min(0)]],
+      fourWheelerCount: [0, [Validators.min(0)]],
       occupancyStatus: ['VACANT']
     });
 
-    // Auto-suggest water charges when BHK type changes
-    // Formula: (ratePerTank × tanks) + fixedChargePerUnit
-    // Default: ₹300/tank + ₹500 fixed. Tanks: 1RK=2, 1BHK=3, 2BHK=3, 3BHK=4, 4BHK=5
-    this.unitForm.get('bhkType')?.valueChanges.subscribe(bhk => {
-      const tankMap: Record<string, number> = {
-        'RK_1': 2,
-        'BHK_1': 3,
-        'BHK_2': 3,
-        'BHK_3': 4,
-        'BHK_4': 5
-      };
-      const ratePerTank = 300;
-      const fixedCharge = 500;
-      if (bhk && tankMap[bhk]) {
-        const waterCharge = (ratePerTank * tankMap[bhk]) + fixedCharge;
-        this.unitForm.patchValue({ waterCharges: waterCharge });
+    // Recompute the water charge from the live config whenever the BHK type changes.
+    this.unitForm.get('bhkType')?.valueChanges.subscribe(() => this.recomputeWaterCharge());
+
+    // Load the active water charge configuration so the water field reflects reality
+    // (read-only + auto-calculated) instead of hardcoded numbers.
+    this.maintenanceService.getWaterChargeConfig().subscribe({
+      next: (res) => {
+        this.waterConfig = res.success ? res.data : null;
+        this.hasActiveWaterConfig = !!(this.waterConfig && this.waterConfig.isActive !== false);
+        this.waterConfigLoaded = true;
+        this.recomputeWaterCharge();
+      },
+      error: () => {
+        this.waterConfig = null;
+        this.hasActiveWaterConfig = false;
+        this.waterConfigLoaded = true;
       }
     });
 
@@ -212,14 +221,63 @@ export class UnitFormComponent implements OnInit {
       this.isEdit = true;
       this.unitId = +id;
       this.ownerService.getUnitById(this.unitId).subscribe(res => {
-        if (res.success) this.unitForm.patchValue(res.data);
+        if (res.success) {
+          this.unitForm.patchValue(res.data);
+          this.recomputeWaterCharge();
+        }
       });
+    }
+  }
+
+  /** Tank allocation for a BHK type, read from the active config (no hardcoded map). */
+  private tanksForBhk(bhk: string | null): number | null {
+    const c = this.waterConfig;
+    if (!bhk || !c) return null;
+    switch (bhk) {
+      case 'RK_1': return c.tanksRk1 ?? null;
+      case 'BHK_1': return c.tanksBhk1 ?? null;
+      case 'BHK_2': return c.tanksBhk2 ?? null;
+      case 'BHK_3': return c.tanksBhk3 ?? null;
+      case 'BHK_4': return c.tanksBhk4 ?? null;
+      case 'SHOP': return c.tanksShop ?? null;
+      case 'OTHER': return c.tanksBhk1 ?? null;
+      default: return null;
+    }
+  }
+
+  /**
+   * Derive the Water Charges amount + info text from the active config.
+   * Only PRIVATE_TANKER has a per-unit formula derivable from BHK alone; MUNICIPAL depends
+   * on a society-wide split, so we don't guess it here.
+   */
+  private recomputeWaterCharge(): void {
+    this.waterInfo = '';
+
+    if (!this.hasActiveWaterConfig || !this.waterConfig) {
+      return; // No active config -> manual entry allowed.
+    }
+
+    const bhk = this.unitForm.get('bhkType')?.value;
+
+    if (this.waterConfig.waterSource === 'PRIVATE_TANKER') {
+      const tanks = this.tanksForBhk(bhk);
+      const rate = Number(this.waterConfig.ratePerTank) || 0;
+      const fixed = Number(this.waterConfig.fixedChargePerUnit) || 0;
+      if (tanks != null) {
+        const amount = (rate * tanks) + fixed;
+        this.unitForm.patchValue({ waterCharges: amount }, { emitEvent: false });
+        this.waterInfo = `Water Charge (Private Tanker): ${tanks} tank(s) → (${tanks} × ₹${rate}) + ₹${fixed} fixed = ₹${amount.toLocaleString('en-IN')}`;
+      } else {
+        this.waterInfo = 'Select a BHK type to auto-calculate the water charge from the active configuration.';
+      }
+    } else if (this.waterConfig.waterSource === 'MUNICIPAL') {
+      this.waterInfo = 'Water Charge (Municipal): calculated at bill generation by splitting the municipal tax across all active units. The exact per-unit amount appears on the generated bill.';
     }
   }
 
   onSubmit(): void {
     if (this.unitForm.invalid) return;
-    const request = this.unitForm.value;
+    const request = this.unitForm.getRawValue();
 
     if (this.isEdit) {
       this.ownerService.updateUnit(this.unitId!, request).subscribe(res => {

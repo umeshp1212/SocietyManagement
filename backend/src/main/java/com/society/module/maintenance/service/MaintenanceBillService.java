@@ -69,21 +69,13 @@ public class MaintenanceBillService {
     private final com.society.module.settings.service.SocietySettingsService societySettingsService;
 
     /**
-     * Legacy fallback late fee. The authoritative value now comes from
-     * {@code SocietySettings.lateFeeAmount} (admin-configurable, no redeploy). This static
-     * property is only used when the society has not set a late fee (null), preserving the
-     * previous {@code app.maintenance.late-fee} behaviour for existing deployments.
+     * Resolve the effective late-fee percentage from society settings (admin-configurable,
+     * no redeploy). Returns 0 (disabled) when unset. This single percentage replaces both
+     * the old flat late fee and the previously hardcoded 1%/month interest-on-arrears.
      */
-    @org.springframework.beans.factory.annotation.Value("${app.maintenance.late-fee:0}")
-    private BigDecimal lateFeeAmountFallback;
-
-    /**
-     * Resolve the effective late fee: society setting takes precedence; fall back to the
-     * legacy property when the setting is null.
-     */
-    private BigDecimal effectiveLateFee() {
-        BigDecimal fromSettings = societySettingsService.getSettings().getLateFeeAmount();
-        return fromSettings != null ? fromSettings : lateFeeAmountFallback;
+    private BigDecimal effectiveLateFeePercent() {
+        BigDecimal fromSettings = societySettingsService.getSettings().getLateFeePercent();
+        return fromSettings != null ? fromSettings : BigDecimal.ZERO;
     }
 
     /**
@@ -115,11 +107,6 @@ public class MaintenanceBillService {
     @Autowired
     @Lazy
     private MaintenanceBillService self;
-
-    /**
-     * Interest rate: 1% per month on unpaid arrears
-     */
-    private static final BigDecimal MONTHLY_INTEREST_RATE = new BigDecimal("0.01");
 
     /**
      * Single money rounding policy for the whole module: 2 decimal places (paise),
@@ -298,24 +285,26 @@ public class MaintenanceBillService {
         ArrearsSplit carried = calculateArrearsSplit(unit.getUnitId(), request.getMonth(), request.getYear());
         BigDecimal principalArrears = carried.principal();
 
-        // This month's new 1% interest is charged on the OUTSTANDING PRINCIPAL only
-        // (not on already-accrued interest). Total Interest Arrears = carried interest + new interest.
-        BigDecimal newInterest = money(principalArrears.multiply(MONTHLY_INTEREST_RATE));
-        BigDecimal interestArrears = money(carried.interest().add(newInterest));
+        // No NEW monthly interest is generated any more: the single configurable late-fee
+        // percentage (below) now carries the entire "cost of being late". We still preserve
+        // any interest that was ALREADY accrued on prior bills / opening balances so historic
+        // bills and carried-forward balances stay faithful.
+        BigDecimal interestArrears = money(carried.interest());
 
         // Legacy fields kept in sync so older readers/reports still work.
         BigDecimal previousArrears = principalArrears;
         BigDecimal interestOnArrears = interestArrears;
 
-        // Late fee: a flat, configurable charge applied ONCE when a unit is carrying arrears
-        // (i.e. it defaulted on a previous bill). Distinct from interest-on-arrears, which is
-        // the time-value cost of the outstanding amount. Defaults to 0 (disabled) so existing
-        // societies see no change unless they explicitly configure app.maintenance.late-fee.
+        // Late fee: a configurable PERCENTAGE of the unit's OUTSTANDING PRINCIPAL, charged
+        // when the unit is carrying arrears (i.e. it defaulted past a previous bill's due
+        // date). This replaces the old flat fee and the hardcoded 1%/month interest, so there
+        // is a single penalty on the outstanding principal. 0% = disabled.
         BigDecimal lateFee = BigDecimal.ZERO;
-        BigDecimal configuredLateFee = effectiveLateFee();
-        if (configuredLateFee != null && configuredLateFee.compareTo(BigDecimal.ZERO) > 0
-                && principalArrears.add(carried.interest()).compareTo(BigDecimal.ZERO) > 0) {
-            lateFee = money(configuredLateFee);
+        BigDecimal lateFeePercent = effectiveLateFeePercent();
+        if (lateFeePercent != null && lateFeePercent.compareTo(BigDecimal.ZERO) > 0
+                && principalArrears.compareTo(BigDecimal.ZERO) > 0) {
+            lateFee = money(principalArrears.multiply(lateFeePercent)
+                    .divide(BigDecimal.valueOf(100), MONEY_SCALE, RoundingMode.HALF_UP));
         }
 
         // "Less: Adjustment" — optional per-unit manual credit/waiver supplied for this run.
@@ -414,8 +403,13 @@ public class MaintenanceBillService {
             if (charge.getRatePerSqft() == null || areaSqft == null || areaSqft.compareTo(BigDecimal.ZERO) <= 0) {
                 return BigDecimal.ZERO;
             }
-            // Consistent scale-2 rounding (was scale 0 / whole rupees, which broke reconciliation).
-            return money(charge.getRatePerSqft().multiply(areaSqft));
+            // Area-based charges (e.g. Sinking Fund, Repair Fund) are rounded to the nearest
+            // whole rupee to match the accountant's manually generated bills. The result is still
+            // a valid scale-2 money value (e.g. 38.00), so bill totals reconcile exactly as the
+            // sum of displayed line items.
+            BigDecimal areaBased = charge.getRatePerSqft().multiply(areaSqft)
+                    .setScale(0, RoundingMode.HALF_UP);
+            return money(areaBased);
         } else {
             // FLAT amount
             return money(charge.getFlatAmount() != null ? charge.getFlatAmount() : BigDecimal.ZERO);

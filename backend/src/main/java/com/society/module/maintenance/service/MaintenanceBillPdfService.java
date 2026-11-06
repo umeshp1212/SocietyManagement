@@ -192,14 +192,13 @@ public class MaintenanceBillPdfService {
 
     private void addChargesTable(Document document, MaintenanceBill bill,
                                   PdfFont boldFont, PdfFont regularFont) {
-        // Table: Sr | Description | Calculation | Amount
-        Table table = new Table(UnitValue.createPercentArray(new float[]{0.5f, 3f, 2.5f, 1.5f}))
+        // Table: Sr | Description | Amount
+        Table table = new Table(UnitValue.createPercentArray(new float[]{0.5f, 5.5f, 1.5f}))
                 .setWidth(UnitValue.createPercentValue(100));
 
         // Header row
         addTableHeaderCell(table, "Sr.", boldFont);
         addTableHeaderCell(table, "Description", boldFont);
-        addTableHeaderCell(table, "Calculation", boldFont);
         addTableHeaderCell(table, "Amount (Rs.)", boldFont);
 
         // Line items
@@ -207,16 +206,8 @@ public class MaintenanceBillPdfService {
         int sr = 1;
         if (lineItems != null) {
             for (BillLineItem item : lineItems) {
-                String calcText = "";
-                if ("AREA_BASED".equals(item.getCalculationType()) && item.getAreaSqft() != null) {
-                    calcText = item.getAreaSqft() + " sq.ft x Rs." + item.getRate();
-                } else {
-                    calcText = "Flat Charge";
-                }
-
                 addTableCell(table, String.valueOf(sr++), regularFont, TextAlignment.CENTER);
                 addTableCell(table, item.getChargeName(), regularFont, TextAlignment.LEFT);
-                addTableCell(table, calcText, regularFont, TextAlignment.LEFT);
                 addTableCell(table, formatAmount(item.getAmount()), regularFont, TextAlignment.RIGHT);
             }
         }
@@ -286,7 +277,7 @@ public class MaintenanceBillPdfService {
     }
 
     private void addTotalRow(Table table, String label, String amount, PdfFont font, DeviceRgb bgColor) {
-        Cell labelCell = new Cell(1, 3)
+        Cell labelCell = new Cell(1, 2)
                 .add(new Paragraph(label).setFont(font).setFontSize(9)
                         .setTextAlignment(TextAlignment.RIGHT))
                 .setBackgroundColor(bgColor)

@@ -110,13 +110,15 @@ public class SocietySettings {
     // ===== Maintenance Bill Settings =====
 
     /**
-     * Flat late fee applied once to a bill when the unit is carrying arrears. 0 = disabled.
-     * DB-driven replacement for the old static {@code app.maintenance.late-fee} property so
-     * the treasurer can change it from the admin portal without a redeploy.
+     * Late fee as a PERCENTAGE of the unit's outstanding principal, applied each month the
+     * unit carries arrears (i.e. defaulted past a previous bill's due date). 0 = disabled.
+     * This replaces both the old flat late fee and the previously hardcoded 1%/month
+     * interest-on-arrears: there is now a single, admin-configurable percentage penalty on
+     * the outstanding principal. Stored as a whole/decimal percent, e.g. 1.00 means 1%.
      */
-    @Column(name = "late_fee_amount", precision = 10, scale = 2)
+    @Column(name = "late_fee_percent", precision = 5, scale = 2)
     @Builder.Default
-    private java.math.BigDecimal lateFeeAmount = java.math.BigDecimal.ZERO;
+    private java.math.BigDecimal lateFeePercent = java.math.BigDecimal.ZERO;
 
     /**
      * Day-of-month the maintenance bill is due. 0 (the default) means "last day of the

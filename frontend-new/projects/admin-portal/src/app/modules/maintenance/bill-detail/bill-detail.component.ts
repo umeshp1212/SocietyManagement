@@ -66,7 +66,6 @@ import { BackButtonComponent } from '@shared/components/back-button';
               <tr>
                 <th class="sr-col">Sr.</th>
                 <th class="desc-col">Description</th>
-                <th class="calc-col">Calculation</th>
                 <th class="amt-col">Amount (Rs.)</th>
               </tr>
             </thead>
@@ -74,48 +73,40 @@ import { BackButtonComponent } from '@shared/components/back-button';
               <tr *ngFor="let item of bill.lineItems; let i = index">
                 <td class="sr-col">{{ i + 1 }}</td>
                 <td class="desc-col">{{ item.chargeName }}</td>
-                <td class="calc-col">
-                  <span *ngIf="item.calculationType === 'AREA_BASED'">
-                    {{ item.areaSqft }} sq.ft x Rs.{{ item.rate }}
-                  </span>
-                  <span *ngIf="item.calculationType === 'FLAT'">
-                    Flat Charge
-                  </span>
-                </td>
                 <td class="amt-col">{{ item.amount | number:'1.2-2' }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="subtotal-row">
-                <td colspan="3" class="text-right"><strong>Current Charges</strong></td>
+                <td colspan="2" class="text-right"><strong>Current Charges</strong></td>
                 <td class="amt-col"><strong>{{ bill.amount | number:'1.2-2' }}</strong></td>
               </tr>
               <tr *ngIf="arrInterest(bill) > 0" class="arrears-row">
-                <td colspan="3" class="text-right">Add: Interest Arrears</td>
+                <td colspan="2" class="text-right">Add: Interest Arrears</td>
                 <td class="amt-col">{{ arrInterest(bill) | number:'1.2-2' }}</td>
               </tr>
               <tr *ngIf="arrPrincipal(bill) > 0" class="arrears-row">
-                <td colspan="3" class="text-right">Principal Arrears</td>
+                <td colspan="2" class="text-right">Principal Arrears</td>
                 <td class="amt-col">{{ arrPrincipal(bill) | number:'1.2-2' }}</td>
               </tr>
               <tr *ngIf="bill.lateFee > 0" class="arrears-row">
-                <td colspan="3" class="text-right">Add: Late Fee</td>
+                <td colspan="2" class="text-right">Add: Late Fee</td>
                 <td class="amt-col">{{ bill.lateFee | number:'1.2-2' }}</td>
               </tr>
               <tr *ngIf="bill.adjustment > 0" class="paid-row">
-                <td colspan="3" class="text-right">Less: Adjustment</td>
+                <td colspan="2" class="text-right">Less: Adjustment</td>
                 <td class="amt-col">- {{ bill.adjustment | number:'1.2-2' }}</td>
               </tr>
               <tr class="total-row">
-                <td colspan="3" class="text-right"><strong>Total Due</strong></td>
+                <td colspan="2" class="text-right"><strong>Total Due</strong></td>
                 <td class="amt-col"><strong>{{ bill.totalAmount | number:'1.2-2' }}</strong></td>
               </tr>
               <tr *ngIf="bill.paidAmount > 0" class="paid-row">
-                <td colspan="3" class="text-right">Paid Amount</td>
+                <td colspan="2" class="text-right">Paid Amount</td>
                 <td class="amt-col">- {{ bill.paidAmount | number:'1.2-2' }}</td>
               </tr>
               <tr class="balance-row">
-                <td colspan="3" class="text-right"><strong>Payable</strong></td>
+                <td colspan="2" class="text-right"><strong>Payable</strong></td>
                 <td class="amt-col"><strong>{{ bill.balanceAmount | number:'1.2-2' }}</strong></td>
               </tr>
             </tfoot>
@@ -358,7 +349,6 @@ import { BackButtonComponent } from '@shared/components/back-button';
     .charges-table th { font-weight: 600; text-align: left; font-size: 13px; }
     .sr-col { width: 50px; text-align: center; }
     .desc-col { }
-    .calc-col { width: 200px; color: #666; font-size: 13px; }
     .amt-col { width: 130px; text-align: right; }
     .text-right { text-align: right; }
     .subtotal-row td { background: #f9f9f9; border-top: 2px solid #ccc; }

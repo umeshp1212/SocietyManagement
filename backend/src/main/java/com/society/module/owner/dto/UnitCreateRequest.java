@@ -46,9 +46,22 @@ public class UnitCreateRequest {
     private BigDecimal waterCharges;
 
     /**
-     * Parking type: NONE, TWO_WHEELER, FOUR_WHEELER, BOTH
+     * Parking type: NONE, TWO_WHEELER, FOUR_WHEELER, BOTH. Informational label; the actual
+     * parking charge is driven by the slot counts below (rate x count per vehicle type).
      */
     private ParkingType parkingType;
+
+    /**
+     * Number of two-wheeler parking slots for this unit. Billed as (two-wheeler rate x count).
+     */
+    @jakarta.validation.constraints.Min(value = 0, message = "Two-wheeler count cannot be negative")
+    private Integer twoWheelerCount;
+
+    /**
+     * Number of four-wheeler parking slots for this unit. Billed as (four-wheeler rate x count).
+     */
+    @jakarta.validation.constraints.Min(value = 0, message = "Four-wheeler count cannot be negative")
+    private Integer fourWheelerCount;
 
     /**
      * Occupancy status: SELF_OCCUPIED, RENTED, VACANT.

@@ -27,6 +27,8 @@ public class UnitDTO {
     private BigDecimal monthlyMaintenanceAmount;
     private BigDecimal waterCharges;
     private ParkingType parkingType;
+    private Integer twoWheelerCount;
+    private Integer fourWheelerCount;
     private String primaryOwnerName;
     private String allOwnerNames;
     private List<UnitOwnerDTO> owners;

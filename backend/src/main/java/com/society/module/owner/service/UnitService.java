@@ -64,6 +64,8 @@ public class UnitService {
                 .waterCharges(request.getWaterCharges())
                 .parkingType(request.getParkingType() != null ? request.getParkingType()
                         : com.society.enums.ParkingType.NONE)
+                .twoWheelerCount(request.getTwoWheelerCount() != null ? request.getTwoWheelerCount() : 0)
+                .fourWheelerCount(request.getFourWheelerCount() != null ? request.getFourWheelerCount() : 0)
                 .occupancyStatus(OccupancyStatus.VACANT)
                 .status("ACTIVE")
                 .build();
@@ -92,6 +94,12 @@ public class UnitService {
         unit.setWaterCharges(request.getWaterCharges());
         if (request.getParkingType() != null) {
             unit.setParkingType(request.getParkingType());
+        }
+        if (request.getTwoWheelerCount() != null) {
+            unit.setTwoWheelerCount(request.getTwoWheelerCount());
+        }
+        if (request.getFourWheelerCount() != null) {
+            unit.setFourWheelerCount(request.getFourWheelerCount());
         }
         if (request.getOccupancyStatus() != null) {
             unit.setOccupancyStatus(request.getOccupancyStatus());
@@ -309,6 +317,8 @@ public class UnitService {
                 .monthlyMaintenanceAmount(unit.getMonthlyMaintenanceAmount())
                 .waterCharges(unit.getWaterCharges())
                 .parkingType(unit.getParkingType())
+                .twoWheelerCount(unit.getTwoWheelerCount())
+                .fourWheelerCount(unit.getFourWheelerCount())
                 .primaryOwnerName(primaryOwner != null ? primaryOwner.getFullName() : null)
                 .allOwnerNames(unit.getOwnerNames())
                 .owners(ownerDTOs)
