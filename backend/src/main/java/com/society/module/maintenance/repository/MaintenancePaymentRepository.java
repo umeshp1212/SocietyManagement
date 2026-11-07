@@ -27,6 +27,9 @@ public interface MaintenancePaymentRepository extends JpaRepository<MaintenanceP
 
     List<MaintenancePayment> findByBill_BillId(Long billId);
 
+    /** How many payment rows reference this bill (any status, incl. reversed/failed). */
+    long countByBill_BillId(Long billId);
+
     Optional<MaintenancePayment> findByCashfreeOrderId(String cashfreeOrderId);
 
     Optional<MaintenancePayment> findByCashfreePaymentId(String cashfreePaymentId);

@@ -127,6 +127,8 @@ public class MaintenanceBillService {
         List<MaintenanceChargeConfig> activeCharges = chargeConfigRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
         int billsGenerated = 0;
         int billsRegenerated = 0;
+        int billsSkipped = 0;
+        List<String> skippedUnits = new ArrayList<>();
         boolean isRegenerate = Boolean.TRUE.equals(request.getRegenerate());
 
         if (activeCharges.isEmpty()) {
@@ -146,7 +148,22 @@ public class MaintenanceBillService {
             if (existingBillOpt.isPresent()) {
                 if (isRegenerate) {
                     MaintenanceBill existingBill = existingBillOpt.get();
-                    // Only regenerate UNPAID bills - don't touch paid/partially paid
+                    // Only regenerate UNPAID bills - don't touch paid/partially paid.
+                    // A bill can be UNPAID yet still have payment rows attached (e.g. a payment
+                    // that was recorded then REVERSED, or a failed/pending online attempt). Those
+                    // rows reference the bill via a NOT-NULL foreign key (maintenance_payments.bill_id)
+                    // with no cascade, so deleting the bill would throw a FK violation (the
+                    // production 500). Skip regeneration for such bills rather than destroying
+                    // payment history; report them so the admin can reverse/clean up first.
+                    long paymentRows = paymentRepository.countByBill_BillId(existingBill.getBillId());
+                    if (existingBill.getStatus() == BillStatus.UNPAID && paymentRows > 0) {
+                        log.warn("Skipping regeneration of UNPAID bill {} for unit {} ({}/{}): {} payment row(s) reference it; delete would violate the FK.",
+                                existingBill.getBillId(), unit.getUnitNumber(),
+                                request.getMonth(), request.getYear(), paymentRows);
+                        billsSkipped++;
+                        skippedUnits.add(unit.getUnitNumber());
+                        continue;
+                    }
                     if (existingBill.getStatus() == BillStatus.UNPAID) {
                         // Revert any penalties that were consumed (marked BILLED) when this bill
                         // was first generated back to PENDING, so generateBillForUnit re-attaches
@@ -196,6 +213,8 @@ public class MaintenanceBillService {
         Map<String, Object> result = new HashMap<>();
         result.put("billsGenerated", billsGenerated);
         result.put("billsRegenerated", billsRegenerated);
+        result.put("billsSkipped", billsSkipped);
+        result.put("skippedUnits", skippedUnits);
         result.put("month", request.getMonth());
         result.put("year", request.getYear());
         String message = "Successfully generated " + billsGenerated + " new bills";
@@ -203,6 +222,10 @@ public class MaintenanceBillService {
             message += " and regenerated " + billsRegenerated + " existing bills";
         }
         message += " for " + Month.of(request.getMonth()).name() + " " + request.getYear();
+        if (billsSkipped > 0) {
+            message += ". Skipped " + billsSkipped + " bill(s) that have payment records (reverse those payments first to regenerate): "
+                    + String.join(", ", skippedUnits);
+        }
         result.put("message", message);
         return result;
     }
