@@ -151,7 +151,17 @@ export interface PaymentDialogData {
         </button>
       </div>
 
-      <!-- Step 4: Failed -->
+      <!-- Step 4: Pending (money likely debited, confirmation in progress) -->
+      <div *ngIf="step === 'pending'" class="pending-state">
+        <mat-icon class="pending-icon">hourglass_top</mat-icon>
+        <h3>Payment Being Confirmed</h3>
+        <p>{{ errorMessage || 'If money was debited, your payment will reflect shortly. Please do not pay again.' }}</p>
+        <div class="failed-actions">
+          <button mat-raised-button color="primary" (click)="dialogRef.close()">Close</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Failed -->
       <div *ngIf="step === 'failed'" class="failed-state">
         <mat-icon class="failed-icon">cancel</mat-icon>
         <h3>Payment Failed</h3>
@@ -200,7 +210,7 @@ export interface PaymentDialogData {
 
     .btn-spinner { display: inline-block; margin-right: 4px; }
 
-    .processing-state, .success-state, .failed-state {
+    .processing-state, .success-state, .failed-state, .pending-state {
       display: flex; flex-direction: column; align-items: center;
       padding: 40px 24px; text-align: center;
     }
@@ -217,6 +227,9 @@ export interface PaymentDialogData {
     .discount-applied mat-icon { font-size: 20px; height: 20px; width: 20px; }
     .strikethrough { text-decoration: line-through; color: #999; }
     .failed-icon { font-size: 64px; height: 64px; width: 64px; color: #c62828; }
+    .pending-icon { font-size: 64px; height: 64px; width: 64px; color: #ef6c00; }
+    .pending-state h3 { margin: 16px 0 8px; }
+    .pending-state p { color: #666; }
 
     .receipt-info {
       width: 100%; margin: 16px 0 24px;
@@ -232,7 +245,7 @@ export interface PaymentDialogData {
   `]
 })
 export class MemberPaymentDialogComponent {
-  step: 'amount' | 'processing' | 'success' | 'failed' = 'amount';
+  step: 'amount' | 'processing' | 'success' | 'pending' | 'failed' = 'amount';
   paymentType: 'full' | 'partial' = 'full';
   partialAmount: number | null = null;
   maxAmount: number;
@@ -389,9 +402,17 @@ export class MemberPaymentDialogComponent {
         }
       },
       error: (err) => {
-        this.step = 'failed';
-        this.errorMessage = err.error?.message
-          || 'Payment was received but verification failed. Contact society admin.';
+        // HTTP 202 = payment still being confirmed by the gateway/webhook (not a failure).
+        // Show the reassuring "being confirmed" screen so the member doesn't pay twice.
+        if (err.status === 202) {
+          this.step = 'pending';
+          this.errorMessage = err.error?.message
+            || 'Your payment is being confirmed. If money was debited, it will reflect shortly — please do not pay again.';
+        } else {
+          this.step = 'failed';
+          this.errorMessage = err.error?.message
+            || 'Payment was received but verification failed. Contact society admin.';
+        }
       }
     });
   }

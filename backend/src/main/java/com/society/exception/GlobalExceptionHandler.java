@@ -42,6 +42,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
+    /**
+     * A payment that is still being confirmed (gateway ACTIVE/PENDING) — not a failure.
+     * Returns 202 Accepted so the member portal shows a "being confirmed" screen rather than
+     * a "Payment Failed" error, avoiding duplicate payments while the webhook catches up.
+     */
+    @ExceptionHandler(PaymentPendingException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePaymentPending(PaymentPendingException ex) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
         // Record the rejected request in the application audit log (Req 6.4).

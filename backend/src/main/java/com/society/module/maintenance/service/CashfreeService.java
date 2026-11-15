@@ -6,6 +6,7 @@ import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.society.exception.BusinessException;
+import com.society.exception.PaymentPendingException;
 import com.society.module.maintenance.entity.MaintenanceBill;
 import com.society.module.maintenance.entity.MaintenanceLedger;
 import com.society.module.maintenance.entity.MaintenancePayment;
@@ -919,7 +920,26 @@ public class CashfreeService {
         String status = (String) orderStatus.get("order_status");
 
         if (!"PAID".equalsIgnoreCase(status)) {
-            throw new BusinessException("Payment not confirmed. Current status: " + status);
+            // If the webhook already recorded this payment (UPI often confirms server-side a
+            // moment before/after the browser returns), treat it as success rather than failure.
+            Optional<MaintenancePayment> alreadyRecorded =
+                    paymentRepository.findByCashfreeOrderId(request.getCashfreeOrderId());
+            if (alreadyRecorded.isPresent()) {
+                log.info("Order {} not yet PAID at gateway but already recorded (webhook); returning success.",
+                        request.getCashfreeOrderId());
+                return alreadyRecorded.get();
+            }
+            // ACTIVE/PENDING means the money may be mid-settlement (common with UPI). This is
+            // NOT a failure — the webhook will confirm it. Signal "still processing" distinctly
+            // so the member sees a reassuring "being confirmed" screen, not "Payment Failed".
+            if (status == null || "ACTIVE".equalsIgnoreCase(status) || "PENDING".equalsIgnoreCase(status)) {
+                throw new PaymentPendingException(
+                        "Your payment is being confirmed. If money was debited, it will reflect shortly — "
+                        + "no need to pay again. Check back in a few minutes or contact the society office.");
+            }
+            // Any other status (EXPIRED/FAILED/TERMINATED) is a genuine non-success.
+            throw new BusinessException("Payment not completed. Current status: " + status
+                    + ". If money was debited it will be auto-refunded by the bank; otherwise please try again.");
         }
 
         return optimisticRetry.execute("record cashfree member payment",
