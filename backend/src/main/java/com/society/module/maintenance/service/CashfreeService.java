@@ -59,6 +59,7 @@ public class CashfreeService {
     private final SocietySettingsService settingsService;
     private final OwnerRepository ownerRepository;
     private final UnitOwnerRepository unitOwnerRepository;
+    private final com.society.module.owner.repository.UnitRepository unitRepository;
     private final Environment environment;
     private final OptimisticRetry optimisticRetry;
     private final ReceiptNumberService receiptNumberService;
@@ -333,7 +334,12 @@ public class CashfreeService {
 
         Optional<MaintenanceBill> billOptional = billRepository.findByCashfreeOrderId(orderId);
         if (billOptional.isEmpty()) {
-            log.warn("No bill found for cashfree orderId: {}", orderId);
+            // The order id was never stored on a specific bill — this happens for a
+            // "pay total outstanding" payment (created with no billId). Fall back to the
+            // same unit-based, principal-then-interest allocation the /verify path uses, by
+            // parsing the unit number from the order id ("MBR-{unitNumber}-{millis}").
+            log.warn("No bill carries cashfree orderId {}; falling back to unit allocation.", orderId);
+            applyWebhookPaymentByUnit(orderId, paymentId, paymentAmount);
             return;
         }
 
@@ -383,6 +389,126 @@ public class CashfreeService {
                 balanceBefore, newBalance,
                 MaintenanceLedger.Source.CASHFREE_WEBHOOK, paymentId, "Cashfree webhook payment");
         log.info("Payment successful for bill: {}, amount: {}", bill.getBillId(), paymentAmount);
+    }
+
+    /**
+     * Webhook fallback when no bill carries the order id (a "pay total outstanding" payment).
+     * Parses the unit number from the order id ("MBR-{unitNumber}-{millis}") and allocates the
+     * received amount across that unit's outstanding bills, principal-first then interest-first,
+     * mirroring the authenticated /verify path. Any surplus is parked in suspense so nothing is
+     * lost. Idempotency is still guaranteed by the cf_payment_id dedup check in the caller.
+     */
+    private void applyWebhookPaymentByUnit(String orderId, String paymentId, BigDecimal paymentAmount) {
+        String unitNumber = parseUnitNumberFromOrderId(orderId);
+        if (unitNumber == null) {
+            log.error("Cannot parse unit from cashfree orderId {} - payment {} NOT recorded. Manual reconciliation needed.",
+                    orderId, paymentId);
+            return;
+        }
+
+        Unit unit = unitRepository.findByUnitNumber(unitNumber).orElse(null);
+        if (unit == null) {
+            log.error("No unit '{}' for cashfree orderId {} - payment {} NOT recorded. Manual reconciliation needed.",
+                    unitNumber, orderId, paymentId);
+            return;
+        }
+
+        List<MaintenanceBill> outstandingBills = billRepository.findOutstandingByUnit(unit.getUnitId());
+        if (outstandingBills.isEmpty()) {
+            log.error("Unit '{}' has no outstanding bills for cashfree orderId {} - payment {} parked in suspense.",
+                    unitNumber, orderId, paymentId);
+            suspenseService.createSuspenseEntry(paymentAmount, LocalDate.now(),
+                    com.society.enums.PaymentMode.ONLINE.name(), orderId,
+                    "Cashfree webhook payment with no outstanding bills (unit " + unitNumber + ")",
+                    resolvePayerName(unit));
+            return;
+        }
+
+        CashfreePaymentDetails details = fetchCashfreePaymentDetails(orderId);
+        String payerName = resolvePayerName(unit);
+        BigDecimal remaining = paymentAmount;
+        boolean firstLine = true;
+
+        // PASS 1: principal across all bills (oldest first)
+        for (MaintenanceBill bill : outstandingBills) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal principalOutstanding = getPrincipalOutstanding(bill);
+            if (principalOutstanding.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal payForBill = remaining.min(principalOutstanding);
+            recordWebhookPaymentForBill(bill, payForBill, orderId,
+                    firstLine ? paymentId : null, details, payerName);
+            remaining = remaining.subtract(payForBill);
+            firstLine = false;
+        }
+        // PASS 2: interest across all bills (oldest first)
+        for (MaintenanceBill bill : outstandingBills) {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal interestOutstanding = getInterestOutstanding(bill);
+            if (interestOutstanding.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal payForBill = remaining.min(interestOutstanding);
+            recordWebhookPaymentForBill(bill, payForBill, orderId,
+                    firstLine ? paymentId : null, details, payerName);
+            remaining = remaining.subtract(payForBill);
+            firstLine = false;
+        }
+
+        if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+            suspenseService.createSuspenseEntry(remaining, LocalDate.now(),
+                    com.society.enums.PaymentMode.ONLINE.name(), orderId,
+                    "Overpayment from Cashfree webhook order " + orderId + " (unit " + unitNumber + ")",
+                    payerName);
+            log.info("Overpayment of ₹{} parked in suspense for cashfree webhook order {}", remaining, orderId);
+        }
+        log.info("Cashfree webhook payment recorded via unit allocation - orderId: {}, unit: {}, amount: ₹{}",
+                orderId, unitNumber, paymentAmount);
+    }
+
+    /** Parse "{prefix}-{unitNumber}-{millis}" -> unitNumber. Unit numbers can contain '-'. */
+    private String parseUnitNumberFromOrderId(String orderId) {
+        if (orderId == null) return null;
+        int firstDash = orderId.indexOf('-');
+        int lastDash = orderId.lastIndexOf('-');
+        if (firstDash < 0 || lastDash <= firstDash) return null;
+        String unitNumber = orderId.substring(firstDash + 1, lastDash);
+        return unitNumber.isBlank() ? null : unitNumber;
+    }
+
+    /**
+     * Record one webhook payment line against a bill and update its totals/status. The
+     * gateway payment id is attached to only the FIRST line (unique per cf_payment_id).
+     */
+    private void recordWebhookPaymentForBill(MaintenanceBill bill, BigDecimal payAmount, String orderId,
+                                             String paymentId, CashfreePaymentDetails details, String payerName) {
+        BigDecimal balanceBefore = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
+
+        MaintenancePayment payment = new MaintenancePayment();
+        payment.setBill(bill);
+        payment.setUnit(bill.getUnit());
+        payment.setPaymentMode(details.mode);
+        payment.setTransactionId(details.reference);
+        payment.setStatus(MaintenancePayment.PaymentStatus.SUCCESS);
+        payment.setCashfreePaymentId(paymentId);
+        payment.setCashfreeOrderId(orderId);
+        payment.setAmount(payAmount);
+        payment.setPaymentDate(LocalDate.now());
+        payment.setReceiptNumber(generateWebhookReceiptNumber());
+        payment.setPayerName(payerName);
+        payment.setPayerType("OWNER");
+        paymentRepository.save(payment);
+
+        BigDecimal paidSoFar = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
+        BigDecimal newPaidAmount = paidSoFar.add(payAmount);
+        bill.setPaidAmount(newPaidAmount);
+        BigDecimal newBalance = bill.getTotalAmount().subtract(newPaidAmount).max(BigDecimal.ZERO);
+        bill.setBalanceAmount(newBalance);
+        bill.setStatus(newBalance.compareTo(BigDecimal.ZERO) <= 0
+                ? MaintenanceBill.BillStatus.PAID : MaintenanceBill.BillStatus.PARTIALLY_PAID);
+        billRepository.save(bill);
+
+        ledgerService.record(bill, payment.getPaymentId(),
+                MaintenanceLedger.EntryType.PAYMENT_APPLIED, payAmount,
+                balanceBefore, newBalance,
+                MaintenanceLedger.Source.CASHFREE_WEBHOOK, orderId, "Cashfree webhook payment (unit allocation)");
     }
 
     /**
