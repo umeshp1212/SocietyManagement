@@ -55,6 +55,16 @@ public class MaintenanceChargeConfig extends BaseEntity {
     private ApplicableTo applicableTo = ApplicableTo.ALL;
 
     /**
+     * Optional: restrict this charge to units carrying a specific {@link UnitTag}.
+     * When null, no tag restriction is applied and {@link #applicableTo} alone decides
+     * applicability. When set, the charge applies only to units that both satisfy
+     * {@code applicableTo} AND carry this tag. This lets the society bill arbitrary,
+     * admin-defined groups (e.g. solar-panel owners) without any code change.
+     */
+    @Column(name = "required_tag_id")
+    private Long requiredTagId;
+
+    /**
      * Display order in bill line items
      */
     @Column(name = "display_order", nullable = false)
@@ -75,6 +85,8 @@ public class MaintenanceChargeConfig extends BaseEntity {
 
     public enum ApplicableTo {
         ALL,             // Applies to all units
+        FLAT_ONLY,       // Only flat units (unitType = FLAT)
+        SHOP_ONLY,       // Only shop units (unitType = SHOP)
         PARKING,         // Only units with parking (any type)
         TWO_WHEELER,     // Only two-wheeler parking
         FOUR_WHEELER,    // Only four-wheeler parking

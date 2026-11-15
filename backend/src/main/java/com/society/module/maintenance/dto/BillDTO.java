@@ -31,6 +31,12 @@ public class BillDTO {
     private BigDecimal principalArrears;
     private BigDecimal interestArrears;
 
+    // This month's new interest ("Interest Balance" / "Add: Interest")
+    private BigDecimal newInterest;
+
+    // "Less: Receipt" — amount received against the previous month's bill
+    private BigDecimal lastReceiptAmount;
+
     // "Less: Adjustment" — manual credit/waiver applied to this bill
     private BigDecimal adjustment;
 

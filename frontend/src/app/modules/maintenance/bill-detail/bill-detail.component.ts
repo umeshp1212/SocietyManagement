@@ -78,23 +78,23 @@ import { BackButtonComponent } from '@shared/components/back-button';
             </tbody>
             <tfoot>
               <tr class="subtotal-row">
-                <td colspan="2" class="text-right"><strong>Current Month Charges</strong></td>
+                <td colspan="2" class="text-right"><strong>Net Charges</strong></td>
                 <td class="amt-col"><strong>{{ bill.amount | number:'1.2-2' }}</strong></td>
               </tr>
-              <tr *ngIf="bill.previousArrears > 0" class="arrears-row">
-                <td colspan="2" class="text-right">Previous Arrears (Principal)</td>
-                <td class="amt-col">{{ bill.previousArrears | number:'1.2-2' }}</td>
+              <tr *ngIf="previousBalance(bill) !== 0" class="arrears-row">
+                <td colspan="2" class="text-right">Previous Balance (Principal: {{ (bill.principalArrears || bill.previousArrears || 0) | number:'1.2-2' }} + Interest: {{ carriedInterest(bill) | number:'1.2-2' }})</td>
+                <td class="amt-col">{{ previousBalance(bill) | number:'1.2-2' }}</td>
               </tr>
-              <tr *ngIf="bill.interestOnArrears > 0" class="arrears-row">
-                <td colspan="2" class="text-right">Interest on Arrears (1% per month)</td>
-                <td class="amt-col">{{ bill.interestOnArrears | number:'1.2-2' }}</td>
+              <tr *ngIf="bill.lastReceiptAmount > 0" class="paid-row">
+                <td colspan="2" class="text-right">Less: Receipt</td>
+                <td class="amt-col">- {{ bill.lastReceiptAmount | number:'1.2-2' }}</td>
               </tr>
-              <tr *ngIf="bill.lateFee > 0" class="arrears-row">
-                <td colspan="2" class="text-right">Late Fee</td>
-                <td class="amt-col">{{ bill.lateFee | number:'1.2-2' }}</td>
+              <tr *ngIf="newInterest(bill) > 0" class="arrears-row">
+                <td colspan="2" class="text-right">Add: Interest</td>
+                <td class="amt-col">{{ newInterest(bill) | number:'1.2-2' }}</td>
               </tr>
               <tr class="total-row">
-                <td colspan="2" class="text-right"><strong>Grand Total</strong></td>
+                <td colspan="2" class="text-right"><strong>Gross Total</strong></td>
                 <td class="amt-col"><strong>{{ bill.totalAmount | number:'1.2-2' }}</strong></td>
               </tr>
               <tr *ngIf="bill.paidAmount > 0" class="paid-row">
@@ -384,6 +384,29 @@ import { BackButtonComponent } from '@shared/components/back-button';
 })
 export class BillDetailComponent implements OnInit {
   bill: any = null;
+
+  /** This month's new interest ("Add: Interest" / Interest Balance). */
+  newInterest(bill: any): number {
+    return Number(bill?.newInterest) || 0;
+  }
+
+  /** Carried interest portion of Previous Balance = total interest - this month's new interest. */
+  carriedInterest(bill: any): number {
+    const totalInterest = Number(bill?.interestArrears) || Number(bill?.interestOnArrears) || 0;
+    return Math.max(totalInterest - this.newInterest(bill), 0);
+  }
+
+  /**
+   * Previous Balance shown GROSS of the last receipt, accountant-style:
+   * principal arrears + carried interest (= total interest - this month's new interest)
+   * + the receipt subtracted on the next line.
+   */
+  previousBalance(bill: any): number {
+    const principal = Number(bill?.principalArrears) || Number(bill?.previousArrears) || 0;
+    const receipt = Number(bill?.lastReceiptAmount) || 0;
+    return principal + this.carriedInterest(bill) + receipt;
+  }
+
   qrCodeBase64: string | null = null;
   paymentLink: string | null = null;
   payments: any[] = [];

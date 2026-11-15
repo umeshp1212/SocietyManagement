@@ -63,6 +63,7 @@ public class MaintenanceChargeConfigService {
         config.setFlatAmount(dto.getFlatAmount());
         config.setApplicableTo(dto.getApplicableTo() != null
                 ? ApplicableTo.valueOf(dto.getApplicableTo()) : ApplicableTo.ALL);
+        config.setRequiredTagId(dto.getRequiredTagId());
         config.setDisplayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0);
         config.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
 
@@ -89,6 +90,7 @@ public class MaintenanceChargeConfigService {
                 .ratePerSqft(config.getRatePerSqft())
                 .flatAmount(config.getFlatAmount())
                 .applicableTo(config.getApplicableTo().name())
+                .requiredTagId(config.getRequiredTagId())
                 .displayOrder(config.getDisplayOrder())
                 .isActive(config.getIsActive())
                 .build();
@@ -104,6 +106,7 @@ public class MaintenanceChargeConfigService {
                 .flatAmount(dto.getFlatAmount())
                 .applicableTo(dto.getApplicableTo() != null
                         ? ApplicableTo.valueOf(dto.getApplicableTo()) : ApplicableTo.ALL)
+                .requiredTagId(dto.getRequiredTagId())
                 .displayOrder(dto.getDisplayOrder() != null ? dto.getDisplayOrder() : 0)
                 .isActive(dto.getIsActive() != null ? dto.getIsActive() : true)
                 .build();

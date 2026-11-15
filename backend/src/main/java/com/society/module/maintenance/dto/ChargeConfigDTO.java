@@ -29,7 +29,13 @@ public class ChargeConfigDTO {
 
     private BigDecimal flatAmount;
 
-    private String applicableTo; // ALL, PARKING, TWO_WHEELER, FOUR_WHEELER, RENTED, OWNER_OCCUPIED
+    private String applicableTo; // ALL, FLAT_ONLY, SHOP_ONLY, PARKING, TWO_WHEELER, FOUR_WHEELER, RENTED, OWNER_OCCUPIED
+
+    /**
+     * Optional unit-tag restriction. When set, the charge applies only to units
+     * carrying this tag (in addition to the applicableTo condition). Null = no restriction.
+     */
+    private Long requiredTagId;
 
     private Integer displayOrder;
 

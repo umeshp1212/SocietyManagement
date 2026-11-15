@@ -14,6 +14,10 @@ export const MAINTENANCE_ROUTES: Routes = [
     loadComponent: () => import('./charge-config/charge-config.component').then(m => m.ChargeConfigComponent)
   },
   {
+    path: 'unit-tags',
+    loadComponent: () => import('./unit-tags/unit-tags.component').then(m => m.UnitTagsComponent)
+  },
+  {
     path: 'water-charge-config',
     loadComponent: () => import('./water-charge-config/water-charge-config.component').then(m => m.WaterChargeConfigComponent)
   },

@@ -2,6 +2,7 @@ package com.society.module.maintenance.service;
 
 import com.society.common.PagedResponse;
 import com.society.enums.OccupancyStatus;
+import com.society.enums.UnitType;
 import com.society.exception.BusinessException;
 import com.society.exception.ResourceNotFoundException;
 import com.society.module.maintenance.dto.*;
@@ -55,6 +56,7 @@ public class MaintenanceBillService {
     private final MaintenanceBillRepository billRepository;
     private final MaintenancePaymentRepository paymentRepository;
     private final MaintenanceChargeConfigRepository chargeConfigRepository;
+    private final com.society.module.maintenance.repository.UnitTagAssignmentRepository unitTagAssignmentRepository;
     private final BillLineItemRepository lineItemRepository;
     private final UnitRepository unitRepository;
     private final WaterChargeConfigService waterChargeConfigService;
@@ -69,12 +71,11 @@ public class MaintenanceBillService {
     private final com.society.module.settings.service.SocietySettingsService societySettingsService;
 
     /**
-     * Resolve the effective late-fee percentage from society settings (admin-configurable,
-     * no redeploy). Returns 0 (disabled) when unset. This single percentage replaces both
-     * the old flat late fee and the previously hardcoded 1%/month interest-on-arrears.
+     * Resolve the effective monthly interest rate (%) charged on outstanding principal —
+     * the accountant's "Add: Interest". Admin-configurable (no redeploy); 0 = disabled.
      */
-    private BigDecimal effectiveLateFeePercent() {
-        BigDecimal fromSettings = societySettingsService.getSettings().getLateFeePercent();
+    private BigDecimal effectiveInterestRatePercent() {
+        BigDecimal fromSettings = societySettingsService.getSettings().getInterestRatePercent();
         return fromSettings != null ? fromSettings : BigDecimal.ZERO;
     }
 
@@ -125,6 +126,9 @@ public class MaintenanceBillService {
     public Map<String, Object> generateMonthlyBills(GenerateBillsRequest request) {
         List<Unit> units = unitRepository.findAll();
         List<MaintenanceChargeConfig> activeCharges = chargeConfigRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
+        // Pre-load unit->tags once (mirroring how activeCharges is loaded once) so tag-scoped
+        // charges can be filtered per unit without an N+1 query during the unit loop.
+        Map<Long, Set<Long>> unitTagMap = loadUnitTagMap();
         int billsGenerated = 0;
         int billsRegenerated = 0;
         int billsSkipped = 0;
@@ -183,7 +187,7 @@ public class MaintenanceBillService {
                         billRepository.delete(existingBill);
                         billRepository.flush();
                         // Generate fresh bill
-                        MaintenanceBill newBill = generateBillForUnit(unit, activeCharges, request);
+                        MaintenanceBill newBill = generateBillForUnit(unit, activeCharges, request, unitTagMap);
                         if (newBill != null) {
                             billRepository.save(newBill);
                             ledgerService.record(newBill, null,
@@ -199,7 +203,7 @@ public class MaintenanceBillService {
             }
 
             // Generate bill with line items
-            MaintenanceBill bill = generateBillForUnit(unit, activeCharges, request);
+            MaintenanceBill bill = generateBillForUnit(unit, activeCharges, request, unitTagMap);
             if (bill != null) {
                 billRepository.save(bill);
                 ledgerService.record(bill, null,
@@ -234,7 +238,7 @@ public class MaintenanceBillService {
      * Generate a bill for a single unit with line items and arrears/interest calculation.
      */
     private MaintenanceBill generateBillForUnit(Unit unit, List<MaintenanceChargeConfig> activeCharges,
-                                                 GenerateBillsRequest request) {
+                                                 GenerateBillsRequest request, Map<Long, Set<Long>> unitTagMap) {
         BigDecimal areaSqft = unit.getAreaSqft() != null ? unit.getAreaSqft() : BigDecimal.ZERO;
 
         MaintenanceBill bill = new MaintenanceBill();
@@ -251,7 +255,7 @@ public class MaintenanceBillService {
         BigDecimal currentChargesTotal = BigDecimal.ZERO;
 
         for (MaintenanceChargeConfig charge : activeCharges) {
-            if (!isChargeApplicable(charge, unit)) {
+            if (!isChargeApplicable(charge, unit, unitTagMap)) {
                 continue;
             }
 
@@ -308,27 +312,34 @@ public class MaintenanceBillService {
         ArrearsSplit carried = calculateArrearsSplit(unit.getUnitId(), request.getMonth(), request.getYear());
         BigDecimal principalArrears = carried.principal();
 
-        // No NEW monthly interest is generated any more: the single configurable late-fee
-        // percentage (below) now carries the entire "cost of being late". We still preserve
-        // any interest that was ALREADY accrued on prior bills / opening balances so historic
-        // bills and carried-forward balances stay faithful.
-        BigDecimal interestArrears = money(carried.interest());
+        // "Add: Interest" — a configurable PERCENTAGE charged each month on the OUTSTANDING
+        // PRINCIPAL that was still unpaid before this month's bill (i.e. not cleared by the
+        // previous due date). This is the accountant's "Add: Interest" line. The rate comes
+        // from the society setting (interestRatePercent). New interest is charged on the
+        // outstanding principal only (not on already-accrued interest, so interest never
+        // compounds on interest). Total Interest Arrears = carried interest + this month's new
+        // interest. 0% = disabled.
+        BigDecimal interestRatePercent = effectiveInterestRatePercent();
+        BigDecimal newInterest = BigDecimal.ZERO;
+        if (interestRatePercent != null && interestRatePercent.compareTo(BigDecimal.ZERO) > 0
+                && principalArrears.compareTo(BigDecimal.ZERO) > 0) {
+            // Round the monthly interest to the nearest whole rupee (HALF_UP), the same
+            // convention as the area-based Sinking/Repair fund charges, to match the
+            // accountant's manually generated bills. Still a valid scale-2 money value.
+            newInterest = money(principalArrears.multiply(interestRatePercent)
+                    .divide(BigDecimal.valueOf(100), MONEY_SCALE, RoundingMode.HALF_UP)
+                    .setScale(0, RoundingMode.HALF_UP));
+        }
+        BigDecimal interestArrears = money(carried.interest().add(newInterest));
 
         // Legacy fields kept in sync so older readers/reports still work.
         BigDecimal previousArrears = principalArrears;
         BigDecimal interestOnArrears = interestArrears;
 
-        // Late fee: a configurable PERCENTAGE of the unit's OUTSTANDING PRINCIPAL, charged
-        // when the unit is carrying arrears (i.e. it defaulted past a previous bill's due
-        // date). This replaces the old flat fee and the hardcoded 1%/month interest, so there
-        // is a single penalty on the outstanding principal. 0% = disabled.
+        // Late fee retired: the monthly percentage on outstanding principal is now charged as
+        // interest (above), matching the accountant's "Add: Interest" line. Keeping a separate
+        // late fee would double-charge the same base, so it stays zero.
         BigDecimal lateFee = BigDecimal.ZERO;
-        BigDecimal lateFeePercent = effectiveLateFeePercent();
-        if (lateFeePercent != null && lateFeePercent.compareTo(BigDecimal.ZERO) > 0
-                && principalArrears.compareTo(BigDecimal.ZERO) > 0) {
-            lateFee = money(principalArrears.multiply(lateFeePercent)
-                    .divide(BigDecimal.valueOf(100), MONEY_SCALE, RoundingMode.HALF_UP));
-        }
 
         // "Less: Adjustment" — optional per-unit manual credit/waiver supplied for this run.
         BigDecimal adjustment = BigDecimal.ZERO;
@@ -339,10 +350,19 @@ public class MaintenanceBillService {
             }
         }
 
+        // "Less: Receipt" — amount received against the PREVIOUS month's bill, shown on this
+        // bill. Previous Balance is presented GROSS (before this receipt) and then the receipt
+        // is subtracted, matching the accountant's layout. It does not change the Gross Total:
+        // our carried arrears are already net of this receipt.
+        BigDecimal lastReceiptAmount = previousBillReceipt(unit.getUnitId(),
+                request.getMonth(), request.getYear());
+
         // Set bill amounts
         bill.setAmount(currentChargesTotal);
         bill.setPrincipalArrears(principalArrears);
         bill.setInterestArrears(interestArrears);
+        bill.setNewInterest(newInterest);
+        bill.setLastReceiptAmount(lastReceiptAmount);
         bill.setAdjustment(adjustment);
         bill.setPreviousArrears(previousArrears);
         bill.setInterestOnArrears(interestOnArrears);
@@ -369,8 +389,27 @@ public class MaintenanceBillService {
 
     /**
      * Check if a charge type applies to this unit based on conditions.
+     *
+     * <p>Two layers are combined with AND semantics:</p>
+     * <ol>
+     *   <li><b>Tag restriction</b> — if the charge has a {@code requiredTagId}, the unit
+     *       must carry that tag (an admin-defined group such as solar-panel owners),
+     *       otherwise the charge does not apply regardless of {@code applicableTo}.</li>
+     *   <li><b>ApplicableTo</b> — the attribute-derived category (ALL/FLAT_ONLY/RENTED/
+     *       parking/etc.).</li>
+     * </ol>
      */
-    private boolean isChargeApplicable(MaintenanceChargeConfig charge, Unit unit) {
+    private boolean isChargeApplicable(MaintenanceChargeConfig charge, Unit unit,
+                                       Map<Long, Set<Long>> unitTagMap) {
+        // Tag gate: a tag-scoped charge only applies to units carrying that tag.
+        Long requiredTagId = charge.getRequiredTagId();
+        if (requiredTagId != null) {
+            Set<Long> tags = unitTagMap.getOrDefault(unit.getUnitId(), Collections.emptySet());
+            if (!tags.contains(requiredTagId)) {
+                return false;
+            }
+        }
+
         ApplicableTo applicableTo = charge.getApplicableTo();
         int twoWheelers = unit.getTwoWheelerCount() != null ? unit.getTwoWheelerCount() : 0;
         int fourWheelers = unit.getFourWheelerCount() != null ? unit.getFourWheelerCount() : 0;
@@ -378,6 +417,10 @@ public class MaintenanceBillService {
         switch (applicableTo) {
             case ALL:
                 return true;
+            case FLAT_ONLY:
+                return unit.getUnitType() == UnitType.FLAT;
+            case SHOP_ONLY:
+                return unit.getUnitType() == UnitType.SHOP;
             case RENTED:
                 return unit.getOccupancyStatus() == OccupancyStatus.RENTED;
             case OWNER_OCCUPIED:
@@ -392,6 +435,18 @@ public class MaintenanceBillService {
             default:
                 return true;
         }
+    }
+
+    /**
+     * Load the full unit-&gt;tagIds map in one query, for use across the bill-generation
+     * unit loop. Keyed by unitId; a unit with no tags simply has no entry (callers treat
+     * that as an empty set). Avoids an N+1 query per unit/charge.
+     */
+    private Map<Long, Set<Long>> loadUnitTagMap() {
+        Map<Long, Set<Long>> map = new HashMap<>();
+        unitTagAssignmentRepository.findAll().forEach(a ->
+                map.computeIfAbsent(a.getUnitId(), k -> new HashSet<>()).add(a.getUnitTagId()));
+        return map;
     }
 
     /**
@@ -455,9 +510,10 @@ public class MaintenanceBillService {
      *
      * <p>Principal = unpaid balance of prior bills' principal + opening-balance principal.
      * Interest    = unpaid balance of prior bills' interest  + opening-balance interest.
-     * For prior bills we split each bill's remaining balance proportionally between its
-     * own principal (current charges + principal arrears) and interest components, so a
-     * partially-paid prior bill carries forward a faithful principal/interest ratio.</p>
+     * Allocation is INTEREST-FIRST: any amount paid against a prior bill clears its interest
+     * portion before its principal, so a partially-paid prior bill carries forward its
+     * remaining interest first and principal last. Opening balances are already interest-first
+     * (see OpeningBalanceService), so the whole module now uses one consistent rule.</p>
      */
     private ArrearsSplit calculateArrearsSplit(Long unitId, int currentMonth, int currentYear) {
         List<MaintenanceBill> outstandingBills = billRepository.findOutstandingByUnit(unitId);
@@ -478,7 +534,6 @@ public class MaintenanceBillService {
                     ? b.getInterestArrears()
                     : (b.getInterestOnArrears() != null ? b.getInterestOnArrears() : BigDecimal.ZERO);
             BigDecimal billTotal = b.getTotalAmount() != null ? b.getTotalAmount() : BigDecimal.ZERO;
-            BigDecimal billPrincipal = billTotal.subtract(billInterest).max(BigDecimal.ZERO);
 
             if (billTotal.compareTo(BigDecimal.ZERO) <= 0) {
                 // Degenerate bill; treat the whole remaining balance as principal.
@@ -486,12 +541,16 @@ public class MaintenanceBillService {
                 continue;
             }
 
-            // Split the remaining balance in the same principal:interest ratio as the bill.
-            BigDecimal interestShare = money(balance.multiply(billInterest)
-                    .divide(billTotal, MONEY_SCALE, RoundingMode.HALF_UP));
+            // INTEREST-FIRST allocation (new accountant's method): any amount paid against the
+            // prior bill clears its INTEREST portion before touching principal. So the interest
+            // still outstanding is (billInterest - amountPaid), floored at 0, and whatever of the
+            // remaining balance is left over is carried principal. This makes interest shrink
+            // first as payments arrive, matching the "deduct from interest first" rule.
+            BigDecimal paidSoFar = billTotal.subtract(balance).max(BigDecimal.ZERO);
+            BigDecimal interestShare = billInterest.subtract(paidSoFar).max(BigDecimal.ZERO).min(balance);
             BigDecimal principalShare = balance.subtract(interestShare).max(BigDecimal.ZERO);
-            interest = interest.add(interestShare);
-            principal = principal.add(principalShare);
+            interest = interest.add(money(interestShare));
+            principal = principal.add(money(principalShare));
         }
 
         // Add opening balance (legacy pre-go-live arrears), split into principal + interest.
@@ -512,6 +571,22 @@ public class MaintenanceBillService {
         if (bill.getBillYear() < year) return true;
         if (bill.getBillYear() == year && bill.getBillMonth() < month) return true;
         return false;
+    }
+
+    /**
+     * Amount received against the PREVIOUS month's bill for this unit — the "Less: Receipt"
+     * line. Returns the previous bill's paidAmount (0 if there was no prior bill or no payment).
+     */
+    private BigDecimal previousBillReceipt(Long unitId, int currentMonth, int currentYear) {
+        int prevMonth = currentMonth - 1;
+        int prevYear = currentYear;
+        if (prevMonth < 1) {
+            prevMonth = 12;
+            prevYear--;
+        }
+        return billRepository.findByUnit_UnitIdAndBillMonthAndBillYear(unitId, prevMonth, prevYear)
+                .map(b -> b.getPaidAmount() != null ? b.getPaidAmount() : BigDecimal.ZERO)
+                .orElse(BigDecimal.ZERO);
     }
 
     // ======================== BILL QUERIES ========================
@@ -1065,6 +1140,8 @@ public class MaintenanceBillService {
         dto.setInterestOnArrears(bill.getInterestOnArrears());
         dto.setPrincipalArrears(bill.getPrincipalArrears());
         dto.setInterestArrears(bill.getInterestArrears());
+        dto.setNewInterest(bill.getNewInterest());
+        dto.setLastReceiptAmount(bill.getLastReceiptAmount());
         dto.setAdjustment(bill.getAdjustment());
         dto.setLateFee(bill.getLateFee());
         dto.setTotalAmount(bill.getTotalAmount());

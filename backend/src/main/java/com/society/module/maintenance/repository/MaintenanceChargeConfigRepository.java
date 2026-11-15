@@ -18,4 +18,6 @@ public interface MaintenanceChargeConfigRepository extends JpaRepository<Mainten
     Optional<MaintenanceChargeConfig> findByChargeCode(String chargeCode);
 
     boolean existsByChargeCode(String chargeCode);
+
+    long countByRequiredTagId(Long requiredTagId);
 }

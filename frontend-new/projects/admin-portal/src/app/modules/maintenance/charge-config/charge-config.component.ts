@@ -30,6 +30,9 @@ import { BackButtonComponent } from '@shared/components/back-button';
           <a mat-raised-button color="accent" routerLink="/maintenance/water-charge-config">
             <mat-icon>water_drop</mat-icon> Water Charges
           </a>
+          <a mat-raised-button color="accent" routerLink="/maintenance/unit-tags">
+            <mat-icon>sell</mat-icon> Unit Tags
+          </a>
           <button mat-raised-button color="primary" (click)="showAddForm = !showAddForm" *ngIf="canManage()">
             <mat-icon>{{ showAddForm ? 'close' : 'add' }}</mat-icon>
             {{ showAddForm ? 'Cancel' : 'Add Charge Type' }}
@@ -77,12 +80,24 @@ import { BackButtonComponent } from '@shared/components/back-button';
               <mat-label>Applicable To</mat-label>
               <mat-select [(ngModel)]="form.applicableTo" name="applicableTo">
                 <mat-option value="ALL">All Units</mat-option>
+                <mat-option value="FLAT_ONLY">Flat Units Only</mat-option>
+                <mat-option value="SHOP_ONLY">Shop Units Only</mat-option>
                 <mat-option value="PARKING">Units with Parking</mat-option>
                 <mat-option value="TWO_WHEELER">Two Wheeler Parking</mat-option>
                 <mat-option value="FOUR_WHEELER">Four Wheeler Parking</mat-option>
                 <mat-option value="RENTED">Rented Units Only</mat-option>
                 <mat-option value="OWNER_OCCUPIED">Owner Occupied Only</mat-option>
               </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Restrict to Unit Tag (optional)</mat-label>
+              <mat-select [(ngModel)]="form.requiredTagId" name="requiredTagId">
+                <mat-option [value]="null">— No tag restriction —</mat-option>
+                <mat-option *ngFor="let t of unitTags" [value]="t.unitTagId">
+                  {{ t.tagName }} ({{ t.assignedUnitCount }} units)
+                </mat-option>
+              </mat-select>
+              <mat-hint>Bill only units carrying this tag. <a routerLink="/maintenance/unit-tags">Manage tags</a></mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Display Order</mat-label>
@@ -172,6 +187,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
 })
 export class ChargeConfigComponent implements OnInit {
   chargeConfigs: any[] = [];
+  unitTags: any[] = [];
   showAddForm = false;
   editingId: number | null = null;
   displayedColumns = ['displayOrder', 'chargeName', 'chargeCode', 'calculationType', 'rate', 'applicableTo', 'isActive', 'actions'];
@@ -184,6 +200,7 @@ export class ChargeConfigComponent implements OnInit {
     ratePerSqft: null as number | null,
     flatAmount: null as number | null,
     applicableTo: 'ALL',
+    requiredTagId: null as number | null,
     displayOrder: 0,
     isActive: true
   };
@@ -196,12 +213,21 @@ export class ChargeConfigComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadConfigs();
+    this.loadTags();
   }
 
   loadConfigs(): void {
     this.maintenanceService.getAllChargeConfigs().subscribe(res => {
       if (res.success) {
         this.chargeConfigs = res.data || [];
+      }
+    });
+  }
+
+  loadTags(): void {
+    this.maintenanceService.getUnitTags().subscribe(res => {
+      if (res.success) {
+        this.unitTags = res.data || [];
       }
     });
   }
@@ -235,6 +261,7 @@ export class ChargeConfigComponent implements OnInit {
       ratePerSqft: config.ratePerSqft,
       flatAmount: config.flatAmount,
       applicableTo: config.applicableTo || 'ALL',
+      requiredTagId: config.requiredTagId ?? null,
       displayOrder: config.displayOrder || 0,
       isActive: config.isActive
     };
@@ -256,13 +283,15 @@ export class ChargeConfigComponent implements OnInit {
     this.editingId = null;
     this.form = {
       chargeCode: '', chargeName: '', description: '', calculationType: 'FLAT',
-      ratePerSqft: null, flatAmount: null, applicableTo: 'ALL', displayOrder: 0, isActive: true
+      ratePerSqft: null, flatAmount: null, applicableTo: 'ALL', requiredTagId: null, displayOrder: 0, isActive: true
     };
   }
 
   formatApplicableTo(value: string): string {
     const map: Record<string, string> = {
       'ALL': 'All Units',
+      'FLAT_ONLY': 'Flat Only',
+      'SHOP_ONLY': 'Shop Only',
       'PARKING': 'Parking',
       'TWO_WHEELER': 'Two Wheeler',
       'FOUR_WHEELER': 'Four Wheeler',

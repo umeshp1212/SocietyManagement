@@ -41,7 +41,7 @@ public class SocietySettingsService {
                 .chairmanName("Mr. Chairman")
                 .secretaryName("Mr. Secretary")
                 .treasurerName("Mr. Treasurer")
-                .lateFeePercent(java.math.BigDecimal.ZERO)
+                .interestRatePercent(java.math.BigDecimal.ZERO)
                 .billDueDay(0)                       // 0 = last day of the month
                 .autoBillGenerationEnabled(false)
                 .billGenerationDay(1)

@@ -45,6 +45,37 @@ export class MaintenanceService {
     return this.http.delete<ApiResponse<any>>(`${this.apiUrl}/charge-config/${id}`);
   }
 
+  // ======================== UNIT TAGS ========================
+  // Admin-defined labels (e.g. SOLAR_PANEL) used to bill an arbitrary group of units.
+
+  getUnitTags(): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/unit-tags`);
+  }
+
+  getAllUnitTags(): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/unit-tags/all`);
+  }
+
+  createUnitTag(tag: any): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/unit-tags`, tag);
+  }
+
+  updateUnitTag(id: number, tag: any): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(`${this.apiUrl}/unit-tags/${id}`, tag);
+  }
+
+  deleteUnitTag(id: number): Observable<ApiResponse<any>> {
+    return this.http.delete<ApiResponse<any>>(`${this.apiUrl}/unit-tags/${id}`);
+  }
+
+  getUnitsForTag(id: number): Observable<ApiResponse<number[]>> {
+    return this.http.get<ApiResponse<number[]>>(`${this.apiUrl}/unit-tags/${id}/units`);
+  }
+
+  setUnitsForTag(id: number, unitIds: number[]): Observable<ApiResponse<number[]>> {
+    return this.http.put<ApiResponse<number[]>>(`${this.apiUrl}/unit-tags/${id}/units`, { unitIds });
+  }
+
   generateBills(month: number, year: number, dueDayOfMonth?: number, regenerate?: boolean): Observable<ApiResponse<any>> {
     const body: any = { month, year };
     if (dueDayOfMonth) body.dueDayOfMonth = dueDayOfMonth;

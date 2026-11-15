@@ -190,7 +190,7 @@ import { environment } from '@env/environment';
                 </mat-form-field>
                 <mat-form-field>
                   <mat-label>Discount Valid For (Days)</mat-label>
-                  <input matInput type="number" formControlName="discountDueDays" min="1" max="30">
+                  <input matInput type="number" formControlName="discountDueDays" min="1" max="365">
                   <mat-hint>Days from bill date to avail discount</mat-hint>
                 </mat-form-field>
               </div>
@@ -225,9 +225,9 @@ import { environment } from '@env/environment';
                 <mat-hint>When the maintenance bill falls due each month</mat-hint>
               </mat-form-field>
               <mat-form-field>
-                <mat-label>Late Fee (%)</mat-label>
-                <input matInput type="number" formControlName="lateFeePercent" min="0" max="100" step="0.01">
-                <mat-hint>% of outstanding principal charged when a unit carries arrears past the due date. 0 = disabled</mat-hint>
+                <mat-label>Late Fee (% per month)</mat-label>
+                <input matInput type="number" formControlName="interestRatePercent" min="0" max="100" step="0.01">
+                <mat-hint>% charged each month on outstanding dues unpaid past the due date. 0 = disabled</mat-hint>
               </mat-form-field>
             </div>
           </mat-card-content>
@@ -547,18 +547,18 @@ export class SettingsComponent implements OnInit {
       paymentGateway: ['RAZORPAY'],
       discountEnabled: [false],
       discountPercent: [0],
-      discountDueDays: [10],
+      discountDueDays: [10, [Validators.min(1), Validators.max(365)]],
       discountMessage: ['Pay online before the due date and get a discount!'],
       visitorApprovalTimeoutMinutes: [10, [Validators.min(1), Validators.max(120)]],
       // Maintenance bill settings
-      lateFeePercent: [0, [Validators.min(0), Validators.max(100)]],
+      interestRatePercent: [0, [Validators.min(0), Validators.max(100)]],
       billDueDay: [0, [Validators.min(0), Validators.max(31)]],
-      // Automated bill generation
+      // Automated bill generation (0 = last day of month, matching the dropdown option)
       autoBillGenerationEnabled: [false],
-      billGenerationDay: [1, [Validators.min(1), Validators.max(31)]],
-      // Automated payment reminders
+      billGenerationDay: [1, [Validators.min(0), Validators.max(31)]],
+      // Automated payment reminders (0 = last day of month, matching the dropdown option)
       autoReminderEnabled: [false],
-      reminderDayOfMonth: [5, [Validators.min(1), Validators.max(31)]]
+      reminderDayOfMonth: [5, [Validators.min(0), Validators.max(31)]]
     });
   }
 

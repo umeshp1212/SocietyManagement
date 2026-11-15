@@ -212,43 +212,61 @@ public class MaintenanceBillPdfService {
             }
         }
 
-        // Subtotal - Current Month Charges
-        addTotalRow(table, "Current Charges", formatAmount(bill.getAmount()),
+        // ===== Accountant-style breakup =====
+        // Net Charges | Previous Balance (Principal + carried Interest, GROSS) |
+        // Less: Receipt | Interest Balance (this month's new interest) | Gross Total.
+
+        // Net Charges (this month's charges)
+        addTotalRow(table, "Net Charges", formatAmount(bill.getAmount()),
                 boldFont, LIGHT_GRAY);
 
-        // Itemized arrears breakdown. Prefer the new columns; fall back to the legacy
-        // previous_arrears / interest_on_arrears for bills generated before this feature.
+        // Arrears figures. Prefer the new columns; fall back to legacy for old bills.
         BigDecimal principalArrears = bill.getPrincipalArrears() != null && bill.getPrincipalArrears().signum() != 0
                 ? bill.getPrincipalArrears()
                 : (bill.getPreviousArrears() != null ? bill.getPreviousArrears() : BigDecimal.ZERO);
         BigDecimal interestArrears = bill.getInterestArrears() != null && bill.getInterestArrears().signum() != 0
                 ? bill.getInterestArrears()
                 : (bill.getInterestOnArrears() != null ? bill.getInterestOnArrears() : BigDecimal.ZERO);
+        BigDecimal newInterest = bill.getNewInterest() != null ? bill.getNewInterest() : BigDecimal.ZERO;
+        BigDecimal receipt = bill.getLastReceiptAmount() != null ? bill.getLastReceiptAmount() : BigDecimal.ZERO;
         BigDecimal adjustment = bill.getAdjustment() != null ? bill.getAdjustment() : BigDecimal.ZERO;
-        BigDecimal lateFee = bill.getLateFee() != null ? bill.getLateFee() : BigDecimal.ZERO;
 
-        if (interestArrears.compareTo(BigDecimal.ZERO) > 0) {
-            addTotalRow(table, "Add: Interest Arrears", formatAmount(interestArrears),
+        // carried interest = total interest arrears - this month's new interest
+        BigDecimal carriedInterest = interestArrears.subtract(newInterest).max(BigDecimal.ZERO);
+
+        // Previous Balance (Principal + carried Interest) shown GROSS of the receipt below,
+        // with the principal and interest amounts spelled out in the label.
+        BigDecimal previousBalanceGross = principalArrears.add(carriedInterest).add(receipt);
+        if (previousBalanceGross.compareTo(BigDecimal.ZERO) != 0) {
+            String prevLabel = "Previous Balance (Principal: " + formatAmount(principalArrears)
+                    + " + Interest: " + formatAmount(carriedInterest) + ")";
+            addTotalRow(table, prevLabel,
+                    formatAmount(previousBalanceGross), regularFont, ARREARS_BG);
+        }
+
+        // Less: Receipt — payment received against the previous month's bill.
+        if (receipt.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Less: Receipt", "- " + formatAmount(receipt),
+                    regularFont, new DeviceRgb(232, 245, 233));
+        }
+
+        // Interest Balance — this month's new interest on outstanding principal ("Add: Interest").
+        if (newInterest.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Add: Interest", formatAmount(newInterest),
                     regularFont, ARREARS_BG);
         }
-        if (principalArrears.compareTo(BigDecimal.ZERO) > 0) {
-            addTotalRow(table, "Principal Arrears", formatAmount(principalArrears),
-                    regularFont, ARREARS_BG);
-        }
-        if (lateFee.compareTo(BigDecimal.ZERO) > 0) {
-            addTotalRow(table, "Add: Late Fee", formatAmount(lateFee),
-                    regularFont, ARREARS_BG);
-        }
+
+        // Less: Adjustment — manual credit/waiver, if any.
         if (adjustment.compareTo(BigDecimal.ZERO) > 0) {
             addTotalRow(table, "Less: Adjustment", "- " + formatAmount(adjustment),
                     regularFont, new DeviceRgb(232, 245, 233));
         }
 
-        // Total Due
-        addTotalRow(table, "TOTAL DUE", formatAmount(bill.getTotalAmount()),
+        // Gross Total (balance as on bill date)
+        addTotalRow(table, "GROSS TOTAL", formatAmount(bill.getTotalAmount()),
                 boldFont, TOTAL_BG);
 
-        // Paid & Payable
+        // Paid & Payable (for a bill already partly paid after issue)
         BigDecimal paidAmount = bill.getPaidAmount() != null ? bill.getPaidAmount() : BigDecimal.ZERO;
         if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
             addTotalRow(table, "Amount Paid", "- " + formatAmount(paidAmount),

@@ -85,12 +85,30 @@ public class MaintenanceBill extends BaseEntity {
 
     /**
      * Interest Arrears shown on the bill: carried-forward interest from prior bills +
-     * the interest portion of the opening balance + this month's 1% interest on the
-     * outstanding principal.
+     * the interest portion of the opening balance + this month's interest on the
+     * outstanding principal. This is the TOTAL interest (carried + new).
      */
     @Column(name = "interest_arrears", precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal interestArrears = BigDecimal.ZERO;
+
+    /**
+     * This month's NEW interest on the outstanding principal — the accountant's
+     * "Interest Balance" / "Add: Interest" line. It is the portion of
+     * {@link #interestArrears} generated this month; carried interest = interestArrears - newInterest.
+     */
+    @Column(name = "new_interest", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal newInterest = BigDecimal.ZERO;
+
+    /**
+     * "Less: Receipt" — the amount received against the PREVIOUS month's bill, shown on this
+     * bill so the member sees their last payment deducted. Used to present "Previous Balance"
+     * gross (before the receipt) and then subtract it, matching the accountant's layout.
+     */
+    @Column(name = "last_receipt_amount", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal lastReceiptAmount = BigDecimal.ZERO;
 
     /**
      * "Less: Adjustment" — a manual credit/waiver the committee applies to THIS bill at
