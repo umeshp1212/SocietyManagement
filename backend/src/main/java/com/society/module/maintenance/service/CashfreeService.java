@@ -928,9 +928,16 @@ public class CashfreeService {
 
     @Transactional
     public MaintenancePayment applyMemberPayment(Long ownerId, VerifyPaymentRequest request) {
-        // Check for duplicate (inside the transaction to close the race with the commit)
-        if (paymentRepository.findByCashfreeOrderId(request.getCashfreeOrderId()).isPresent()) {
-            throw new BusinessException("This payment has already been recorded.");
+        // Idempotency: the webhook (server-to-server) may have already recorded this payment
+        // before the browser /verify call ran. That is SUCCESS, not an error — return the
+        // existing payment so the member sees a success screen instead of a scary
+        // "already recorded" failure. Dedup is keyed on the Cashfree order id.
+        Optional<MaintenancePayment> existing =
+                paymentRepository.findByCashfreeOrderId(request.getCashfreeOrderId());
+        if (existing.isPresent()) {
+            log.info("Cashfree order {} already recorded (likely via webhook); returning existing payment to /verify.",
+                    request.getCashfreeOrderId());
+            return existing.get();
         }
 
         Owner owner = ownerRepository.findById(ownerId)
