@@ -1,8 +1,6 @@
 -- Clean ALL maintenance-module data (keeps units, owners, society_settings).
 -- Used before loading the verified local maintenance data into production.
 SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE suspense_audit_trail;
-TRUNCATE TABLE suspense_entries;
 TRUNCATE TABLE maintenance_ledger;
 TRUNCATE TABLE maintenance_payments;
 TRUNCATE TABLE bill_line_items;
