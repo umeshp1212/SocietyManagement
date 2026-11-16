@@ -262,6 +262,13 @@ public class MaintenanceBillPdfService {
                     regularFont, new DeviceRgb(232, 245, 233));
         }
 
+        // Less: Advance Credit Applied — prepaid/overpaid credit auto-applied this bill.
+        BigDecimal creditApplied = bill.getCreditApplied() != null ? bill.getCreditApplied() : BigDecimal.ZERO;
+        if (creditApplied.compareTo(BigDecimal.ZERO) > 0) {
+            addTotalRow(table, "Less: Advance Credit Applied", "- " + formatAmount(creditApplied),
+                    regularFont, new DeviceRgb(232, 245, 233));
+        }
+
         // Gross Total (balance as on bill date)
         addTotalRow(table, "GROSS TOTAL", formatAmount(bill.getTotalAmount()),
                 boldFont, TOTAL_BG);

@@ -30,6 +30,10 @@ export const MAINTENANCE_ROUTES: Routes = [
     loadComponent: () => import('./opening-balance/opening-balance.component').then(m => m.OpeningBalanceComponent)
   },
   {
+    path: 'opening-credits',
+    loadComponent: () => import('./opening-credit/opening-credit.component').then(m => m.OpeningCreditComponent)
+  },
+  {
     path: 'suspense',
     loadComponent: () => import('./suspense-account/suspense-account.component').then(m => m.SuspenseAccountComponent)
   },

@@ -184,6 +184,11 @@ public class MaintenanceBillService {
                             penaltyRepository.flush();
                         }
 
+                        // If this bill had auto-applied advance credit, give it back to the
+                        // unit's credits before deleting, so the regenerated bill re-applies it
+                        // instead of the credit being lost (keeps regenerate idempotent).
+                        refundAdvanceCredit(existingBill);
+
                         billRepository.delete(existingBill);
                         billRepository.flush();
                         // Generate fresh bill
@@ -357,6 +362,24 @@ public class MaintenanceBillService {
         BigDecimal lastReceiptAmount = previousBillReceipt(unit.getUnitId(),
                 request.getMonth(), request.getYear());
 
+        // Gross total (before advance credit) = current charges + arrears + interest + late fee - adjustment.
+        BigDecimal grossTotal = money(currentChargesTotal
+                .add(principalArrears)
+                .add(interestArrears)
+                .add(lateFee)
+                .subtract(adjustment));
+        if (grossTotal.compareTo(BigDecimal.ZERO) < 0) {
+            grossTotal = BigDecimal.ZERO; // an over-large adjustment never produces a negative bill
+        }
+
+        // "Less: Advance Credit Applied" — auto-apply the unit's available advance/prepaid
+        // credit (unit_advance_credits) to this bill, up to the gross total. The remaining
+        // credit stays AVAILABLE and carries forward to the next bill. E.g. a unit holding a
+        // 3217 credit with a 2619 bill pays 0 now and carries 598 into next month.
+        BigDecimal creditApplied = applyAdvanceCredit(unit.getUnitId(), grossTotal, bill);
+
+        BigDecimal totalAmount = money(grossTotal.subtract(creditApplied).max(BigDecimal.ZERO));
+
         // Set bill amounts
         bill.setAmount(currentChargesTotal);
         bill.setPrincipalArrears(principalArrears);
@@ -364,19 +387,11 @@ public class MaintenanceBillService {
         bill.setNewInterest(newInterest);
         bill.setLastReceiptAmount(lastReceiptAmount);
         bill.setAdjustment(adjustment);
+        bill.setCreditApplied(creditApplied);
         bill.setPreviousArrears(previousArrears);
         bill.setInterestOnArrears(interestOnArrears);
         bill.setLateFee(lateFee);
 
-        // Total Due = current charges + principal arrears + interest arrears + late fee - adjustment.
-        BigDecimal totalAmount = money(currentChargesTotal
-                .add(principalArrears)
-                .add(interestArrears)
-                .add(lateFee)
-                .subtract(adjustment));
-        if (totalAmount.compareTo(BigDecimal.ZERO) < 0) {
-            totalAmount = BigDecimal.ZERO; // an over-large adjustment never produces a negative bill
-        }
         bill.setTotalAmount(totalAmount);
         bill.setBalanceAmount(totalAmount);
         bill.setPaidAmount(BigDecimal.ZERO);
@@ -571,6 +586,88 @@ public class MaintenanceBillService {
         if (bill.getBillYear() < year) return true;
         if (bill.getBillYear() == year && bill.getBillMonth() < month) return true;
         return false;
+    }
+
+    /**
+     * Auto-apply a unit's available advance credit (prepaid/overpaid money) to a freshly
+     * generated bill, up to {@code grossTotal}. Consumes AVAILABLE credits oldest-first (FIFO),
+     * decrementing each credit's balance and marking it APPLIED when exhausted. Returns the
+     * total credit applied (0 if the unit has none). The remaining credit stays AVAILABLE and
+     * is picked up by the next month's bill.
+     */
+    private BigDecimal applyAdvanceCredit(Long unitId, BigDecimal grossTotal, MaintenanceBill bill) {
+        if (grossTotal == null || grossTotal.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        List<UnitAdvanceCredit> credits = advanceCreditRepository
+                .findByUnit_UnitIdAndStatusOrderByReceivedDateAscAdvanceCreditIdAsc(
+                        unitId, UnitAdvanceCredit.CreditStatus.AVAILABLE);
+        if (credits.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal remainingToCover = grossTotal;
+        BigDecimal totalApplied = BigDecimal.ZERO;
+
+        for (UnitAdvanceCredit credit : credits) {
+            if (remainingToCover.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal available = credit.getBalanceAmount() != null ? credit.getBalanceAmount() : BigDecimal.ZERO;
+            if (available.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            BigDecimal use = available.min(remainingToCover);
+            BigDecimal newApplied = (credit.getAppliedAmount() != null ? credit.getAppliedAmount() : BigDecimal.ZERO).add(use);
+            BigDecimal newBalance = available.subtract(use);
+            credit.setAppliedAmount(money(newApplied));
+            credit.setBalanceAmount(money(newBalance));
+            if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+                credit.setStatus(UnitAdvanceCredit.CreditStatus.APPLIED);
+            }
+            credit.setRemarks((credit.getRemarks() != null ? credit.getRemarks() + " " : "")
+                    + "[Applied " + money(use) + " to bill " + Month.of(bill.getBillMonth()).name()
+                    + " " + bill.getBillYear() + "]");
+            advanceCreditRepository.save(credit);
+
+            totalApplied = totalApplied.add(use);
+            remainingToCover = remainingToCover.subtract(use);
+        }
+
+        if (totalApplied.compareTo(BigDecimal.ZERO) > 0) {
+            log.info("Applied advance credit {} to {}/{} bill for unit {} (gross {}).",
+                    money(totalApplied), bill.getBillMonth(), bill.getBillYear(), unitId, grossTotal);
+        }
+        return money(totalApplied);
+    }
+
+    /**
+     * Reverse the advance credit a bill consumed (used before deleting a bill during
+     * regeneration), restoring the applied amount back to the unit's credits so it can be
+     * re-applied to the regenerated bill. Refunds onto the unit's credits (most-recently
+     * applied first) and re-opens any that were marked APPLIED.
+     */
+    private void refundAdvanceCredit(MaintenanceBill bill) {
+        BigDecimal toRefund = bill.getCreditApplied() != null ? bill.getCreditApplied() : BigDecimal.ZERO;
+        if (toRefund.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        Long unitId = bill.getUnit().getUnitId();
+        // Reverse-FIFO: refund the credits that were consumed last, first.
+        List<UnitAdvanceCredit> credits = advanceCreditRepository
+                .findByUnit_UnitIdOrderByReceivedDateDescAdvanceCreditIdDesc(unitId);
+        for (UnitAdvanceCredit credit : credits) {
+            if (toRefund.compareTo(BigDecimal.ZERO) <= 0) break;
+            if (credit.getStatus() == UnitAdvanceCredit.CreditStatus.REVERSED) continue;
+            BigDecimal applied = credit.getAppliedAmount() != null ? credit.getAppliedAmount() : BigDecimal.ZERO;
+            if (applied.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            BigDecimal giveBack = applied.min(toRefund);
+            credit.setAppliedAmount(money(applied.subtract(giveBack)));
+            credit.setBalanceAmount(money((credit.getBalanceAmount() != null ? credit.getBalanceAmount() : BigDecimal.ZERO).add(giveBack)));
+            credit.setStatus(UnitAdvanceCredit.CreditStatus.AVAILABLE);
+            advanceCreditRepository.save(credit);
+            toRefund = toRefund.subtract(giveBack);
+        }
+        log.info("Refunded advance credit {} from regenerated bill {} (unit {}).",
+                money(bill.getCreditApplied()), bill.getBillId(), unitId);
     }
 
     /**
@@ -1073,6 +1170,42 @@ public class MaintenanceBillService {
         return available != null ? available : BigDecimal.ZERO;
     }
 
+    /**
+     * Seed an OPENING advance credit for a unit — prepaid money an owner paid BEFORE go-live
+     * (the mirror of an opening balance, but a credit). It is stored as an AVAILABLE
+     * {@link UnitAdvanceCredit} with no source payment, so the next generated bill auto-applies
+     * it (and carries the remainder forward). Use for pre-system advances only; credits from
+     * in-system overpayments are created automatically by the payment flow.
+     */
+    @Transactional
+    public AdvanceCreditDTO createOpeningAdvanceCredit(Long unitId, BigDecimal amount,
+                                                       LocalDate receivedDate, String remarks,
+                                                       String enteredBy) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("Opening credit amount must be greater than zero");
+        }
+        Unit unit = unitRepository.findById(unitId)
+                .orElseThrow(() -> new ResourceNotFoundException("Unit", "unitId", unitId));
+
+        BigDecimal amt = money(amount);
+        UnitAdvanceCredit credit = UnitAdvanceCredit.builder()
+                .unit(unit)
+                .amount(amt)
+                .appliedAmount(BigDecimal.ZERO)
+                .balanceAmount(amt)
+                .receivedDate(receivedDate != null ? receivedDate : LocalDate.now())
+                .paymentMode("OPENING")
+                .payerName(unit.getOwnerNames())
+                .remarks("Opening advance credit (prepaid before go-live)"
+                        + (remarks != null && !remarks.isBlank() ? " - " + remarks : "")
+                        + " [entered by " + enteredBy + "]")
+                .status(UnitAdvanceCredit.CreditStatus.AVAILABLE)
+                .build();
+        credit = advanceCreditRepository.save(credit);
+        log.info("Opening advance credit {} seeded for unit {} by {}.", amt, unit.getUnitNumber(), enteredBy);
+        return mapToAdvanceCreditDTO(credit);
+    }
+
     private AdvanceCreditDTO mapToAdvanceCreditDTO(UnitAdvanceCredit c) {
         return AdvanceCreditDTO.builder()
                 .advanceCreditId(c.getAdvanceCreditId())
@@ -1151,6 +1284,7 @@ public class MaintenanceBillService {
         dto.setInterestArrears(bill.getInterestArrears());
         dto.setNewInterest(bill.getNewInterest());
         dto.setLastReceiptAmount(bill.getLastReceiptAmount());
+        dto.setCreditApplied(bill.getCreditApplied());
         dto.setAdjustment(bill.getAdjustment());
         dto.setLateFee(bill.getLateFee());
         dto.setTotalAmount(bill.getTotalAmount());

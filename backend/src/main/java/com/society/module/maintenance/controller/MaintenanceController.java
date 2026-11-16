@@ -161,6 +161,29 @@ public class MaintenanceController {
     }
 
     /**
+     * Seed an OPENING advance credit for a unit — money an owner prepaid BEFORE go-live.
+     * Stored as an available credit that the next generated bill auto-applies (and carries
+     * the remainder forward). For in-system overpayments the credit is created automatically.
+     */
+    @PostMapping("/advance-credit/opening")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_OPENING_BALANCE')")
+    public ResponseEntity<ApiResponse<com.society.module.maintenance.dto.AdvanceCreditDTO>> createOpeningCredit(
+            @RequestBody Map<String, Object> body,
+            org.springframework.security.core.Authentication authentication) {
+        Long unitId = Long.valueOf(body.get("unitId").toString());
+        BigDecimal amount = body.get("amount") != null
+                ? new BigDecimal(body.get("amount").toString()) : BigDecimal.ZERO;
+        java.time.LocalDate receivedDate = body.get("receivedDate") != null
+                ? java.time.LocalDate.parse(body.get("receivedDate").toString()) : null;
+        String remarks = body.get("remarks") != null ? body.get("remarks").toString() : null;
+
+        com.society.module.maintenance.dto.AdvanceCreditDTO result =
+                billService.createOpeningAdvanceCredit(unitId, amount, receivedDate, remarks,
+                        authentication.getName());
+        return ResponseEntity.ok(ApiResponse.success("Opening advance credit saved", result));
+    }
+
+    /**
      * Reverse (void) a recorded payment. Admin-only, mandatory reason, fully audited.
      */
     @PostMapping("/payments/{paymentId}/reverse")

@@ -97,6 +97,10 @@ import { BackButtonComponent } from '@shared/components/back-button';
                 <td colspan="2" class="text-right">Less: Adjustment</td>
                 <td class="amt-col">- {{ bill.adjustment | number:'1.2-2' }}</td>
               </tr>
+              <tr *ngIf="bill.creditApplied > 0" class="paid-row">
+                <td colspan="2" class="text-right">Less: Advance Credit Applied</td>
+                <td class="amt-col">- {{ bill.creditApplied | number:'1.2-2' }}</td>
+              </tr>
               <tr class="total-row">
                 <td colspan="2" class="text-right"><strong>Gross Total</strong></td>
                 <td class="amt-col"><strong>{{ bill.totalAmount | number:'1.2-2' }}</strong></td>

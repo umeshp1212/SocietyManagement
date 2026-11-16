@@ -102,6 +102,15 @@ public class MaintenanceBill extends BaseEntity {
     private BigDecimal newInterest = BigDecimal.ZERO;
 
     /**
+     * "Less: Advance Credit Applied" — prepaid/overpaid money (from {@code unit_advance_credits})
+     * automatically applied to this bill at generation, reducing the payable. The remaining
+     * credit carries forward to the next bill. Subtracted from the total like an adjustment.
+     */
+    @Column(name = "credit_applied", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal creditApplied = BigDecimal.ZERO;
+
+    /**
      * "Less: Receipt" — the amount received against the PREVIOUS month's bill, shown on this
      * bill so the member sees their last payment deducted. Used to present "Previous Balance"
      * gross (before the receipt) and then subtract it, matching the accountant's layout.

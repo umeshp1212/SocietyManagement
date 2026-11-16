@@ -37,6 +37,9 @@ public class BillDTO {
     // "Less: Receipt" — amount received against the previous month's bill
     private BigDecimal lastReceiptAmount;
 
+    // "Less: Advance Credit Applied" — prepaid credit auto-applied to this bill
+    private BigDecimal creditApplied;
+
     // "Less: Adjustment" — manual credit/waiver applied to this bill
     private BigDecimal adjustment;
 

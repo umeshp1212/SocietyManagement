@@ -30,6 +30,9 @@ import { AuthService } from '@core/services/auth.service';
           <a mat-button routerLink="/maintenance/opening-balances">
             <mat-icon>account_balance_wallet</mat-icon> Opening Balances
           </a>
+          <a mat-button routerLink="/maintenance/opening-credits">
+            <mat-icon>savings</mat-icon> Opening Credits
+          </a>
           <a mat-button routerLink="/maintenance/suspense">
             <mat-icon>help_outline</mat-icon> Suspense
           </a>
