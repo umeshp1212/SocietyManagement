@@ -136,7 +136,7 @@ public class CollectionRegisterExcelService {
                                     String monthLabel, List<MaintenanceBill> bills) {
         Sheet sheet = wb.createSheet("Register Bill");
         String[] headers = {
-                "Bill No", "Name of Owner", "Service Charges", "Sinking Fund", "Water Charges",
+                "Bill No", "Name of Owner", "Service Charges", "Sinking Fund", "Repair Fund", "Water Charges",
                 "Interest on Arrears", "Non-Occupancy Charges", "Welfare Fund",
                 "2 Wheeler Parking", "4 Wheeler Parking", "Penalty - Littering", "Penalty - Wrong Parking",
                 "Opening Amount", "Received Amount", "Balance Amount", "Total Maintenance", "Total Amount"
@@ -149,6 +149,7 @@ public class CollectionRegisterExcelService {
 
             BigDecimal service = lineAmount(items, "SERVICE", "MAINTENANCE");
             BigDecimal sinking = lineAmount(items, "SINKING_FUND");
+            BigDecimal repair = lineAmount(items, "REPAIR_FUND");
             BigDecimal water = lineAmount(items, "WATER_CHARGES");
             BigDecimal noc = lineAmount(items, "NOC_CHARGES");
             BigDecimal welfare = lineAmount(items, "WELFARE_FUND");
@@ -178,6 +179,7 @@ public class CollectionRegisterExcelService {
             textCell(r, c++, s, memberName(b));
             amountCell(r, c++, s, service);
             amountCell(r, c++, s, sinking);
+            amountCell(r, c++, s, repair);
             amountCell(r, c++, s, water);
             amountCell(r, c++, s, interest);
             amountCell(r, c++, s, noc);
