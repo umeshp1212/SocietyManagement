@@ -157,6 +157,19 @@ export class MaintenanceService {
       });
   }
 
+  /** Manager's monthly Collection Sheet + Register Bill as a single Excel download. */
+  downloadCollectionRegister(month: number, year: number): void {
+    this.http.get(`${this.apiUrl}/reports/collection-register?month=${month}&year=${year}`, { responseType: 'blob' })
+      .subscribe(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Collection_Register_${year}_${String(month).padStart(2, '0')}.xlsx`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+      });
+  }
+
   // ======================== PENALTIES ========================
 
   addPenalty(penalty: any): Observable<ApiResponse<any>> {

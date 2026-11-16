@@ -35,6 +35,7 @@ public class MaintenanceController {
     private final CashfreeService cashfreeService;
     private final MaintenanceBillRepository billRepository;
     private final com.society.module.maintenance.service.PaymentReminderService paymentReminderService;
+    private final com.society.module.maintenance.service.CollectionRegisterExcelService collectionRegisterExcelService;
 
     // ======================== BILL MANAGEMENT ========================
 
@@ -150,6 +151,22 @@ public class MaintenanceController {
     }
 
     // ======================== ADVANCE CREDIT ========================
+
+    /**
+     * Manager's monthly Collection Sheet + Register Bill as a single Excel (.xlsx) download,
+     * so the sheet handed to the accountant is produced from system data (no manual filling).
+     */
+    @GetMapping("/reports/collection-register")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('MAINTENANCE_VIEW')")
+    public ResponseEntity<byte[]> downloadCollectionRegister(
+            @RequestParam int month, @RequestParam int year) throws IOException {
+        byte[] bytes = collectionRegisterExcelService.generate(year, month);
+        String filename = String.format("Collection_Register_%04d_%02d.xlsx", year, month);
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition", "attachment; filename=" + filename)
+                .body(bytes);
+    }
 
     /** Advance credit (prepaid/overpaid money) held for a unit. */
     @GetMapping("/advance-credit/unit/{unitId}")

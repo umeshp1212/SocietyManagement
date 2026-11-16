@@ -43,6 +43,9 @@ import { AuthService } from '@core/services/auth.service';
           <button mat-raised-button color="accent" (click)="downloadAllPdf()">
             <mat-icon>download</mat-icon> Download All Bills PDF
           </button>
+          <button mat-raised-button color="accent" (click)="downloadCollectionRegister()">
+            <mat-icon>table_view</mat-icon> Collection + Register (Excel)
+          </button>
           <a mat-raised-button color="primary" routerLink="/maintenance/generate"
              *ngIf="hasPermission('MAINTENANCE_CREATE')">
             <mat-icon>add</mat-icon> Generate Bills
@@ -288,6 +291,10 @@ export class BillListComponent implements OnInit {
 
   downloadAllPdf(): void {
     this.maintenanceService.downloadBulkBillsPdf(this.selectedMonth, this.selectedYear);
+  }
+
+  downloadCollectionRegister(): void {
+    this.maintenanceService.downloadCollectionRegister(this.selectedMonth, this.selectedYear);
   }
 
   hasPermission(permission: string): boolean { return this.authService.hasPermission(permission); }
