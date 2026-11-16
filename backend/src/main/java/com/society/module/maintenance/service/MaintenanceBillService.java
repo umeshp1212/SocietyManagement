@@ -625,9 +625,18 @@ public class MaintenanceBillService {
 
     public BigDecimal getTotalOutstanding(Long unitId) {
         BigDecimal billOutstanding = billRepository.getTotalOutstandingByUnit(unitId);
-        BigDecimal openingBalance = openingBalanceRepository.getTotalOpeningBalanceByUnit(unitId);
-        BigDecimal total = (billOutstanding != null ? billOutstanding : BigDecimal.ZERO)
-                .add(openingBalance != null ? openingBalance : BigDecimal.ZERO);
+        BigDecimal total = (billOutstanding != null ? billOutstanding : BigDecimal.ZERO);
+
+        // The opening balance (pre-go-live arrears) is FOLDED INTO each generated bill's
+        // arrears by calculateArrearsSplit, so it is already reflected in the bills'
+        // balance_amount above. Only add it separately when the unit has NO bills yet
+        // (otherwise it would be double-counted — and any adjustment that cleared the arrears
+        // on the bill would be undone in this total). See D-1404: bill payable 2595, but the
+        // old code reported 2595 + 37995 = 40590.
+        if (!billRepository.existsByUnit_UnitId(unitId)) {
+            BigDecimal openingBalance = openingBalanceRepository.getTotalOpeningBalanceByUnit(unitId);
+            total = total.add(openingBalance != null ? openingBalance : BigDecimal.ZERO);
+        }
         return total;
     }
 
