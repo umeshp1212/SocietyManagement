@@ -43,6 +43,14 @@ export class TransactionService {
       .pipe(map(response => response.data));
   }
 
+  /** Download the Cashfree settlement Excel report for settlements between two dates. */
+  downloadReport(startDate: string, endDate: string): Observable<Blob> {
+    const params = new HttpParams()
+      .set('startDate', startDate)
+      .set('endDate', endDate);
+    return this.http.get(`${this.apiUrl}/export`, { params, responseType: 'blob' });
+  }
+
   /** Fetch the detail view for a single transaction by its payment id. */
   getTransaction(id: number): Observable<TransactionDetail> {
     return this.http

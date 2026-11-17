@@ -1,5 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
@@ -48,6 +49,7 @@ import {
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     MatTableModule,
     MatPaginatorModule,
     MatCardModule,
@@ -67,6 +69,20 @@ import {
         [isAdmin]="isAdmin"
         (filterChange)="onFilterChange($event)">
       </app-transaction-filter-panel>
+
+      <!-- Excel report for accountant -->
+      <mat-card class="report-card" *ngIf="isAdmin">
+        <div class="report-row">
+          <strong>Cashfree settlement report (Excel)</strong>
+          <label>Settled from <input type="date" [(ngModel)]="reportStart" /></label>
+          <label>to <input type="date" [(ngModel)]="reportEnd" /></label>
+          <button type="button" class="report-btn" (click)="downloadReport()"
+                  [disabled]="reportLoading || !reportStart || !reportEnd">
+            {{ reportLoading ? 'Preparing...' : 'Download' }}
+          </button>
+        </div>
+        <div class="error-banner" *ngIf="reportError" role="alert">{{ reportError }}</div>
+      </mat-card>
 
       <mat-card class="table-card">
         <!-- Loading indicator -->
@@ -171,6 +187,10 @@ import {
   styles: [`
     .transaction-page { padding: 16px; }
     .page-title { margin: 0 0 16px; font-size: 1.5rem; }
+    .report-card { padding: 12px 16px; margin-bottom: 16px; }
+    .report-row { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+    .report-row label { display: flex; align-items: center; gap: 6px; }
+    .report-btn { padding: 6px 16px; cursor: pointer; }
     .table-card { padding: 0; overflow: hidden; }
     .table-container { position: relative; overflow-x: auto; }
     .transaction-table { width: 100%; }
@@ -213,6 +233,12 @@ export class TransactionListComponent implements OnInit {
 
   loading = false;
   errorMessage: string | null = null;
+
+  // Excel report state.
+  reportStart = '';
+  reportEnd = '';
+  reportLoading = false;
+  reportError: string | null = null;
 
   // Pagination state.
   pageIndex = 0;
@@ -257,6 +283,39 @@ export class TransactionListComponent implements OnInit {
     this.pageIndex = event.pageIndex;
     this.pageSize = event.pageSize;
     this.load();
+  }
+
+  /** Download the Excel payment report for the chosen dates/channel. */
+  downloadReport(): void {
+    this.reportError = null;
+    if (this.reportStart > this.reportEnd) {
+      this.reportError = 'Start date is after end date.';
+      return;
+    }
+    this.reportLoading = true;
+    this.transactionService.downloadReport(this.reportStart, this.reportEnd).subscribe({
+      next: blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Cashfree_Settlement_Report_${this.reportStart}_to_${this.reportEnd}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        this.reportLoading = false;
+      },
+      error: (err: unknown) => {
+        this.reportLoading = false;
+        this.reportError = 'Report could not be generated.';
+        if (err instanceof HttpErrorResponse && err.error instanceof Blob) {
+          err.error.text().then(t => {
+            try {
+              const msg = JSON.parse(t)?.message;
+              if (msg) { this.reportError = msg; }
+            } catch { /* keep default */ }
+          });
+        }
+      },
+    });
   }
 
   /** Open the detail dialog for the clicked row (Req 8). */

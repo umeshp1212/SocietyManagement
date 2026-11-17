@@ -39,6 +39,7 @@ import java.util.List;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final com.society.module.transaction.service.TransactionExportService transactionExportService;
 
     /**
      * Returns a paginated, filtered, access-scoped list of transactions.
@@ -76,6 +77,24 @@ public class TransactionController {
         PagedResponse<TransactionSummaryDTO> result =
                 transactionService.listTransactions(filter, page, size, authentication);
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    /**
+     * Cashfree settlement report (Excel) for settlements dated between the two dates:
+     * one row per settlement cycle with amount and units involved, plus payment-level detail.
+     */
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TRANSACTION_VIEW')")
+    public ResponseEntity<byte[]> export(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            Authentication authentication) throws java.io.IOException {
+        byte[] bytes = transactionExportService.generate(startDate, endDate, authentication);
+        String filename = "Cashfree_Settlement_Report_" + startDate + "_to_" + endDate + ".xlsx";
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition", "attachment; filename=" + filename)
+                .body(bytes);
     }
 
     /**

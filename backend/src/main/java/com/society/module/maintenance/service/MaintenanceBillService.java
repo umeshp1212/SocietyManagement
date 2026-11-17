@@ -568,9 +568,19 @@ public class MaintenanceBillService {
             principal = principal.add(money(principalShare));
         }
 
-        // Add opening balance (legacy pre-go-live arrears), split into principal + interest.
-        principal = principal.add(money(openingBalanceService.getOutstandingPrincipalForUnit(unitId)));
-        interest = interest.add(money(openingBalanceService.getOutstandingInterestForUnit(unitId)));
+        // Add opening balance (legacy pre-go-live arrears), split into principal + interest —
+        // but ONLY until an earlier bill has absorbed it. The first generated bill folds the
+        // opening balance into its arrears, so from then on it lives in that bill's balance
+        // (and is reduced when the bill is paid). The opening_balances row itself is never
+        // decremented by bill payments, so adding it again here would charge the same legacy
+        // dues a second time on every later bill.
+        boolean openingAlreadyInBills = billRepository
+                .findByUnit_UnitIdOrderByBillYearDescBillMonthDesc(unitId).stream()
+                .anyMatch(b -> isBillBeforeMonth(b, currentMonth, currentYear));
+        if (!openingAlreadyInBills) {
+            principal = principal.add(money(openingBalanceService.getOutstandingPrincipalForUnit(unitId)));
+            interest = interest.add(money(openingBalanceService.getOutstandingInterestForUnit(unitId)));
+        }
 
         return new ArrearsSplit(money(principal), money(interest));
     }

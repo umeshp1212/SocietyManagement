@@ -87,6 +87,21 @@ public class TransactionSpecificationBuilder {
                         cb.like(cb.lower(root.get("transactionId")), like)));
             }
 
+            // --- Channel: ONLINE = carries a gateway reference; OFFLINE = none ---
+            if (StringUtils.hasText(filter.getChannel())) {
+                String ch = filter.getChannel().trim().toUpperCase();
+                Predicate online = cb.or(
+                        cb.isNotNull(root.get("cashfreeOrderId")),
+                        cb.isNotNull(root.get("cashfreePaymentId")),
+                        cb.isNotNull(root.get("razorpayPaymentId")),
+                        cb.isNotNull(root.get("razorpayOrderId")));
+                if ("ONLINE".equals(ch)) {
+                    predicates.add(online);
+                } else if ("OFFLINE".equals(ch)) {
+                    predicates.add(cb.not(online));
+                }
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }

@@ -115,6 +115,37 @@ public class TransactionService {
                 .build();
     }
 
+    /** Maximum rows allowed in one Excel export. */
+    private static final int MAX_EXPORT_ROWS = 50_000;
+
+    /**
+     * Returns every payment matching the filter (unpaged) for the Excel report,
+     * oldest first. Both dates are mandatory. When no status is given only
+     * realised payments (SUCCESS, VERIFIED) are included.
+     */
+    public List<MaintenancePayment> findForExport(TransactionFilterRequest filter, Authentication auth) {
+        if (filter.getStartDate() == null || filter.getEndDate() == null) {
+            throw new BusinessException("Both start date and end date are required for the report");
+        }
+        AccessScope scope = accessScopeResolver.resolve(auth);
+        validateFilter(filter);
+        if (filter.getChannel() != null && StringUtils.hasText(filter.getChannel())
+                && !Set.of("ALL", "ONLINE", "OFFLINE").contains(filter.getChannel().trim().toUpperCase())) {
+            throw new BusinessException("Invalid channel: '" + filter.getChannel() + "'");
+        }
+        if (filter.getStatuses() == null || filter.getStatuses().isEmpty()) {
+            filter.setStatuses(List.of(MaintenancePayment.PaymentStatus.SUCCESS,
+                    MaintenancePayment.PaymentStatus.VERIFIED));
+        }
+        Specification<MaintenancePayment> spec = specificationBuilder.build(scope, filter);
+        if (paymentRepository.count(spec) > MAX_EXPORT_ROWS) {
+            throw new BusinessException("Too many transactions for one report (limit "
+                    + MAX_EXPORT_ROWS + "). Please narrow the date range.");
+        }
+        return paymentRepository.findAll(spec,
+                Sort.by(Sort.Order.asc("paymentDate"), Sort.Order.asc("paymentId")));
+    }
+
     /**
      * Returns the full detail of a single transaction, enforcing access scope
      * (Subtask 7.2).

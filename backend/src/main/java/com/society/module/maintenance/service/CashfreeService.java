@@ -583,6 +583,61 @@ public class CashfreeService {
         return receiptNumberService.next();
     }
 
+    /**
+     * Fetches settlement reconciliation rows from Cashfree (POST /pg/settlement/recon) for
+     * settlements dated between the two dates. Each row ties a payment (order_id /
+     * cf_payment_id) to a settlement (settlement_utr / settlement_date). Follows the cursor
+     * until exhausted. Fails closed with a BusinessException when the gateway is not configured
+     * or the call fails, so the accountant never receives a silently incomplete report.
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> fetchSettlementRecon(java.time.LocalDate start, java.time.LocalDate end) {
+        if (cashfreeAppId == null || cashfreeAppId.isBlank()) {
+            throw new BusinessException("Cashfree is not configured, so settlement data cannot be fetched.");
+        }
+        List<Map<String, Object>> all = new ArrayList<>();
+        String cursor = null;
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String url = getBaseApiUrl() + "/settlement/recon";
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("x-client-id", cashfreeAppId);
+            headers.set("x-client-secret", cashfreeSecretKey);
+            headers.set("x-api-version", apiVersion);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            for (int page = 0; page < 200; page++) {
+                Map<String, Object> pagination = new LinkedHashMap<>();
+                pagination.put("limit", 1000);
+                if (cursor != null) pagination.put("cursor", cursor);
+                Map<String, Object> filters = new LinkedHashMap<>();
+                filters.put("start_date", start + "T00:00:00Z");
+                filters.put("end_date", end + "T23:59:59Z");
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("pagination", pagination);
+                body.put("filters", filters);
+
+                ResponseEntity<Map> response = restTemplate.exchange(
+                        url, HttpMethod.POST, new HttpEntity<>(body, headers), Map.class);
+                Map<String, Object> resp = response.getBody();
+                if (resp == null) break;
+                Object data = resp.get("data");
+                if (data instanceof List<?> rows) {
+                    for (Object r : rows) {
+                        if (r instanceof Map<?, ?> m) all.add((Map<String, Object>) m);
+                    }
+                }
+                Object next = resp.get("cursor");
+                if (next == null || String.valueOf(next).isBlank() || !(data instanceof List<?> l && !l.isEmpty())) break;
+                cursor = String.valueOf(next);
+            }
+            return all;
+        } catch (Exception e) {
+            log.error("Cashfree settlement recon failed: {}", e.getMessage(), e);
+            throw new BusinessException("Could not fetch settlement details from Cashfree: " + e.getMessage());
+        }
+    }
+
     public Map<String, Object> getPaymentStatus(String orderId) {
         if (cashfreeAppId == null || cashfreeAppId.isBlank()) {
             if (isProdProfile()) {

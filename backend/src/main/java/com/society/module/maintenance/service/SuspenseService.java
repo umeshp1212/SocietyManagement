@@ -4,8 +4,16 @@ import com.society.common.PagedResponse;
 import com.society.enums.PaymentMode;
 import com.society.exception.BusinessException;
 import com.society.exception.ResourceNotFoundException;
+import com.society.module.maintenance.dto.PaymentDTO;
+import com.society.module.maintenance.dto.RecordOfflinePaymentRequest;
 import com.society.module.maintenance.dto.SuspenseAuditDTO;
 import com.society.module.maintenance.dto.SuspenseEntryDTO;
+import com.society.module.maintenance.entity.MaintenanceBill;
+import com.society.module.maintenance.entity.MaintenancePayment;
+import com.society.module.maintenance.entity.UnitAdvanceCredit;
+import com.society.module.maintenance.repository.MaintenanceBillRepository;
+import com.society.module.maintenance.repository.UnitAdvanceCreditRepository;
+import com.society.module.settings.service.SocietySettingsService;
 import com.society.module.maintenance.entity.SuspenseAuditTrail;
 import com.society.module.maintenance.entity.SuspenseAuditTrail.SuspenseAction;
 import com.society.module.maintenance.entity.SuspenseEntry;
@@ -16,6 +24,8 @@ import com.society.module.owner.entity.Unit;
 import com.society.module.owner.repository.UnitRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -23,8 +33,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +53,14 @@ public class SuspenseService {
     private final SuspenseAuditTrailRepository auditTrailRepository;
     private final UnitRepository unitRepository;
     private final OpeningBalanceService openingBalanceService;
+    private final MaintenanceBillRepository billRepository;
+    private final UnitAdvanceCreditRepository advanceCreditRepository;
+    private final SocietySettingsService societySettingsService;
+
+    /** Lazy to avoid a startup dependency cycle with the bill/payment services. */
+    @Autowired
+    @Lazy
+    private MaintenanceBillService billService;
 
     // ==================== CREATE ====================
 
@@ -94,18 +116,162 @@ public class SuspenseService {
 
         entry = suspenseEntryRepository.save(entry);
 
-        // If applying to opening balance, reduce the unit's legacy arrears
-        if (applyToOpeningBalance) {
+        String outcome = "";
+        if (billRepository.existsByUnit_UnitId(unitId)) {
+            // The unit already has bills (its opening balance is folded into them), so the money
+            // must reduce what the owner owes ON THE BILLS: record it as a real payment, dated
+            // when the money was actually received. Also refund the interest that kept accruing
+            // because the payment was sitting in suspense.
+            entry.setApplyToOpeningBalance(false);
+            outcome = applyToBills(entry, unit);
+            entry = suspenseEntryRepository.save(entry);
+        } else if (applyToOpeningBalance) {
+            // No bills yet: reduce the unit's legacy arrears (opening balance) as before.
             openingBalanceService.recordPaymentAgainstOpeningBalance(unitId, entry.getAmount());
             log.info("Suspense {} applied to opening balance of unit {}", suspenseId, unit.getUnitNumber());
         }
 
         // Audit trail
-        createAudit(entry, SuspenseAction.ASSIGNED, unitId, unit.getUnitNumber(), assignedBy,
-                remarks != null ? remarks : "Assigned to " + unit.getUnitNumber());
+        String auditText = (remarks != null ? remarks : "Assigned to " + unit.getUnitNumber()) + outcome;
+        createAudit(entry, SuspenseAction.ASSIGNED, unitId, unit.getUnitNumber(), assignedBy, auditText);
 
         log.info("Suspense entry {} assigned to unit {}", suspenseId, unit.getUnitNumber());
         return mapToDTO(entry);
+    }
+
+    /**
+     * Apply an assigned suspense entry to the unit's bills as real payment(s), oldest bill
+     * first (any leftover beyond the dues becomes advance credit via the normal payment flow),
+     * then create the interest-refund credit. Returns a short text for the audit trail.
+     */
+    private String applyToBills(SuspenseEntry entry, Unit unit) {
+        Long unitId = unit.getUnitId();
+        List<MaintenanceBill> allBills = billRepository.findByUnit_UnitIdOrderByBillYearDescBillMonthDesc(unitId);
+        List<MaintenanceBill> targets = new ArrayList<>(billRepository.findOutstandingByUnit(unitId));
+        if (targets.isEmpty()) {
+            // Everything is already paid: record against the latest bill; the whole amount
+            // then becomes advance credit for the unit's next bill.
+            targets.add(allBills.get(0));
+        }
+
+        // Interest refund is based on the latest bill's carried principal, computed before payments.
+        BigDecimal refund = computeInterestRefund(entry, allBills);
+
+        String mode = toBillPaymentMode(entry);
+        BigDecimal remaining = entry.getAmount();
+        List<Long> paymentIds = new ArrayList<>();
+        for (int i = 0; i < targets.size() && remaining.compareTo(BigDecimal.ZERO) > 0; i++) {
+            MaintenanceBill bill = targets.get(i);
+            boolean last = i == targets.size() - 1;
+            BigDecimal balance = bill.getBalanceAmount() != null ? bill.getBalanceAmount() : BigDecimal.ZERO;
+            BigDecimal pay = last ? remaining : remaining.min(balance);
+            if (pay.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            RecordOfflinePaymentRequest req = RecordOfflinePaymentRequest.builder()
+                    .billId(bill.getBillId())
+                    .amount(pay)
+                    .paymentDate(entry.getReceivedDate())
+                    .paymentMode(mode)
+                    .transactionId(entry.getReferenceNumber())
+                    .payerName(unit.getOwnerNames())
+                    .payerType("OWNER")
+                    .remarks("Assigned from suspense entry #" + entry.getSuspenseId()
+                            + " (money received " + entry.getReceivedDate() + ")")
+                    .build();
+            PaymentDTO paid = billService.recordOfflinePayment(req);
+            paymentIds.add(paid.getPaymentId());
+            remaining = remaining.subtract(pay);
+        }
+        entry.setAppliedPaymentIds(paymentIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
+
+        String text = " | Recorded " + paymentIds.size() + " payment(s) of " + entry.getAmount() + " on bills";
+        if (refund.compareTo(BigDecimal.ZERO) > 0) {
+            UnitAdvanceCredit credit = UnitAdvanceCredit.builder()
+                    .unit(unit)
+                    .amount(refund)
+                    .appliedAmount(BigDecimal.ZERO)
+                    .balanceAmount(refund)
+                    .receivedDate(LocalDate.now())
+                    .paymentMode("INTEREST_REFUND")
+                    .payerName(unit.getOwnerNames())
+                    .remarks("Interest refund: " + entry.getAmount() + " was received on " + entry.getReceivedDate()
+                            + " but sat in suspense (entry #" + entry.getSuspenseId() + ")")
+                    .status(UnitAdvanceCredit.CreditStatus.AVAILABLE)
+                    .build();
+            credit = advanceCreditRepository.save(credit);
+            entry.setInterestRefundCreditId(credit.getAdvanceCreditId());
+            entry.setInterestRefundAmount(refund);
+            text += " | Interest refund credit " + refund + " (applies to the next bill)";
+        }
+        return text;
+    }
+
+    /**
+     * Interest charged because the money sat in suspense: for every month after the month the
+     * money was received, up to the latest generated bill, the monthly interest on the amount
+     * (capped at the principal that interest was actually charged on).
+     */
+    private BigDecimal computeInterestRefund(SuspenseEntry entry, List<MaintenanceBill> billsNewestFirst) {
+        BigDecimal rate = societySettingsService.getSettings().getInterestRatePercent();
+        if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0 || billsNewestFirst.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        MaintenanceBill latest = billsNewestFirst.get(0);
+        long months = ChronoUnit.MONTHS.between(
+                YearMonth.from(entry.getReceivedDate()),
+                YearMonth.of(latest.getBillYear(), latest.getBillMonth()));
+        if (months <= 0) return BigDecimal.ZERO;
+
+        BigDecimal principal = latest.getPrincipalArrears() != null ? latest.getPrincipalArrears() : BigDecimal.ZERO;
+        BigDecimal base = entry.getAmount().min(principal);
+        if (base.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
+
+        BigDecimal monthly = base.multiply(rate)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                .setScale(0, RoundingMode.HALF_UP);
+        return monthly.multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /** Map the suspense payment mode to a valid bill payment mode (ONLINE/unknown -> bank transfer). */
+    private String toBillPaymentMode(SuspenseEntry entry) {
+        if (entry.getPaymentMode() != null) {
+            try {
+                return MaintenancePayment.PaymentMode.valueOf(entry.getPaymentMode().name()).name();
+            } catch (IllegalArgumentException ignored) {
+                // fall through
+            }
+        }
+        return MaintenancePayment.PaymentMode.BANK_TRANSFER.name();
+    }
+
+    /** Undo what applyToBills did: reverse the payments and void the unused interest-refund credit. */
+    private void undoBillApplication(SuspenseEntry entry, String reason) {
+        String ids = entry.getAppliedPaymentIds();
+        if (ids == null || ids.isBlank()) {
+            return;
+        }
+        UnitAdvanceCredit refundCredit = entry.getInterestRefundCreditId() != null
+                ? advanceCreditRepository.findById(entry.getInterestRefundCreditId()).orElse(null) : null;
+        if (refundCredit != null && refundCredit.getAppliedAmount() != null
+                && refundCredit.getAppliedAmount().compareTo(BigDecimal.ZERO) > 0) {
+            throw new BusinessException("The interest refund from this assignment has already been applied "
+                    + "to a bill, so it can't be reversed automatically. Adjust that bill first.");
+        }
+        for (String id : ids.split(",")) {
+            if (!id.isBlank()) {
+                billService.reversePayment(Long.valueOf(id.trim()), "Suspense assignment reversed: " + reason);
+            }
+        }
+        if (refundCredit != null) {
+            refundCredit.setStatus(UnitAdvanceCredit.CreditStatus.REVERSED);
+            refundCredit.setBalanceAmount(BigDecimal.ZERO);
+            refundCredit.setRemarks((refundCredit.getRemarks() != null ? refundCredit.getRemarks() + " " : "")
+                    + "[Voided: suspense assignment reversed]");
+            advanceCreditRepository.save(refundCredit);
+        }
+        entry.setAppliedPaymentIds(null);
+        entry.setInterestRefundCreditId(null);
+        entry.setInterestRefundAmount(null);
     }
 
     // ==================== REVERSE ====================
@@ -131,6 +297,9 @@ public class SuspenseService {
             openingBalanceService.reversePaymentFromOpeningBalance(previousUnitId, entry.getAmount());
             log.info("Reversed opening balance payment for unit {} amount {}", previousUnitNumber, entry.getAmount());
         }
+
+        // If it was applied to bills as real payments, undo those and the interest refund.
+        undoBillApplication(entry, reason);
 
         entry.setStatus(SuspenseStatus.REVERSED);
         entry.setAssignedToUnit(null);

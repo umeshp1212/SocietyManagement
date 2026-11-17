@@ -28,4 +28,7 @@ public class TransactionFilterRequest {
     private String unitSearch;
 
     private String reference;
+
+    /** ALL (default), ONLINE (gateway payments) or OFFLINE (manually recorded). */
+    private String channel;
 }

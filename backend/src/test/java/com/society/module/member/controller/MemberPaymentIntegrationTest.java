@@ -233,27 +233,28 @@ class MemberPaymentIntegrationTest {
     // ------------------------------------------------------------------
 
     @Test
-    @DisplayName("Re-verifying the same Cashfree order is rejected as already recorded")
-    void verify_duplicateOrder_isRejected() throws Exception {
+    @DisplayName("Re-verifying the same Cashfree order succeeds but does not record a second payment")
+    void verify_duplicateOrder_isIdempotent() throws Exception {
         persistBill(5, new BigDecimal("5000.00"));
         String body = cashfreeBody("ORDER-DUP", new BigDecimal("2000.00"));
 
-        // First call succeeds.
+        // First call records the payment.
         mockMvc.perform(post(VERIFY_PATH)
                         .header("Authorization", "Bearer " + memberToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk());
 
-        // Second call with the same order id is rejected (BusinessException -> HTTP 400).
+        // Second call with the same order id (e.g. the webhook already recorded it, then the
+        // browser verifies) must show SUCCESS to the member, not a "payment failed" error.
         mockMvc.perform(post(VERIFY_PATH)
                         .header("Authorization", "Bearer " + memberToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.message", containsString("already been recorded")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
 
+        // ...and money is never double-counted.
         assertThat(paymentRepository.count()).isEqualTo(1);
     }
 

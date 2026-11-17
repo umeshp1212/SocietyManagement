@@ -105,11 +105,16 @@ public class OwnerEmailServiceImpl implements OwnerEmailService {
 
         EmailJob job = emailJobStore.create(prepared.recipients.size());
         job.setPrepared(prepared);
+        // Snapshot the "accepted" response BEFORE dispatching. The background send mutates the
+        // job (PENDING -> IN_PROGRESS -> COMPLETED) on another thread; if we built the DTO after
+        // dispatch, a fast send (e.g. nothing to send / no mail configured) could win the race and
+        // the caller would intermittently be told the job was already COMPLETED instead of PENDING.
+        EmailJobDTO accepted = job.toDto();
         // Dispatch the SMTP loop to the background executor. The self-injected proxy
         // reference ensures the @Async advice is applied (a direct this.* call would not).
         // Only the job id crosses the call so no package-private type touches the interface.
         self.runSendLoopAsync(job.getJobId());
-        return job.toDto();
+        return accepted;
     }
 
     @Override

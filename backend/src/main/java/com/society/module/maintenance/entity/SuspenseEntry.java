@@ -65,6 +65,21 @@ public class SuspenseEntry extends BaseEntity {
     @Builder.Default
     private Boolean applyToOpeningBalance = false;
 
+    /**
+     * IDs of the maintenance payments created when this entry was assigned to a unit that
+     * already has bills (comma-separated). Used to reverse the assignment cleanly.
+     */
+    @Column(name = "applied_payment_ids", length = 500)
+    private String appliedPaymentIds;
+
+    /** Advance credit created to refund interest charged after the money was actually received. */
+    @Column(name = "interest_refund_credit_id")
+    private Long interestRefundCreditId;
+
+    /** Amount of that interest refund (0/null if none). */
+    @Column(name = "interest_refund_amount", precision = 12, scale = 2)
+    private BigDecimal interestRefundAmount;
+
     // Audit trail
     @OneToMany(mappedBy = "suspenseEntry", cascade = CascadeType.ALL)
     @Builder.Default
