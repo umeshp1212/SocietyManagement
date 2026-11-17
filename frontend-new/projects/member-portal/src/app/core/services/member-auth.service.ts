@@ -32,6 +32,7 @@ export interface MemberDashboard {
   totalOutstanding: number;
   outstandingBillCount: number;
   totalPaid: number;
+  availableAdvanceCredit?: number;
   outstandingBills: any[];
   recentPayments: any[];
   discountEnabled: boolean;

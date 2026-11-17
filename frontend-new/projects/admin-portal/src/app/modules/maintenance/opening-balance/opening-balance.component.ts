@@ -31,6 +31,7 @@ interface OpeningBalance {
   enteredBy: string;
   paidAmount: number;
   balanceAmount: number;
+  currentOutstanding: number;
   createdOn: string;
 }
 
@@ -182,6 +183,12 @@ interface UnitOption {
                 <span [class.text-warn]="b.balanceAmount > 0">{{ b.balanceAmount | currency:'INR' }}</span>
               </td>
             </ng-container>
+            <ng-container matColumnDef="currentOutstanding">
+              <th mat-header-cell *matHeaderCellDef>Current Outstanding</th>
+              <td mat-cell *matCellDef="let b">
+                <span [class.text-warn]="b.currentOutstanding > 0">{{ b.currentOutstanding | currency:'INR' }}</span>
+              </td>
+            </ng-container>
             <ng-container matColumnDef="asOfDate">
               <th mat-header-cell *matHeaderCellDef>As of Date</th>
               <td mat-cell *matCellDef="let b">{{ b.asOfDate }}</td>
@@ -243,7 +250,7 @@ export class OpeningBalanceComponent implements OnInit {
   summary: any = null;
   showAddForm = false;
   editingId: number | null = null;
-  displayedColumns = ['unitNumber', 'ownerName', 'principalArrears', 'interestArrears', 'amount', 'paidAmount', 'balanceAmount', 'asOfDate', 'remarks', 'actions'];
+  displayedColumns = ['unitNumber', 'ownerName', 'principalArrears', 'interestArrears', 'amount', 'paidAmount', 'balanceAmount', 'currentOutstanding', 'asOfDate', 'remarks', 'actions'];
 
   formData = {
     unitId: null as number | null,

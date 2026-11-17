@@ -121,6 +121,15 @@ import { FcmService } from '@core/services/fcm.service';
             </div>
           </mat-card>
 
+          <mat-card class="summary-card credit" *ngIf="(dashboard.availableAdvanceCredit || 0) > 0">
+            <mat-icon>savings</mat-icon>
+            <div class="card-content">
+              <span class="card-label">Advance Credit</span>
+              <span class="card-value">{{ dashboard.availableAdvanceCredit | currency:'INR':'symbol':'1.0-0' }}</span>
+              <span class="card-sub">Applied automatically to your next bill</span>
+            </div>
+          </mat-card>
+
           <mat-card class="summary-card action" *ngIf="dashboard.totalOutstanding > 0">
             <mat-icon>payment</mat-icon>
             <div class="card-content">
@@ -409,6 +418,8 @@ import { FcmService } from '@core/services/fcm.service';
     .summary-card mat-icon { font-size: 36px; height: 36px; width: 36px; }
     .summary-card.outstanding { border-color: #e65100; }
     .summary-card.outstanding mat-icon { color: #e65100; }
+    .summary-card.credit { border-color: #1976d2; }
+    .summary-card.credit mat-icon { color: #1976d2; }
     .summary-card.paid { border-color: #2e7d32; }
     .summary-card.paid mat-icon { color: #2e7d32; }
     .summary-card.action { border-color: #1565c0; }

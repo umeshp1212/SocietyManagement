@@ -31,6 +31,8 @@ public class MemberDashboardResponse {
 
     // Total paid across all bills
     private BigDecimal totalPaid;
+    /** Prepaid/overpaid money not yet applied to a bill. */
+    private BigDecimal availableAdvanceCredit;
 
     // Outstanding bills detail
     private List<BillDTO> outstandingBills;

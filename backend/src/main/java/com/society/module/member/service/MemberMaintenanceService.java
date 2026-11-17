@@ -82,6 +82,7 @@ public class MemberMaintenanceService {
                 .totalOutstanding(totalOutstanding)
                 .outstandingBillCount(outstandingBills.size())
                 .totalPaid(totalPaidAllTime)
+                .availableAdvanceCredit(billService.getAvailableAdvanceCredit(unitId))
                 .outstandingBills(outstandingBills)
                 .recentPayments(recentPayments);
 

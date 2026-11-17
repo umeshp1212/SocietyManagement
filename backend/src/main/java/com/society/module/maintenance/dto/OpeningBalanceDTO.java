@@ -26,5 +26,7 @@ public class OpeningBalanceDTO {
     private String enteredBy;
     private BigDecimal paidAmount;
     private BigDecimal balanceAmount;
+    /** Live total the unit owes now (bills' balances; opening balance only if no bills yet). */
+    private BigDecimal currentOutstanding;
     private LocalDateTime createdOn;
 }

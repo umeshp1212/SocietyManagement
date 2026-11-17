@@ -23,6 +23,7 @@ public class OpeningBalanceService {
 
     private final OpeningBalanceRepository openingBalanceRepository;
     private final UnitRepository unitRepository;
+    private final com.society.module.maintenance.repository.MaintenanceBillRepository billRepository;
 
     public List<OpeningBalanceDTO> getAllOpeningBalances() {
         return openingBalanceRepository.findAllByOrderByUnit_UnitNumberAsc().stream()
@@ -158,6 +159,19 @@ public class OpeningBalanceService {
         );
     }
 
+    /**
+     * Same rule as MaintenanceBillService.getTotalOutstanding: once a unit has bills, the opening
+     * balance has been folded into them, so the live figure is the bills' unpaid balance.
+     */
+    private BigDecimal currentOutstanding(OpeningBalance ob) {
+        Long unitId = ob.getUnit().getUnitId();
+        if (!billRepository.existsByUnit_UnitId(unitId)) {
+            return ob.getBalanceAmount() != null ? ob.getBalanceAmount() : BigDecimal.ZERO;
+        }
+        BigDecimal bills = billRepository.getTotalOutstandingByUnit(unitId);
+        return bills != null ? bills : BigDecimal.ZERO;
+    }
+
     private OpeningBalanceDTO mapToDTO(OpeningBalance ob) {
         return OpeningBalanceDTO.builder()
                 .openingBalanceId(ob.getOpeningBalanceId())
@@ -172,6 +186,7 @@ public class OpeningBalanceService {
                 .enteredBy(ob.getEnteredBy())
                 .paidAmount(ob.getPaidAmount())
                 .balanceAmount(ob.getBalanceAmount())
+                .currentOutstanding(currentOutstanding(ob))
                 .createdOn(ob.getCreatedOn())
                 .build();
     }
