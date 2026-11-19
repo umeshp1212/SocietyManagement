@@ -154,19 +154,21 @@ class SuspenseBillApplicationIT {
 
         MaintenanceBill nov = bill(11);
         assertThat(nov.getPaidAmount()).isEqualByComparingTo("3000.00");
-        assertThat(nov.getBalanceAmount()).isEqualByComparingTo("5060.00");
+        // The 60 of interest on the November bill is removed immediately: 8060 - 60 - 3000 = 5000.
+        assertThat(nov.getBalanceAmount()).isEqualByComparingTo("5000.00");
+        assertThat(nov.getInterestArrears()).isEqualByComparingTo("0.00");
         assertThat(nov.getStatus()).isEqualTo(BillStatus.PARTIALLY_PAID);
 
         List<MaintenancePayment> payments = paymentRepository.findByBill_BillId(nov.getBillId());
         assertThat(payments).hasSize(1);
         assertThat(payments.get(0).getPaymentDate()).isEqualTo(LocalDate.of(2026, 4, 15));
 
-        // 1% of min(3000, 6000 principal) = 30/month x 7 months (May..Nov) = 210.
+        // Refund = 30/month x 7 months (May..Nov) = 210; 60 comes off the November bill, 150 is left as credit.
         List<UnitAdvanceCredit> credits = creditRepository
                 .findByUnit_UnitIdAndStatusOrderByReceivedDateAscAdvanceCreditIdAsc(
                         unit.getUnitId(), UnitAdvanceCredit.CreditStatus.AVAILABLE);
         assertThat(credits).hasSize(1);
-        assertThat(credits.get(0).getAmount()).isEqualByComparingTo("210.00");
+        assertThat(credits.get(0).getAmount()).isEqualByComparingTo("150.00");
     }
 
     @Test
@@ -180,11 +182,11 @@ class SuspenseBillApplicationIT {
 
         generate(12);
         MaintenanceBill dec = bill(12);
-        // Nov balance 5060 carried (interest share cleared first by the 3000 paid -> all principal),
-        // + 1% new interest 51 + 2000 charges = 7111, less the 210 refund credit = 6901.
-        assertThat(dec.getPrincipalArrears()).isEqualByComparingTo("5060.00");
-        assertThat(dec.getCreditApplied()).isEqualByComparingTo("210.00");
-        assertThat(dec.getTotalAmount()).isEqualByComparingTo("6901.00");
+        // Nov balance 5000 carried (all principal), + 1% new interest 50 + 2000 charges = 7050,
+        // less the 150 leftover refund credit = 6900.
+        assertThat(dec.getPrincipalArrears()).isEqualByComparingTo("5000.00");
+        assertThat(dec.getCreditApplied()).isEqualByComparingTo("150.00");
+        assertThat(dec.getTotalAmount()).isEqualByComparingTo("6900.00");
     }
 
     @Test

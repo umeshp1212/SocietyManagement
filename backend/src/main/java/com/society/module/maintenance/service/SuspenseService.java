@@ -185,6 +185,26 @@ public class SuspenseService {
         entry.setAppliedPaymentIds(paymentIds.stream().map(String::valueOf).collect(Collectors.joining(",")));
 
         String text = " | Recorded " + paymentIds.size() + " payment(s) of " + entry.getAmount() + " on bills";
+
+        // Take the interest off the LATEST bill right away (so the member sees the correct
+        // payable now). Only what the bill can absorb is removed (never below its unpaid balance
+        // or the interest it carries); any remainder becomes a credit for the next bill.
+        if (refund.compareTo(BigDecimal.ZERO) > 0) {
+            MaintenanceBill latest = billRepository.findById(allBills.get(0).getBillId()).orElse(null);
+            if (latest != null) {
+                BigDecimal balance = latest.getBalanceAmount() != null ? latest.getBalanceAmount() : BigDecimal.ZERO;
+                BigDecimal interestOnBill = latest.getInterestArrears() != null ? latest.getInterestArrears() : BigDecimal.ZERO;
+                BigDecimal onBill = refund.min(balance).min(interestOnBill).max(BigDecimal.ZERO);
+                if (onBill.compareTo(BigDecimal.ZERO) > 0) {
+                    reduceBillInterest(latest, onBill);
+                    entry.setInterestRefundBillId(latest.getBillId());
+                    entry.setInterestRefundBillAmount(onBill);
+                    refund = refund.subtract(onBill);
+                    text += " | Interest " + onBill + " removed from " + latest.getBillMonth() + "/" + latest.getBillYear() + " bill";
+                }
+            }
+        }
+
         if (refund.compareTo(BigDecimal.ZERO) > 0) {
             UnitAdvanceCredit credit = UnitAdvanceCredit.builder()
                     .unit(unit)
@@ -204,6 +224,42 @@ public class SuspenseService {
             text += " | Interest refund credit " + refund + " (applies to the next bill)";
         }
         return text;
+    }
+
+    /** Remove {@code amount} of interest from a bill: interest fields, total and balance move together. */
+    private void reduceBillInterest(MaintenanceBill bill, BigDecimal amount) {
+        BigDecimal interest = nz(bill.getInterestArrears());
+        bill.setInterestArrears(interest.subtract(amount.min(interest)));
+        BigDecimal legacy = nz(bill.getInterestOnArrears());
+        bill.setInterestOnArrears(legacy.subtract(amount.min(legacy)));
+        BigDecimal newInterest = nz(bill.getNewInterest());
+        bill.setNewInterest(newInterest.subtract(amount.min(newInterest)));
+        bill.setTotalAmount(nz(bill.getTotalAmount()).subtract(amount).max(BigDecimal.ZERO));
+        BigDecimal newBalance = nz(bill.getBalanceAmount()).subtract(amount).max(BigDecimal.ZERO);
+        bill.setBalanceAmount(newBalance);
+        if (newBalance.compareTo(BigDecimal.ZERO) <= 0) {
+            bill.setStatus(MaintenanceBill.BillStatus.PAID);
+        }
+        billRepository.save(bill);
+    }
+
+    /** Put back interest removed by {@link #reduceBillInterest} (used when an assignment is reversed). */
+    private void restoreBillInterest(MaintenanceBill bill, BigDecimal amount) {
+        bill.setInterestArrears(nz(bill.getInterestArrears()).add(amount));
+        bill.setInterestOnArrears(nz(bill.getInterestOnArrears()).add(amount));
+        bill.setNewInterest(nz(bill.getNewInterest()).add(amount));
+        bill.setTotalAmount(nz(bill.getTotalAmount()).add(amount));
+        bill.setBalanceAmount(nz(bill.getTotalAmount()).subtract(nz(bill.getPaidAmount())).max(BigDecimal.ZERO));
+        if (bill.getStatus() == MaintenanceBill.BillStatus.PAID
+                && bill.getBalanceAmount().compareTo(BigDecimal.ZERO) > 0) {
+            bill.setStatus(nz(bill.getPaidAmount()).compareTo(BigDecimal.ZERO) > 0
+                    ? MaintenanceBill.BillStatus.PARTIALLY_PAID : MaintenanceBill.BillStatus.UNPAID);
+        }
+        billRepository.save(bill);
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
     }
 
     /**
@@ -257,6 +313,12 @@ public class SuspenseService {
             throw new BusinessException("The interest refund from this assignment has already been applied "
                     + "to a bill, so it can't be reversed automatically. Adjust that bill first.");
         }
+        // Put the interest back on the bill first, so reversing the payments below recomputes
+        // its balance from the restored total.
+        if (entry.getInterestRefundBillId() != null && entry.getInterestRefundBillAmount() != null) {
+            billRepository.findById(entry.getInterestRefundBillId())
+                    .ifPresent(b -> restoreBillInterest(b, entry.getInterestRefundBillAmount()));
+        }
         for (String id : ids.split(",")) {
             if (!id.isBlank()) {
                 billService.reversePayment(Long.valueOf(id.trim()), "Suspense assignment reversed: " + reason);
@@ -272,6 +334,8 @@ public class SuspenseService {
         entry.setAppliedPaymentIds(null);
         entry.setInterestRefundCreditId(null);
         entry.setInterestRefundAmount(null);
+        entry.setInterestRefundBillId(null);
+        entry.setInterestRefundBillAmount(null);
     }
 
     // ==================== REVERSE ====================

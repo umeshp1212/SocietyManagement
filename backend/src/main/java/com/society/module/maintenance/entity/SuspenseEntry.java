@@ -80,6 +80,14 @@ public class SuspenseEntry extends BaseEntity {
     @Column(name = "interest_refund_amount", precision = 12, scale = 2)
     private BigDecimal interestRefundAmount;
 
+    /** Bill the interest was removed from immediately (null if none). */
+    @Column(name = "interest_refund_bill_id")
+    private Long interestRefundBillId;
+
+    /** Interest amount removed from that bill. */
+    @Column(name = "interest_refund_bill_amount", precision = 12, scale = 2)
+    private BigDecimal interestRefundBillAmount;
+
     // Audit trail
     @OneToMany(mappedBy = "suspenseEntry", cascade = CascadeType.ALL)
     @Builder.Default
