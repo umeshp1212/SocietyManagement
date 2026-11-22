@@ -259,6 +259,14 @@ interface UnitOption {
                    placeholder="e.g., Owner confirmed this is their NEFT payment">
           </mat-form-field>
 
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Interest outstanding when received (optional)</mat-label>
+            <input matInput type="number" min="0" [(ngModel)]="assignForm.interestOutstandingOnReceipt"
+                   [ngModelOptions]="{ standalone: true }"
+                   placeholder="From the old bill, e.g. 311">
+            <mat-hint>Payment clears this interest first; only the rest is refunded interest.</mat-hint>
+          </mat-form-field>
+
           <mat-checkbox [(ngModel)]="assignForm.applyToOpeningBalance" color="primary">
             Apply to Opening Balance (reduces legacy arrears)
           </mat-checkbox>
@@ -477,7 +485,7 @@ export class SuspenseAccountComponent implements OnInit {
   selectedEntry: SuspenseEntry | null = null;
 
   createForm = { amount: null as number | null, receivedDate: '', paymentMode: '', referenceNumber: '', description: '' };
-  assignForm = { unitId: null as number | null, remarks: '', applyToOpeningBalance: false };
+  assignForm = { unitId: null as number | null, remarks: '', applyToOpeningBalance: false, interestOutstandingOnReceipt: null as number | null };
   reverseForm = { reason: '' };
 
   private apiUrl = environment.apiUrl;
@@ -545,7 +553,7 @@ export class SuspenseAccountComponent implements OnInit {
   // ===== ASSIGN =====
   openAssignDialog(entry: SuspenseEntry): void {
     this.selectedEntry = entry;
-    this.assignForm = { unitId: null, remarks: '', applyToOpeningBalance: false };
+    this.assignForm = { unitId: null, remarks: '', applyToOpeningBalance: false, interestOutstandingOnReceipt: null };
     this.showAssignDialog = true;
     this.showReverseDialog = false;
     this.showAuditTrail = false;

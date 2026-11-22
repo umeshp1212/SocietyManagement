@@ -96,6 +96,18 @@ public class SuspenseService {
     @Transactional
     public SuspenseEntryDTO assignToUnit(Long suspenseId, Long unitId, String remarks,
                                           boolean applyToOpeningBalance, String assignedBy) {
+        return assignToUnit(suspenseId, unitId, remarks, applyToOpeningBalance, null, assignedBy);
+    }
+
+    /**
+     * @param interestOutstandingOnReceipt optional: old interest the unit owed when the money was
+     *        received (from the accountant's bill). A payment clears interest first, so only
+     *        (amount - this) stops earning interest and is refunded.
+     */
+    @Transactional
+    public SuspenseEntryDTO assignToUnit(Long suspenseId, Long unitId, String remarks,
+                                          boolean applyToOpeningBalance,
+                                          BigDecimal interestOutstandingOnReceipt, String assignedBy) {
         SuspenseEntry entry = suspenseEntryRepository.findById(suspenseId)
                 .orElseThrow(() -> new ResourceNotFoundException("SuspenseEntry", "suspenseId", suspenseId));
 
@@ -123,7 +135,7 @@ public class SuspenseService {
             // when the money was actually received. Also refund the interest that kept accruing
             // because the payment was sitting in suspense.
             entry.setApplyToOpeningBalance(false);
-            outcome = applyToBills(entry, unit);
+            outcome = applyToBills(entry, unit, interestOutstandingOnReceipt);
             entry = suspenseEntryRepository.save(entry);
         } else if (applyToOpeningBalance) {
             // No bills yet: reduce the unit's legacy arrears (opening balance) as before.
@@ -144,7 +156,7 @@ public class SuspenseService {
      * first (any leftover beyond the dues becomes advance credit via the normal payment flow),
      * then create the interest-refund credit. Returns a short text for the audit trail.
      */
-    private String applyToBills(SuspenseEntry entry, Unit unit) {
+    private String applyToBills(SuspenseEntry entry, Unit unit, BigDecimal interestOutstandingOnReceipt) {
         Long unitId = unit.getUnitId();
         List<MaintenanceBill> allBills = billRepository.findByUnit_UnitIdOrderByBillYearDescBillMonthDesc(unitId);
         List<MaintenanceBill> targets = new ArrayList<>(billRepository.findOutstandingByUnit(unitId));
@@ -155,7 +167,7 @@ public class SuspenseService {
         }
 
         // Interest refund is based on the latest bill's carried principal, computed before payments.
-        BigDecimal refund = computeInterestRefund(entry, allBills);
+        BigDecimal refund = computeInterestRefund(entry, allBills, interestOutstandingOnReceipt);
 
         String mode = toBillPaymentMode(entry);
         BigDecimal remaining = entry.getAmount();
@@ -267,7 +279,8 @@ public class SuspenseService {
      * money was received, up to the latest generated bill, the monthly interest on the amount
      * (capped at the principal that interest was actually charged on).
      */
-    private BigDecimal computeInterestRefund(SuspenseEntry entry, List<MaintenanceBill> billsNewestFirst) {
+    private BigDecimal computeInterestRefund(SuspenseEntry entry, List<MaintenanceBill> billsNewestFirst,
+                                             BigDecimal interestOutstandingOnReceipt) {
         BigDecimal rate = societySettingsService.getSettings().getInterestRatePercent();
         if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0 || billsNewestFirst.isEmpty()) {
             return BigDecimal.ZERO;
@@ -279,7 +292,10 @@ public class SuspenseService {
         if (months <= 0) return BigDecimal.ZERO;
 
         BigDecimal principal = latest.getPrincipalArrears() != null ? latest.getPrincipalArrears() : BigDecimal.ZERO;
-        BigDecimal base = entry.getAmount().min(principal);
+        // Payments clear old interest first; only the rest reduces the principal that earns interest.
+        BigDecimal clearedInterest = interestOutstandingOnReceipt != null
+                ? interestOutstandingOnReceipt.max(BigDecimal.ZERO) : BigDecimal.ZERO;
+        BigDecimal base = entry.getAmount().subtract(clearedInterest).min(principal);
         if (base.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
 
         BigDecimal monthly = base.multiply(rate)

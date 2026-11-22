@@ -87,8 +87,12 @@ public class SuspenseController {
         boolean applyToOpeningBalance = body.get("applyToOpeningBalance") != null
                 && Boolean.parseBoolean(body.get("applyToOpeningBalance").toString());
 
+        Object interestRaw = body.get("interestOutstandingOnReceipt");
+        java.math.BigDecimal interestOutstanding = interestRaw != null && !interestRaw.toString().isBlank()
+                ? new java.math.BigDecimal(interestRaw.toString()) : null;
+
         SuspenseEntryDTO result = suspenseService.assignToUnit(
-                suspenseId, unitId, remarks, applyToOpeningBalance, authentication.getName());
+                suspenseId, unitId, remarks, applyToOpeningBalance, interestOutstanding, authentication.getName());
         return ResponseEntity.ok(ApiResponse.success("Suspense entry assigned to unit", result));
     }
 
