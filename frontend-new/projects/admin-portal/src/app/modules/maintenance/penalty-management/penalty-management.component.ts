@@ -155,6 +155,11 @@ import { BackButtonComponent } from '@shared/components/back-button';
                         *ngIf="(p.status === 'PENDING' || p.status === 'BILLED') && canManage()">
                   <mat-icon>cancel</mat-icon>
                 </button>
+                <button mat-icon-button color="primary" (click)="cancelPenalty(p.penaltyId)"
+                        matTooltip="Remove this cancelled penalty from its bill (if still on the bill)"
+                        *ngIf="p.status === 'CANCELLED' && canManage()">
+                  <mat-icon>remove_circle_outline</mat-icon>
+                </button>
               </td>
             </ng-container>
 
@@ -270,9 +275,12 @@ export class PenaltyManagementComponent implements OnInit {
     this.maintenanceService.cancelPenalty(penaltyId).subscribe({
       next: (res) => {
         if (res.success) {
-          this.snackBar.open('Penalty cancelled', 'Close', { duration: 3000 });
+          this.snackBar.open('Penalty cancelled and removed from the bill (if billed)', 'Close', { duration: 4000 });
           this.loadPenalties();
         }
+      },
+      error: (err) => {
+        this.snackBar.open(err.error?.message || 'Failed to cancel penalty', 'Close', { duration: 5000 });
       }
     });
   }
