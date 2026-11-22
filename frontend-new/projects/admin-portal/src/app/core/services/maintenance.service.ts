@@ -77,8 +77,9 @@ export class MaintenanceService {
   }
 
   generateBills(month: number, year: number, dueDayOfMonth?: number, regenerate?: boolean,
-                adjustments?: { [unitId: number]: number }): Observable<ApiResponse<any>> {
+                adjustments?: { [unitId: number]: number }, unitId?: number | null): Observable<ApiResponse<any>> {
     const body: any = { month, year };
+    if (unitId) body.unitId = unitId;
     if (dueDayOfMonth) body.dueDayOfMonth = dueDayOfMonth;
     if (regenerate) body.regenerate = true;
     if (adjustments && Object.keys(adjustments).length > 0) body.adjustments = adjustments;

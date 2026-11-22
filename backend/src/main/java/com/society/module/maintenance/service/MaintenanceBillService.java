@@ -125,6 +125,14 @@ public class MaintenanceBillService {
     @Transactional
     public Map<String, Object> generateMonthlyBills(GenerateBillsRequest request) {
         List<Unit> units = unitRepository.findAll();
+        if (request.getUnitId() != null) {
+            units = units.stream()
+                    .filter(u -> request.getUnitId().equals(u.getUnitId()))
+                    .collect(java.util.stream.Collectors.toList());
+            if (units.isEmpty()) {
+                throw new BusinessException("Unit not found: " + request.getUnitId());
+            }
+        }
         List<MaintenanceChargeConfig> activeCharges = chargeConfigRepository.findByIsActiveTrueOrderByDisplayOrderAsc();
         // Pre-load unit->tags once (mirroring how activeCharges is loaded once) so tag-scoped
         // charges can be filtered per unit without an N+1 query during the unit loop.

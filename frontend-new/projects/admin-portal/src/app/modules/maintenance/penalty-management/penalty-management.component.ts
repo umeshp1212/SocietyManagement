@@ -143,7 +143,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
               <td mat-cell *matCellDef="let p">
                 <button mat-icon-button color="warn" (click)="cancelPenalty(p.penaltyId)"
                         matTooltip="Cancel penalty"
-                        *ngIf="p.status === 'PENDING' && canManage()">
+                        *ngIf="(p.status === 'PENDING' || p.status === 'BILLED') && canManage()">
                   <mat-icon>cancel</mat-icon>
                 </button>
               </td>

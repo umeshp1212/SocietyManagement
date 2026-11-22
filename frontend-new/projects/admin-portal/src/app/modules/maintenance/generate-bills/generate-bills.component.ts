@@ -68,6 +68,20 @@ interface AdjustmentRow {
               <input matInput type="number" [(ngModel)]="dueDay" name="dueDay" min="1" max="28">
             </mat-form-field>
 
+            <app-searchable-select
+              [(ngModel)]="targetUnitId"
+              name="targetUnit"
+              label="Unit (optional - leave empty for all units)"
+              placeholder="Search unit or owner..."
+              [options]="units"
+              valueKey="unitId"
+              [labelWith]="unitLabel">
+            </app-searchable-select>
+            <p class="hint-text" *ngIf="targetUnitId">
+              Only the selected unit's bill for this month will be {{ regenerate ? 'regenerated' : 'generated' }}.
+              Other units are not touched.
+            </p>
+
             <mat-checkbox [(ngModel)]="regenerate" name="regenerate" color="warn">
               Regenerate existing unpaid bills (recalculate with current charges)
             </mat-checkbox>
@@ -153,6 +167,7 @@ export class GenerateBillsComponent implements OnInit {
   selectedYear: number;
   dueDay = 10;
   regenerate = false;
+  targetUnitId: number | null = null;
   loading = false;
   result: any = null;
   months = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -212,7 +227,7 @@ export class GenerateBillsComponent implements OnInit {
     this.result = null;
     const adjustments = this.buildAdjustments();
     this.maintenanceService.generateBills(this.selectedMonth, this.selectedYear, this.dueDay,
-        this.regenerate, adjustments)
+        this.regenerate, adjustments, this.targetUnitId)
       .subscribe({
         next: res => {
           if (res.success) {

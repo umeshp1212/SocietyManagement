@@ -63,8 +63,8 @@ public class PenaltyService {
         Penalty penalty = penaltyRepository.findById(penaltyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Penalty", "penaltyId", penaltyId));
 
-        if (penalty.getStatus() == PenaltyStatus.BILLED) {
-            throw new BusinessException("Cannot cancel a penalty that is already billed");
+        if (penalty.getStatus() == PenaltyStatus.CANCELLED) {
+            throw new BusinessException("Penalty is already cancelled");
         }
 
         penalty.setStatus(PenaltyStatus.CANCELLED);

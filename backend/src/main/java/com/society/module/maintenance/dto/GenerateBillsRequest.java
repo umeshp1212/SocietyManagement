@@ -28,6 +28,12 @@ public class GenerateBillsRequest {
     private Boolean regenerate;
 
     /**
+     * Optional. When set, only this unit's bill is generated/regenerated for the month;
+     * all other units are left untouched.
+     */
+    private Long unitId;
+
+    /**
      * Optional per-unit "Less: Adjustment" credits/waivers to apply to this run's bills,
      * keyed by unitId. A unit absent from the map (or null map) gets adjustment = 0.
      */
