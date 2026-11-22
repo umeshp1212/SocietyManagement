@@ -18,4 +18,6 @@ public interface PenaltyRepository extends JpaRepository<Penalty, Long> {
             Long unitId, int month, int year, PenaltyStatus status);
 
     List<Penalty> findByStatusOrderByCreatedOnDesc(PenaltyStatus status);
+
+    List<Penalty> findAllByOrderByCreatedOnDesc();
 }

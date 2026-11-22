@@ -48,6 +48,12 @@ public class PenaltyService {
                 .stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
+    /** Full penalty history (all statuses), newest first. */
+    public List<PenaltyDTO> getAllPenalties() {
+        return penaltyRepository.findAllByOrderByCreatedOnDesc()
+                .stream().map(this::mapToDTO).collect(Collectors.toList());
+    }
+
     public List<PenaltyDTO> getPendingPenalties() {
         return penaltyRepository.findByStatusOrderByCreatedOnDesc(PenaltyStatus.PENDING)
                 .stream().map(this::mapToDTO).collect(Collectors.toList());

@@ -32,6 +32,11 @@ public class PenaltyController {
         return ResponseEntity.ok(ApiResponse.success(penalties));
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<PenaltyDTO>>> getAllPenalties() {
+        return ResponseEntity.ok(ApiResponse.success(penaltyService.getAllPenalties()));
+    }
+
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<PenaltyDTO>>> getPendingPenalties() {
         List<PenaltyDTO> penalties = penaltyService.getPendingPenalties();

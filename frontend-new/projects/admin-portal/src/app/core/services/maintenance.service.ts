@@ -214,6 +214,10 @@ export class MaintenanceService {
     return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/penalties/unit/${unitId}`);
   }
 
+  getAllPenalties(): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/penalties/all`);
+  }
+
   getPendingPenalties(): Observable<ApiResponse<any[]>> {
     return this.http.get<ApiResponse<any[]>>(`${this.apiUrl}/penalties/pending`);
   }

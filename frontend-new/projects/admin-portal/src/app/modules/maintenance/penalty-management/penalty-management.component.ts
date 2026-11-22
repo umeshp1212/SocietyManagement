@@ -107,11 +107,20 @@ import { BackButtonComponent } from '@shared/components/back-button';
       <!-- Pending Penalties Table -->
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Pending Penalties</mat-card-title>
-          <mat-card-subtitle>These will be included in the next bill generation</mat-card-subtitle>
+          <mat-card-title>Penalty History</mat-card-title>
+          <mat-card-subtitle>Pending penalties are included in the next bill generation</mat-card-subtitle>
         </mat-card-header>
         <mat-card-content>
-          <table mat-table [dataSource]="penalties" class="mat-elevation-z1">
+          <mat-form-field appearance="outline" style="width:220px; margin-top:12px;">
+            <mat-label>Status</mat-label>
+            <mat-select [value]="statusFilter" (selectionChange)="statusFilter = $event.value">
+              <mat-option value="ALL">All</mat-option>
+              <mat-option value="PENDING">Pending</mat-option>
+              <mat-option value="BILLED">Billed</mat-option>
+              <mat-option value="CANCELLED">Cancelled</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <table mat-table [dataSource]="filteredPenalties" class="mat-elevation-z1">
             <ng-container matColumnDef="unitNumber">
               <th mat-header-cell *matHeaderCellDef>Unit</th>
               <td mat-cell *matCellDef="let p">{{ p.unitNumber }}</td>
@@ -154,7 +163,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
 
             <tr class="mat-row" *matNoDataRow>
               <td class="mat-cell" [attr.colspan]="displayedColumns.length" style="text-align:center; padding:24px; color:#666;">
-                No pending penalties.
+                No penalties found.
               </td>
             </tr>
           </table>
@@ -182,6 +191,7 @@ import { BackButtonComponent } from '@shared/components/back-button';
 export class PenaltyManagementComponent implements OnInit {
   penaltyForm!: FormGroup;
   penalties: any[] = [];
+  statusFilter = 'ALL';
   units: any[] = [];
 
   /** Display label for a unit option: unit number + owner name. */
@@ -228,9 +238,15 @@ export class PenaltyManagementComponent implements OnInit {
   }
 
   loadPenalties(): void {
-    this.maintenanceService.getPendingPenalties().subscribe(res => {
+    this.maintenanceService.getAllPenalties().subscribe(res => {
       if (res.success) this.penalties = res.data;
     });
+  }
+
+  get filteredPenalties(): any[] {
+    return this.statusFilter === 'ALL'
+      ? this.penalties
+      : this.penalties.filter(p => p.status === this.statusFilter);
   }
 
   onSubmit(): void {
