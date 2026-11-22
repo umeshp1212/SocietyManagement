@@ -193,21 +193,29 @@ class AccessScopeResolverTest {
     }
 
     @Test
-    void committeeRoles_resolveToSocietyWideScope() {
-        for (String role : Set.of("ROLE_CHAIRMAN", "ROLE_SECRETARY", "ROLE_TREASURER")) {
-            AccessScope scope = resolver.resolve(authWithAuthorities(role));
+    void viewAllPermission_resolvesToSocietyWideScope_forAnyRole() {
+        for (String role : Set.of("ROLE_CHAIRMAN", "ROLE_TREASURER", "ROLE_MANAGER")) {
+            AccessScope scope = resolver.resolve(authWithAuthorities(role, "TRANSACTION_VIEW_ALL"));
             assertThat(scope.societyWide())
-                    .as("role %s should be society-wide", role)
+                    .as("role %s with TRANSACTION_VIEW_ALL should be society-wide", role)
                     .isTrue();
         }
     }
 
     @Test
+    void committeeRoleWithoutViewAllPermission_isMemberScoped() {
+        // Scope is permission driven: the role name alone grants nothing.
+        AccessScope scope = resolver.resolve(authWithAuthorities("ROLE_CHAIRMAN", "TRANSACTION_VIEW"));
+
+        assertThat(scope.societyWide()).isFalse();
+    }
+
+    @Test
     void societyWideRoleTakesPrecedenceOverMemberLinks() {
-        // A caller holding both a member role and a society-wide role is
+        // A caller holding both a member role and the view-all permission is
         // classified society-wide and never triggers a user/unit lookup.
         AccessScope scope = resolver.resolve(
-                authWithAuthorities("ROLE_MEMBER", "ROLE_TREASURER"));
+                authWithAuthorities("ROLE_MEMBER", "TRANSACTION_VIEW_ALL"));
 
         assertThat(scope.societyWide()).isTrue();
         assertThat(scope.unitIds()).isEmpty();

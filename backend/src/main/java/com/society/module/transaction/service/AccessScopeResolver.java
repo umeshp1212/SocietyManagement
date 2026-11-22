@@ -16,11 +16,11 @@ import java.util.Set;
 /**
  * Resolves the data {@link AccessScope} for an authenticated caller.
  *
- * <p>Society-wide roles (super admin plus configured committee roles) may access
- * all transactions. Every other authenticated principal is mapped to the set of
- * unit IDs they are linked to as an owner and/or tenant; a member with no linked
- * units resolves to an empty member scope (which yields an empty result set
- * downstream, not an error).
+ * <p>Society-wide access is PERMISSION driven: super admin, or any role that has been assigned
+ * the {@code TRANSACTION_VIEW_ALL} permission (via the role-permission screen), may access all
+ * transactions. Every other authenticated principal is mapped to the set of unit IDs they are
+ * linked to as an owner and/or tenant; a member with no linked units resolves to an empty member
+ * scope (which yields an empty result set downstream, not an error).
  *
  * <p>The society-wide predicate is centralized in {@link #isSocietyWide(Authentication)}
  * so list and detail flows classify callers identically.
@@ -29,16 +29,13 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AccessScopeResolver {
 
-    /**
-     * Authorities (Spring Security {@code ROLE_}-prefixed role names) that grant
-     * society-wide access. Kept as a single constant set so the society-wide
-     * predicate is centrally configurable.
-     */
+    /** Permission that grants society-wide (all units) transaction access. */
+    public static final String TRANSACTION_VIEW_ALL = "TRANSACTION_VIEW_ALL";
+
+    /** Authorities that grant society-wide access: super admin role, or the permission. */
     private static final Set<String> SOCIETY_WIDE_AUTHORITIES = Set.of(
             "ROLE_SUPER_ADMIN",
-            "ROLE_CHAIRMAN",
-            "ROLE_SECRETARY",
-            "ROLE_TREASURER"
+            TRANSACTION_VIEW_ALL
     );
 
     private final UserRepository userRepository;
@@ -49,7 +46,7 @@ public class AccessScopeResolver {
      * Resolves the access scope for the given authenticated caller.
      *
      * @param auth the authenticated principal
-     * @return a society-wide scope for administrators/committee roles, otherwise a
+     * @return a society-wide scope for super admin / holders of TRANSACTION_VIEW_ALL, otherwise a
      *         member scope limited to the caller's linked unit IDs
      * @throws AccessDeniedException when an authenticated principal maps to no
      *                               {@link User} record
@@ -79,8 +76,8 @@ public class AccessScopeResolver {
     }
 
     /**
-     * Centralized society-wide predicate: {@code true} when the caller holds any
-     * configured society-wide authority (super admin or a committee role).
+     * Centralized society-wide predicate: {@code true} when the caller is super admin or holds
+     * the {@code TRANSACTION_VIEW_ALL} permission.
      *
      * @param auth the authenticated principal (may be {@code null})
      * @return whether the caller has unrestricted, society-wide access

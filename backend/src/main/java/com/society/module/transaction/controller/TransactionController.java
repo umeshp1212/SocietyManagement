@@ -84,7 +84,7 @@ public class TransactionController {
      * one row per settlement cycle with amount and units involved, plus payment-level detail.
      */
     @GetMapping("/export")
-    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TRANSACTION_VIEW')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasAuthority('TRANSACTION_EXPORT')")
     public ResponseEntity<byte[]> export(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,

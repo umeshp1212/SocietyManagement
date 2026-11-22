@@ -40,7 +40,6 @@ public class TransactionExportService {
     private final CashfreeService cashfreeService;
     private final MaintenancePaymentRepository paymentRepository;
     private final SocietySettingsService settingsService;
-    private final AccessScopeResolver accessScopeResolver;
 
     /** One Cashfree reconciliation row matched to our payment (if any). */
     private static final class Line {
@@ -63,9 +62,7 @@ public class TransactionExportService {
         if (start.isAfter(end)) {
             throw new BusinessException("Invalid date range: start date " + start + " is after end date " + end);
         }
-        if (!accessScopeResolver.resolve(auth).societyWide()) {
-            throw new BusinessException("Only administrators can download the settlement report");
-        }
+        // Access is controlled by the TRANSACTION_EXPORT permission on the controller.
 
         List<Line> lines = new ArrayList<>();
         for (Map<String, Object> row : cashfreeService.fetchSettlementRecon(start, end)) {

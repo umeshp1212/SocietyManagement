@@ -72,7 +72,8 @@ describe('TransactionListComponent', () => {
       'listTransactions',
       'getTransaction',
     ]);
-    authService = jasmine.createSpyObj<AuthService>('AuthService', ['hasAnyRole']);
+    authService = jasmine.createSpyObj<AuthService>('AuthService', ['hasAnyRole', 'hasPermission']);
+    authService.hasPermission.and.returnValue(false);
     dialog = jasmine.createSpyObj<MatDialog>('MatDialog', ['open']);
 
     // Default: member (non-admin), so the deterministic 50-based page sizing applies.

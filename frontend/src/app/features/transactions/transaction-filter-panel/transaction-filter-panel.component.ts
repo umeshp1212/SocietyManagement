@@ -155,8 +155,6 @@ export class TransactionFilterPanelComponent implements OnInit {
   /** Max length for the reference filter (Req 9.3). Server authoritative. */
   readonly REFERENCE_MAX = 100;
 
-  /** Society-wide roles that see the admin-only filters (mirrors backend scope). */
-  private static readonly ADMIN_ROLES = ['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER'];
 
   readonly paymentModes: PaymentMode[] = [
     'CASHFREE_LINK', 'CASHFREE_QR', 'RAZORPAY', 'UPI', 'GPAY', 'PHONEPE',
@@ -192,7 +190,8 @@ export class TransactionFilterPanelComponent implements OnInit {
   ngOnInit(): void {
     // Derive role info from the app's existing auth state unless explicitly set.
     if (!this.isAdmin) {
-      this.isAdmin = this.authService.hasAnyRole(TransactionFilterPanelComponent.ADMIN_ROLES);
+      this.isAdmin = this.authService.hasAnyRole(['SUPER_ADMIN'])
+        || this.authService.hasPermission('TRANSACTION_VIEW_ALL');
     }
 
     this.filterForm = this.fb.group(

@@ -64,6 +64,12 @@ public class DataInitializer implements CommandLineRunner {
     /** Member-facing roles that view only their own units' transactions. */
     private static final List<String> MEMBER_ROLES = List.of("OWNER", "TENANT");
 
+    /** Permission: see ALL units' transactions (otherwise only the caller's own units). */
+    private static final String TRANSACTION_VIEW_ALL = "TRANSACTION_VIEW_ALL";
+
+    /** Permission: download the Cashfree settlement Excel report from the Transactions page. */
+    private static final String TRANSACTION_EXPORT = "TRANSACTION_EXPORT";
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PermissionRepository permissionRepository;
@@ -72,6 +78,10 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         seedTransactionViewPermission();
+        seedPermissionOnce(TRANSACTION_VIEW_ALL, "transaction",
+                "View ALL units' transactions on the Transaction Page (otherwise own units only)");
+        seedPermissionOnce(TRANSACTION_EXPORT, "transaction",
+                "Download the Cashfree settlement Excel report from the Transaction Page");
         seedPaymentReassignPermission();
         seedOwnerEmailSendPermission();
         seedVisitorGatePermissions();
@@ -173,6 +183,31 @@ public class DataInitializer implements CommandLineRunner {
                 roleRepository.save(role);
                 log.info("Granted {} to role {}.", TRANSACTION_VIEW, roleName);
             }
+        }
+    }
+
+    /**
+     * Creates a permission if it does not exist and, ONLY on that first creation, grants it to the
+     * society-wide roles (keeps their current behaviour). After that the permission is managed
+     * entirely from the role-permission screen: removing it from a role is not undone on restart,
+     * and it can be granted to any other role (e.g. MANAGER).
+     */
+    private void seedPermissionOnce(String name, String module, String description) {
+        if (permissionRepository.findByPermissionName(name).isPresent()) {
+            return;
+        }
+        Permission permission = permissionRepository.save(Permission.builder()
+                .permissionName(name)
+                .module(module)
+                .description(description)
+                .build());
+        log.info("Creating {} permission.", name);
+        for (String roleName : SOCIETY_WIDE_ROLES) {
+            roleRepository.findByRoleName(roleName).ifPresent(role -> {
+                role.getPermissions().add(permission);
+                roleRepository.save(role);
+                log.info("Granted {} to role {}.", name, roleName);
+            });
         }
     }
 

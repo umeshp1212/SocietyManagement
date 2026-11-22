@@ -19,12 +19,15 @@ import { TransactionFilter } from '../models/transaction.models';
 describe('TransactionFilterPanelComponent', () => {
   let component: TransactionFilterPanelComponent;
   let fixture: ComponentFixture<TransactionFilterPanelComponent>;
-  let authServiceStub: { hasAnyRole: jasmine.Spy };
+  let authServiceStub: { hasAnyRole: jasmine.Spy; hasPermission: jasmine.Spy };
 
   beforeEach(async () => {
     // Default the stub to a non-admin so admin-only fields stay hidden unless a
     // test opts in via the isAdmin input.
-    authServiceStub = { hasAnyRole: jasmine.createSpy('hasAnyRole').and.returnValue(false) };
+    authServiceStub = {
+      hasAnyRole: jasmine.createSpy('hasAnyRole').and.returnValue(false),
+      hasPermission: jasmine.createSpy('hasPermission').and.returnValue(false),
+    };
 
     await TestBed.configureTestingModule({
       imports: [TransactionFilterPanelComponent],

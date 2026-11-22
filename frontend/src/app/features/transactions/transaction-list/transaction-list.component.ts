@@ -193,8 +193,6 @@ import {
 })
 export class TransactionListComponent implements OnInit {
 
-  /** Society-wide roles that receive admin behaviour (mirrors the filter panel). */
-  private static readonly ADMIN_ROLES = ['SUPER_ADMIN', 'CHAIRMAN', 'SECRETARY', 'TREASURER'];
 
   /** Columns rendered by the mat-table, in display order (Req 1.2). */
   readonly displayedColumns: string[] = [
@@ -205,8 +203,11 @@ export class TransactionListComponent implements OnInit {
   /** Explicit placeholder for blank/absent cell values. */
   private readonly placeholder = '\u2014'; // em dash "—"
 
-  /** Whether the current caller has a society-wide role. */
+  /** Whether the caller may see all units (TRANSACTION_VIEW_ALL permission). */
   isAdmin = false;
+
+  /** Whether the caller may download the settlement report (TRANSACTION_EXPORT permission). */
+  canExport = false;
 
   /** Rows currently displayed. Retained across errors (Req 1.7 / 2.6). */
   dataSource: TransactionSummary[] = [];
@@ -233,7 +234,11 @@ export class TransactionListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.isAdmin = this.authService.hasAnyRole(TransactionListComponent.ADMIN_ROLES);
+    // Permission driven (role-permission screen): TRANSACTION_VIEW_ALL = all units + admin filters,
+    // TRANSACTION_EXPORT = settlement Excel report. SUPER_ADMIN always has both.
+    const superAdmin = this.authService.hasAnyRole(['SUPER_ADMIN']);
+    this.isAdmin = superAdmin || this.authService.hasPermission('TRANSACTION_VIEW_ALL');
+    this.canExport = superAdmin || this.authService.hasPermission('TRANSACTION_EXPORT');
     // Page-size options reflect role: 25-based for admin, 50-based for member.
     if (this.isAdmin) {
       this.pageSizeOptions = [25, 50, 100];
